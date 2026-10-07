@@ -1,0 +1,10 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', 'Noto Sans Devanagari', sans-serif;
+  --color-gov-blue: #003893;
+  --color-gov-red: #dc143c;
+  --color-agri-green: #15803d;
+}
+body { font-family: var(--font-sans); background: #f8fafc; color: #0f172a; }
