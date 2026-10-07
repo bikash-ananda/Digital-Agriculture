@@ -1,21 +1,57 @@
 ﻿import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import RequirePermission from './components/common/RequirePermission';
 import PublicLayout from './components/layout/PublicLayout';
+import DashboardLayout from './components/layout/DashboardLayout';
 import Home from './pages/public/Home';
+import About from './pages/public/About';
+import Staff from './pages/public/Staff';
+import Contact from './pages/public/Contact';
 import Placeholder from './pages/public/Placeholder';
 import Login from './pages/auth/Login';
-
-const pages = ['about','notices','programs','knowledge','smart-farming','learning','downloads','gallery','contact'];
+import DashboardHome from './pages/dashboard/DashboardHome';
+import Profile from './pages/dashboard/Profile';
+import ModulePlaceholder from './pages/dashboard/ModulePlaceholder';
+import FarmerList from './pages/dashboard/farmers/FarmerList';
+import FarmerForm from './pages/dashboard/farmers/FarmerForm';
+import FarmerDetail from './pages/dashboard/farmers/FarmerDetail';
+import SmartFarmingOverview from './pages/smartfarming/SmartFarmingOverview';
+import SiteDetail from './pages/smartfarming/SiteDetail';
+import DeviceDetail from './pages/smartfarming/DeviceDetail';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          {pages.map(p => <Route key={p} path={`/${p}`} element={<Placeholder />} />)}
-        </Route>
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/staff" element={<Staff />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login />} />
+          </Route>
+
+          <Route path="/app" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+            <Route index element={<DashboardHome />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="farmers" element={<RequirePermission perm="farmers.view"><FarmerList /></RequirePermission>} />
+            <Route path="farmers/new" element={<RequirePermission perm="farmers.create"><FarmerForm /></RequirePermission>} />
+            <Route path="farmers/:id" element={<RequirePermission perm="farmers.view"><FarmerDetail /></RequirePermission>} />
+            <Route path="farmers/:id/edit" element={<RequirePermission perm="farmers.update"><FarmerForm /></RequirePermission>} />
+            <Route path="smart-farming" element={<RequirePermission perm="smart_farming.view"><SmartFarmingOverview /></RequirePermission>} />
+            <Route path="smart-farming/sites/:id" element={<RequirePermission perm="smart_farming.view"><SiteDetail /></RequirePermission>} />
+            <Route path="smart-farming/devices/:id" element={<RequirePermission perm="devices.view"><DeviceDetail /></RequirePermission>} />
+            <Route path="*" element={<ModulePlaceholder />} />
+          </Route>
+
+          <Route element={<PublicLayout />}>
+            <Route path="*" element={<Placeholder />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
+

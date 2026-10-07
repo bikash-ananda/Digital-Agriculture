@@ -6,6 +6,11 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+const authRoutes = require('./routes/authRoutes');
+const farmerRoutes = require('./routes/farmerRoutes');
+const lookupRoutes = require('./routes/lookupRoutes');
+const siteRoutes = require('./routes/siteRoutes');
+
 const app = express();
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
@@ -18,6 +23,11 @@ app.get('/api/health', (req, res) =>
   res.json({ status: 'ok', service: 'Digital Agriculture API', time: new Date().toISOString() })
 );
 
+app.use('/api/auth', authRoutes);
+app.use('/api/farmers', farmerRoutes);
+app.use('/api/lookups', lookupRoutes);
+app.use('/api/smart', siteRoutes);
+
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 app.use((err, req, res, next) => {
   console.error(err);
@@ -25,3 +35,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
