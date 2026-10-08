@@ -12,7 +12,7 @@ async function call(method, path, body) {
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const rnd = (d) => (Math.random() - 0.5) * d;
-const s = { temperature: 26, humidity: 70, soil_moisture: 45, ec: 1.4, light: 20000, water_level: 85 };
+const s = { temperature: 26, humidity: 70, soil_moisture: 45, ec: 1.4, light: 20000, water_level: 85, soil_temperature: 21 };
 const act = {}; // actuator_id -> { type, on, offAt }
 
 async function tick() {
@@ -22,7 +22,7 @@ async function tick() {
   s.humidity = clamp(s.humidity + rnd(1) + (misting ? 2.5 : -0.2), 20, 99);
   s.soil_moisture = clamp(s.soil_moisture + rnd(0.3) + (irrigating ? 3 : -0.4), 0, 100);
   s.ec = clamp(s.ec + rnd(0.05), 0.2, 5);
-  s.light = clamp(s.light + rnd(1500), 0, 100000);
+  s.light = clamp(s.light + rnd(1500), 0, 100000); s.soil_temperature = clamp(s.soil_temperature + rnd(0.2), 8, 35);
   s.water_level = clamp(s.water_level - (irrigating ? 0.5 : 0), 0, 100);
 
   const now = Date.now();
@@ -47,3 +47,5 @@ async function tick() {
 const run = () => tick().catch((e) => console.error('error:', e.message));
 run();
 setInterval(run, 10000);
+
+

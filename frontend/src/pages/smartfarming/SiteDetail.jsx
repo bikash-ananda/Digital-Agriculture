@@ -91,7 +91,7 @@ export default function SiteDetail() {
             <tbody>
               {units.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-500">-</td></tr>}
               {units.map((u) => (
-                <tr key={u.id} className="border-t"><td className="p-3">{u.code}</td><td className="p-3 font-medium">{lang === 'en' ? u.name_en : (u.name_ne || u.name_en)}</td>
+                <tr key={u.id} className="border-t"><td className="p-3">{u.code}</td><td className="p-3 font-medium"><Link to={`/app/smart-farming/units/${u.id}`} className="text-gov-blue hover:underline">{lang === 'en' ? u.name_en : (u.name_ne || u.name_en)}</Link></td>
                   <td className="p-3">{u.unit_type}</td><td className="p-3">{u.area_sqm ?? '-'}</td><td className="p-3">{u.device_count}</td><td className="p-3"><StatusBadge value={u.status} /></td></tr>
               ))}
             </tbody>
@@ -143,3 +143,4 @@ export default function SiteDetail() {
     </div>
   );
 }
+

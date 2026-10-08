@@ -19,6 +19,7 @@ import FarmerDetail from './pages/dashboard/farmers/FarmerDetail';
 import SmartFarmingOverview from './pages/smartfarming/SmartFarmingOverview';
 import SiteDetail from './pages/smartfarming/SiteDetail';
 import DeviceDetail from './pages/smartfarming/DeviceDetail';
+import UnitControlCenter from './pages/smartfarming/UnitControlCenter';
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="farmers/:id/edit" element={<RequirePermission perm="farmers.update"><FarmerForm /></RequirePermission>} />
             <Route path="smart-farming" element={<RequirePermission perm="smart_farming.view"><SmartFarmingOverview /></RequirePermission>} />
             <Route path="smart-farming/sites/:id" element={<RequirePermission perm="smart_farming.view"><SiteDetail /></RequirePermission>} />
+            <Route path="smart-farming/units/:id" element={<RequirePermission perm="smart_farming.view"><UnitControlCenter /></RequirePermission>} />
             <Route path="smart-farming/devices/:id" element={<RequirePermission perm="devices.view"><DeviceDetail /></RequirePermission>} />
             <Route path="*" element={<ModulePlaceholder />} />
           </Route>
@@ -54,4 +56,6 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
+
 
