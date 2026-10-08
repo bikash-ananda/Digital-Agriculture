@@ -9,6 +9,8 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const farmerRoutes = require('./routes/farmerRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
+const farmerDataRoutes = require('./routes/farmerDataRoutes');
+const dataCenterRoutes = require('./routes/dataCenterRoutes');
 const siteRoutes = require('./routes/siteRoutes');
 const monitorRoutes = require('./routes/monitorRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
@@ -29,6 +31,8 @@ app.get('/api/health', (req, res) =>
 app.use('/api/auth', authRoutes);
 app.use('/api/farmers', farmerRoutes);
 app.use('/api/lookups', lookupRoutes);
+app.use('/api/farmers', farmerDataRoutes);
+app.use('/api/datacenter', dataCenterRoutes);
 app.use('/api/smart', siteRoutes);
 app.use('/api/smart', monitorRoutes);
 app.use('/api/device', deviceRoutes);
@@ -41,6 +45,8 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
+
 
 
 

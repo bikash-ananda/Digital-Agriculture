@@ -8,7 +8,9 @@
   { to: '/app/learning', perm: 'learning.view', label: { ne: 'सिकाइ केन्द्र', en: 'Learning Center' } },
   { to: '/app/knowledge', perm: 'knowledge.view', label: { ne: 'कृषि ज्ञान केन्द्र', en: 'Agriculture Knowledge' } },
   { to: '/app/smart-farming', perm: 'smart_farming.view', label: { ne: 'स्मार्ट फार्मिङ', en: 'Smart Farming' } },
+  { to: '/app/data-center', perm: 'datacenter.view', label: { ne: 'डाटा केन्द्र', en: 'Data Center' } },
   { to: '/app/documents', perm: 'documents.view', label: { ne: 'कागजातहरू', en: 'Documents' } },
   { to: '/app/reports', perm: 'reports.view', label: { ne: 'प्रतिवेदन', en: 'Reports' } },
   { to: '/app/admin', perm: 'users.view', label: { ne: 'प्रशासन', en: 'Administration' } }
 ];
+

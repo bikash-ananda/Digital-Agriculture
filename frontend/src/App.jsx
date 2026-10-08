@@ -16,6 +16,8 @@ import ModulePlaceholder from './pages/dashboard/ModulePlaceholder';
 import FarmerList from './pages/dashboard/farmers/FarmerList';
 import FarmerForm from './pages/dashboard/farmers/FarmerForm';
 import FarmerDetail from './pages/dashboard/farmers/FarmerDetail';
+import FarmerRecord from './pages/dashboard/farmers/FarmerRecord';
+import DataCenter from './pages/datacenter/DataCenter';
 import SmartFarmingOverview from './pages/smartfarming/SmartFarmingOverview';
 import SiteDetail from './pages/smartfarming/SiteDetail';
 import DeviceDetail from './pages/smartfarming/DeviceDetail';
@@ -39,12 +41,13 @@ export default function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="farmers" element={<RequirePermission perm="farmers.view"><FarmerList /></RequirePermission>} />
             <Route path="farmers/new" element={<RequirePermission perm="farmers.create"><FarmerForm /></RequirePermission>} />
-            <Route path="farmers/:id" element={<RequirePermission perm="farmers.view"><FarmerDetail /></RequirePermission>} />
+            <Route path="farmers/:id" element={<RequirePermission perm="farmers.view"><FarmerRecord /></RequirePermission>} />
             <Route path="farmers/:id/edit" element={<RequirePermission perm="farmers.update"><FarmerForm /></RequirePermission>} />
             <Route path="smart-farming" element={<RequirePermission perm="smart_farming.view"><SmartFarmingOverview /></RequirePermission>} />
             <Route path="smart-farming/sites/:id" element={<RequirePermission perm="smart_farming.view"><SiteDetail /></RequirePermission>} />
             <Route path="smart-farming/units/:id" element={<RequirePermission perm="smart_farming.view"><UnitControlCenter /></RequirePermission>} />
             <Route path="smart-farming/devices/:id" element={<RequirePermission perm="devices.view"><DeviceDetail /></RequirePermission>} />
+            <Route path="data-center" element={<RequirePermission perm="datacenter.view"><DataCenter /></RequirePermission>} />
             <Route path="*" element={<ModulePlaceholder />} />
           </Route>
 
@@ -56,6 +59,9 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
+
+
 
 
 

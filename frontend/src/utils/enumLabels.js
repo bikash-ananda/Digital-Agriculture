@@ -1,0 +1,36 @@
+﻿const L = {
+  individual: ['व्यक्तिगत', 'Individual'], group: ['समूह', 'Group'], cooperative: ['सहकारी', 'Cooperative'], company: ['कम्पनी', 'Company'], private_farm: ['निजी फार्म', 'Private farm'],
+  subsistence: ['जीविकोपार्जन', 'Subsistence'], small: ['साना', 'Small'], medium: ['मध्यम', 'Medium'], large: ['ठूला', 'Large'], unclassified: ['वर्गीकरण नभएको', 'Unclassified'],
+  male: ['पुरुष', 'Male'], female: ['महिला', 'Female'], other: ['अन्य', 'Other'],
+  no_formal: ['औपचारिक शिक्षा नभएको', 'No formal education'], basic: ['आधारभूत', 'Basic'], secondary: ['माध्यमिक', 'Secondary'], higher_secondary: ['उच्च माध्यमिक', 'Higher secondary'], bachelor: ['स्नातक', 'Bachelor'], master_plus: ['स्नातकोत्तर वा माथि', 'Master or above'],
+  agriculture: ['कृषि', 'Agriculture'], livestock: ['पशुपालन', 'Livestock'], agri_business: ['कृषि व्यवसाय', 'Agri-business'], service: ['जागिर', 'Service'], foreign_employment: ['वैदेशिक रोजगार', 'Foreign employment'], business: ['व्यापार', 'Business'],
+  lt_100k: ['रु. १ लाख भन्दा कम', 'Under NPR 100k'], '100k_300k': ['रु. १–३ लाख', 'NPR 100k–300k'], '300k_600k': ['रु. ३–६ लाख', 'NPR 300k–600k'], '600k_1m': ['रु. ६–१० लाख', 'NPR 600k–1M'], gt_1m: ['रु. १० लाख भन्दा बढी', 'Over NPR 1M'],
+  field_survey: ['क्षेत्रगत सर्वेक्षण', 'Field survey'], office: ['कार्यालय', 'Office'], import: ['आयात', 'Imported'], self_registered: ['आफैं दर्ता', 'Self-registered'],
+  draft: ['मस्यौदा', 'Draft'], submitted: ['पेश गरिएको', 'Submitted'], verified: ['प्रमाणित', 'Verified'], rejected: ['अस्वीकृत', 'Rejected'],
+  sandy: ['बलौटे', 'Sandy'], loam: ['दोमट', 'Loam'], clay: ['चिम्टाइलो', 'Clay'], silty: ['सिल्टी', 'Silty'], gravelly: ['ढुङ्गेनी', 'Gravelly'],
+  rain_only: ['वर्षामा मात्र भर', 'Rain only'], spring_water: ['मूल / धारा', 'Spring'], river_canal: ['खोला / कुलो', 'River / canal'], tube_well: ['ट्युबवेल', 'Tube well'], tank: ['ट्यांकी', 'Tank'], municipal: ['खानेपानी', 'Municipal supply'], lake_pond: ['ताल / पोखरी', 'Lake / pond'],
+  cultivated: ['खेती गरिएको', 'Cultivated'], orchard: ['फलफूल बगैंचा', 'Orchard'], fallow: ['बाँझो', 'Fallow'], pasture: ['चरन', 'Pasture'], mixed: ['मिश्रित', 'Mixed'],
+  none: ['छैन', 'None'], trail: ['गोरेटो', 'Trail'], seasonal: ['मौसमी सडक', 'Seasonal road'], all_weather: ['बाह्रै महिना', 'All-weather road'],
+  owned: ['आफ्नै', 'Owned'], leased: ['भाडा / ठेक्का', 'Leased'], shared: ['अधिया / साझा', 'Shared'], government: ['सरकारी', 'Government'],
+  rainfed: ['वर्षामा भर', 'Rain-fed'], drip: ['थोपा सिँचाइ', 'Drip'], sprinkler: ['फोहरा सिँचाइ', 'Sprinkler'], canal: ['कुलो', 'Canal'],
+  spring: ['वसन्त', 'Spring'], summer: ['ग्रीष्म / वर्षा', 'Summer / monsoon'], winter: ['हिउँदे', 'Winter'], perennial: ['बहुवर्षीय', 'Perennial'], year_round: ['वर्षभरि', 'Year-round'],
+  open_field: ['खुला खेत', 'Open field'], greenhouse: ['ग्रीनहाउस', 'Greenhouse'], tunnel: ['टनेल', 'Tunnel'], nursery: ['नर्सरी', 'Nursery'], terrace: ['सिँढीखेत', 'Terrace'], hydroponic: ['हाइड्रोपोनिक्स', 'Hydroponic'],
+  own_saved: ['आफ्नै बिउ', 'Own saved'], local_market: ['स्थानीय बजार', 'Local market'], agro_vet: ['एग्रोभेट', 'Agro-vet'], cooperative_: ['सहकारी', 'Cooperative'], imported: ['आयातित', 'Imported'],
+  disease: ['रोग', 'Disease'], pest: ['कीरा', 'Pest'], drought: ['खडेरी', 'Drought'], flood: ['बाढी', 'Flood'], hail: ['असिना', 'Hail'], wild_animals: ['वन्यजन्तु', 'Wild animals'], post_harvest: ['फसल पछिको क्षति', 'Post-harvest loss'],
+  wholesaler: ['थोक व्यापारी', 'Wholesaler'], direct_consumer: ['उपभोक्तालाई प्रत्यक्ष', 'Direct to consumer'], export: ['निर्यात', 'Export'], processing: ['प्रशोधन', 'Processing'], self_consumed: ['आफ्नै उपभोग', 'Self-consumed'],
+  conventional: ['परम्परागत', 'Conventional'], organic: ['प्राङ्गारिक', 'Organic'], transitioning: ['प्राङ्गारिकमा रूपान्तरण', 'Transitioning'], ipm: ['एकीकृत शत्रुजीव व्यवस्थापन (IPM)', 'IPM'],
+  planned: ['योजना', 'Planned'], growing: ['बढ्दै', 'Growing'], harvested: ['टिपिसकेको', 'Harvested'], failed: ['असफल', 'Failed'],
+  cattle: ['गाईवस्तु', 'Cattle'], buffalo: ['भैंसी', 'Buffalo'], goat: ['बाख्रा', 'Goat'], sheep: ['भेडा', 'Sheep'], pig: ['बङ्गुर', 'Pig'], poultry_layer: ['अण्डा कुखुरा', 'Layer poultry'], poultry_broiler: ['मासु कुखुरा', 'Broiler poultry'],
+  duck: ['हाँस', 'Duck'], fish_pond: ['माछा पोखरी', 'Fish pond'], beehive: ['मौरी घार', 'Beehive'],
+  milk: ['दूध', 'Milk'], meat: ['मासु', 'Meat'], eggs: ['अण्डा', 'Eggs'], fish: ['माछा', 'Fish'], honey: ['मह', 'Honey'], manure: ['मल', 'Manure'], draught: ['हलो / ढुवानी', 'Draught'],
+  chemical_fertilizer: ['रासायनिक मल', 'Chemical fertilizer'], organic_manure: ['प्राङ्गारिक मल', 'Organic manure'], compost: ['कम्पोस्ट', 'Compost'], pesticide: ['विषादी', 'Pesticide'], biopesticide: ['जैविक विषादी', 'Biopesticide'], herbicide: ['झार नाशक', 'Herbicide'], seed: ['बिउ', 'Seed'],
+  kg: ['के.जी.', 'kg'], g: ['ग्राम', 'g'], l: ['लिटर', 'litre'], ml: ['मि.लि.', 'ml'], piece: ['थान', 'piece'], packet: ['प्याकेट', 'packet'], own: ['आफ्नै', 'Own'], ngo: ['गैरसरकारी संस्था', 'NGO'], loan: ['ऋण', 'Loan'],
+  plastic_tunnel: ['प्लास्टिक टनेल', 'Plastic tunnel'], drip_irrigation: ['थोपा सिँचाइ प्रणाली', 'Drip irrigation'], water_tank: ['पानी ट्यांकी', 'Water tank'], pond: ['पोखरी', 'Pond'], power_tiller: ['पावर टिलर', 'Power tiller'], tractor: ['ट्र्याक्टर', 'Tractor'],
+  sprayer: ['स्प्रेयर', 'Sprayer'], cold_storage: ['शीत भण्डार', 'Cold storage'], collection_center: ['संकलन केन्द्र', 'Collection center'], solar_pump: ['सोलार पम्प', 'Solar pump'],
+  good: ['राम्रो', 'Good'], fair: ['मध्यम', 'Fair'], poor: ['कमजोर', 'Poor'],
+  farmer: ['कृषक', 'Farmer'], donor: ['दातृ निकाय', 'Donor'], esp32: ['ESP32', 'ESP32'], esp8266: ['ESP8266', 'ESP8266'], open_field_: ['खुला खेत', 'Open field'],
+  starter: ['आधारभूत सेन्सर (तापक्रम, आर्द्रता, माटो चिस्यान)', 'Starter (temperature, humidity, soil moisture)'], extended: ['विस्तारित (+EC, प्रकाश, पानी तह)', 'Extended (+EC, light, water level)']
+};
+L.cooperative = L.cooperative_ ? ['सहकारी', 'Cooperative'] : L.cooperative;
+
+export const lbl = (v, lang) => (L[v] ? L[v][lang === 'en' ? 1 : 0] : v);
