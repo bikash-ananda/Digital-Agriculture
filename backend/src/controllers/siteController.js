@@ -155,7 +155,7 @@ exports.addSensor = async (req, res, next) => {
     const b = req.body;
     const [r] = await db.query('INSERT INTO sensors SET ?', [{
       device_id: device.id, growing_unit_id: device.growing_unit_id, sensor_type: b.sensor_type, name: b.name,
-      unit: clean(b.unit), model: clean(b.model), min_valid: clean(b.min_valid), max_valid: clean(b.max_valid)
+      channel_key: clean(b.channel_key), unit: clean(b.unit), model: clean(b.model), min_valid: clean(b.min_valid), max_valid: clean(b.max_valid)
     }]);
     await logAudit(req.user.id, 'sensor_create', 'sensor', r.insertId, { device_id: device.id, type: b.sensor_type }, req);
     res.status(201).json({ id: r.insertId });
@@ -169,9 +169,11 @@ exports.addActuator = async (req, res, next) => {
     const b = req.body;
     const [r] = await db.query('INSERT INTO actuators SET ?', [{
       device_id: device.id, growing_unit_id: device.growing_unit_id, actuator_type: b.actuator_type,
-      name: b.name, max_runtime_seconds: b.max_runtime_seconds || 900
+      name: b.name, relay_channel: clean(b.relay_channel), gpio_pin: clean(b.gpio_pin), max_runtime_seconds: b.max_runtime_seconds || 900
     }]);
     await logAudit(req.user.id, 'actuator_create', 'actuator', r.insertId, { device_id: device.id, type: b.actuator_type }, req);
     res.status(201).json({ id: r.insertId });
   } catch (e) { next(e); }
 };
+
+

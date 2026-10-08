@@ -41,7 +41,8 @@ router.get('/devices/:id', authorize('devices.view'), idRule, validate, ctrl.get
 router.post('/devices/:id/rotate-key', authorize('devices.update'), idRule, validate, ctrl.rotateKey);
 
 router.post('/devices/:id/sensors', authorize('devices.create'), idRule, [
-  body('sensor_type').isIn(['temperature', 'humidity', 'soil_moisture', 'ec', 'light', 'water_level', 'ph', 'other']),
+  body('sensor_type').isIn(['temperature', 'humidity', 'soil_moisture', 'ec', 'light', 'water_level', 'ph', 'other', 'soil_temperature', 'co2', 'leaf_wetness', 'water_temperature', 'flow', 'pressure', 'wind_speed', 'rainfall']),
+  opt('channel_key').matches(/^[a-z0-9_]{2,30}$/).withMessage('Channel key: 2-30 lowercase letters, digits or _'),
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
   opt('unit').trim().isLength({ max: 20 }),
   opt('model').trim().isLength({ max: 100 }),
@@ -49,9 +50,12 @@ router.post('/devices/:id/sensors', authorize('devices.create'), idRule, [
 ], validate, ctrl.addSensor);
 
 router.post('/devices/:id/actuators', authorize('devices.create'), idRule, [
-  body('actuator_type').isIn(['irrigation', 'misting', 'fan', 'light', 'other']),
+  body('actuator_type').isIn(['irrigation', 'misting', 'fan', 'light', 'other', 'heater', 'vent', 'shade', 'fertigation', 'pump', 'relay']),
+  opt('relay_channel').isInt({ min: 0, max: 64 }), opt('gpio_pin').isInt({ min: 0, max: 48 }),
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
   opt('max_runtime_seconds').isInt({ min: 1, max: 86400 }).withMessage('Max runtime must be 1-86400 seconds')
 ], validate, ctrl.addActuator);
 
 module.exports = router;
+
+

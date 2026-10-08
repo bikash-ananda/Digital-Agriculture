@@ -10,6 +10,9 @@ const authRoutes = require('./routes/authRoutes');
 const farmerRoutes = require('./routes/farmerRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
 const siteRoutes = require('./routes/siteRoutes');
+const monitorRoutes = require('./routes/monitorRoutes');
+const deviceRoutes = require('./routes/deviceRoutes');
+const intelligenceRoutes = require('./routes/intelligenceRoutes');
 
 const app = express();
 app.use(helmet());
@@ -17,7 +20,7 @@ app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
-app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }));
+app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: 500, skip: (req) => req.path.startsWith('/device') }));
 
 app.get('/api/health', (req, res) =>
   res.json({ status: 'ok', service: 'Digital Agriculture API', time: new Date().toISOString() })
@@ -27,6 +30,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/farmers', farmerRoutes);
 app.use('/api/lookups', lookupRoutes);
 app.use('/api/smart', siteRoutes);
+app.use('/api/smart', monitorRoutes);
+app.use('/api/device', deviceRoutes);
+app.use('/api/smart', intelligenceRoutes);
 
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 app.use((err, req, res, next) => {
@@ -35,4 +41,7 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
+
+
 
