@@ -40,7 +40,7 @@ exports.readings = async (req, res, next) => {
       const bad = !Number.isFinite(value) || (s.min_valid !== null && value < s.min_valid) || (s.max_valid !== null && value > s.max_valid);
       if (bad) { rejected.push({ sensor_type: type, reason: 'out of valid range' }); continue; }
       await db.query('INSERT INTO sensor_readings (sensor_id, value, recorded_at) VALUES (?, ?, NOW(3))', [s.id, value]);
-      await db.query('UPDATE sensors SET last_value = ?, last_reading_at = NOW() WHERE id = ?', [value, s.id]);
+      await db.query('UPDATE sensors SET sensor_value = ?, last_sensor_reading_at = NOW() WHERE id = ?', [value, s.id]);
       stored++;
     }
     await touchDevice(req, firmware);

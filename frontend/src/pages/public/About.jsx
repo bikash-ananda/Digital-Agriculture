@@ -1,24 +1,36 @@
-﻿import { useTranslation } from 'react-i18next';
+﻿import useLang from '../../utils/useLang';
+import PageHeader from '../../components/layout/PageHeader';
 import { office } from '../../data/office';
 
 export default function About() {
-  const { i18n } = useTranslation();
-  const lang = i18n.language === 'en' ? 'en' : 'ne';
+  const { lang, t } = useLang();
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <h2 className="text-2xl font-bold text-gov-blue border-b-2 border-gov-red pb-2 mb-4">{lang === 'ne' ? 'कृषि विकास कार्यालय कास्कीको परिचय' : 'About the Office'}</h2>
-      {office.intro[lang].map((p, i) => <p key={i} className="mb-4 leading-relaxed">{p}</p>)}
-      <h3 className="text-lg font-semibold text-gov-blue mt-6 mb-3">{lang === 'ne' ? 'मुख्य क्षेत्रगत जिम्मेवारी' : 'Main Responsibilities'}</h3>
-      <div className="grid sm:grid-cols-2 gap-4">
-        {office.responsibilities[lang].map(([t, d]) => (
-          <div key={t} className="bg-white rounded shadow p-4 border-t-4 border-agri-green">
-            <p className="font-semibold text-gov-blue">{t}</p>
-            <p className="text-sm mt-1">{d}</p>
+    <>
+      <PageHeader title={t('कृषि विकास कार्यालय कास्कीको परिचय', 'About the Agriculture Development Office, Kaski')} />
+      <div className="max-w-7xl mx-auto px-4 py-10 grid lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-6">
+          {office.intro[lang].map((p, i) => <p key={i} className="text-lg leading-8 max-w-prose">{p}</p>)}
+          <h2 className="text-2xl font-bold text-terrace-900 pt-4">{t('मुख्य जिम्मेवारी', 'Main responsibilities')}</h2>
+          <dl className="divide-y divide-terrace-100 border-y border-terrace-100">
+            {office.responsibilities[lang].map(([h, d]) => (
+              <div key={h} className="py-4 grid sm:grid-cols-3 gap-2">
+                <dt className="font-display font-semibold text-terrace-800">{h}</dt>
+                <dd className="sm:col-span-2 text-gray-700">{d}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <aside className="space-y-6">
+          <div className="bg-white border-l-4 border-gov-red p-5 shadow">
+            <h2 className="text-lg font-bold text-terrace-900">{t('भौगोलिक कार्यक्षेत्र', 'Work area')}</h2>
+            <p className="mt-2 text-gray-700">{office.workArea[lang]}</p>
           </div>
-        ))}
+          <div className="bg-white border-l-4 border-agri-green p-5 shadow">
+            <h2 className="text-lg font-bold text-terrace-900">{t('कार्यालय समय', 'Office hours')}</h2>
+            <ul className="mt-2 space-y-1 text-sm text-gray-700">{office.hours[lang].map((h, i) => <li key={i}>{h}</li>)}</ul>
+          </div>
+        </aside>
       </div>
-      <h3 className="text-lg font-semibold text-gov-blue mt-6 mb-2">{lang === 'ne' ? 'भौगोलिक कार्यक्षेत्र' : 'Geographical Work Area'}</h3>
-      <p>{office.workArea[lang]}</p>
-    </div>
+    </>
   );
 }

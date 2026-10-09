@@ -1,0 +1,20 @@
+﻿SET NAMES utf8mb4;
+
+ALTER TABLE farmers
+  ADD COLUMN import_batch CHAR(36) NULL,
+  ADD COLUMN survey_uuid CHAR(36) NULL UNIQUE,
+  ADD KEY idx_farmer_import (import_batch);
+
+CREATE TABLE data_imports (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  batch_uuid CHAR(36) NOT NULL UNIQUE,
+  user_id INT UNSIGNED NOT NULL,
+  filename VARCHAR(255) NULL,
+  rows_total INT UNSIGNED NOT NULL DEFAULT 0,
+  rows_imported INT UNSIGNED NOT NULL DEFAULT 0,
+  rows_duplicate INT UNSIGNED NOT NULL DEFAULT 0,
+  rows_error INT UNSIGNED NOT NULL DEFAULT 0,
+  undone_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;

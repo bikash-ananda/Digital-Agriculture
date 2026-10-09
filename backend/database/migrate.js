@@ -3,6 +3,38 @@ const path = require('path');
 const mysql = require('mysql2/promise');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
+const IGNORED_ERROR_CODES = new Set([
+  'ER_TABLE_EXISTS_ERROR',
+  'ER_DUP_FIELDNAME',
+  'ER_DUP_ENTRY',
+  'ER_DUP_KEYNAME',
+  'ER_DUP_CONSTRAINT_NAME',
+  'ER_NONEXISTENT_TABLE'
+]);
+
+function splitSqlStatements(sql) {
+  return sql
+    .replace(/^\uFEFF/, '')
+    .split(/;\s*(?:\r?\n|$)/)
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+}
+
+async function runMigrationFile(conn, file, sql) {
+  const statements = splitSqlStatements(sql);
+  for (const statement of statements) {
+    try {
+      await conn.query(statement);
+    } catch (err) {
+      if (err && err.code && IGNORED_ERROR_CODES.has(err.code)) {
+        console.log(`warn   ${file}: ${err.code} -> ignored`);
+        continue;
+      }
+      throw new Error(`${file}: ${err.message}`);
+    }
+  }
+}
+
 (async () => {
   const dbName = process.env.DB_NAME;
   const conn = await mysql.createConnection({
@@ -20,7 +52,8 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
   for (const f of files) {
     if (done.has(f)) { console.log('skip   ', f); continue; }
     console.log('apply  ', f);
-    await conn.query(fs.readFileSync(path.join(dir, f), 'utf8').replace(/^\uFEFF/, ''));
+    const sql = fs.readFileSync(path.join(dir, f), 'utf8');
+    await runMigrationFile(conn, f, sql);
     await conn.query('INSERT INTO schema_migrations (name) VALUES (?)', [f]);
   }
   const [t] = await conn.query('SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = ?', [dbName]);

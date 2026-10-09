@@ -1,36 +1,33 @@
-﻿import { useTranslation } from 'react-i18next';
+﻿import { Phone, Mail } from 'lucide-react';
+import useLang from '../../utils/useLang';
+import PageHeader from '../../components/layout/PageHeader';
 import { staff } from '../../data/office';
 
+const TONES = ['bg-terrace-800', 'bg-gov-blue', 'bg-[#7a3b1d]', 'bg-[#5a3e85]', 'bg-[#0e6b73]', 'bg-[#8a5a00]'];
+const ascii = (s) => s.replace(/[०-९]/g, (d) => '०१२३४५६७८९'.indexOf(d));
+
 export default function Staff() {
-  const { i18n } = useTranslation();
-  const lang = i18n.language === 'en' ? 'en' : 'ne';
+  const { t } = useLang();
+  const groups = Array.from(new Set(staff.map((s) => s.group)));
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      <h2 className="text-2xl font-bold text-gov-blue border-b-2 border-gov-red pb-2 mb-4">{lang === 'ne' ? 'कर्मचारी विवरण' : 'Staff Details'}</h2>
-      <div className="bg-white rounded shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 text-left">
-            <tr>
-              <th className="p-3">{lang === 'ne' ? 'नाम' : 'Name'}</th>
-              <th className="p-3">{lang === 'ne' ? 'पद' : 'Position'}</th>
-              <th className="p-3">{lang === 'ne' ? 'समूह' : 'Group'}</th>
-              <th className="p-3">{lang === 'ne' ? 'मोबाइल' : 'Mobile'}</th>
-              <th className="p-3">{lang === 'ne' ? 'इमेल' : 'Email'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {staff.map((s) => (
-              <tr key={s.name} className="border-t">
-                <td className="p-3 font-medium">{s.name}</td>
-                <td className="p-3">{s.post}</td>
-                <td className="p-3">{s.group}</td>
-                <td className="p-3">{s.phone}</td>
-                <td className="p-3 break-all">{s.email}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <>
+      <PageHeader title={t('कर्मचारी विवरण', 'Staff directory')} intro={t('कार्यालयका कर्मचारीको नाम, पद र सम्पर्क विवरण।', 'Names, positions and contact details of the office staff.')} />
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+          {staff.map((s) => (
+            <li key={s.name} className="flex gap-4 py-5 border-b border-terrace-100">
+              <span className={`shrink-0 w-14 h-14 rounded-full text-white grid place-items-center text-xl font-display font-bold ${TONES[groups.indexOf(s.group) % TONES.length]}`} aria-hidden="true">{[...s.name][0]}</span>
+              <div className="min-w-0">
+                <p className="font-display font-semibold text-terrace-900 text-lg leading-snug">{s.name}</p>
+                <p className="text-sm text-gray-700">{s.post}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{s.group}</p>
+                {s.phone && <p className="mt-2 text-sm flex items-center gap-2"><Phone size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`tel:+977${ascii(s.phone)}`}>{s.phone}</a></p>}
+                {s.email && <p className="text-sm flex items-center gap-2 break-all"><Mail size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`mailto:${s.email}`}>{s.email}</a></p>}
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
-    </div>
+    </>
   );
 }

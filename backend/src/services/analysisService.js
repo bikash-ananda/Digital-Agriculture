@@ -75,8 +75,8 @@ async function trendOf(sensorId, minutes = 60) {
 
 async function loadSensors(unitId) {
   const [rows] = await db.query(
-    `SELECT id, sensor_type, name, unit, status, last_value, last_reading_at,
-            TIMESTAMPDIFF(SECOND, last_reading_at, NOW()) AS age
+    `SELECT id, sensor_type, name, unit, status, sensor_value AS last_value, last_sensor_reading_at AS last_reading_at,
+            TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age
        FROM sensors WHERE growing_unit_id = ? AND status = 'active' ORDER BY id`, [unitId]);
   const byType = {}, stale = [];
   for (const s of rows) {

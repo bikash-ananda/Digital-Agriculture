@@ -19,8 +19,8 @@ exports.live = async (req, res, next) => {
     const unitId = units[0].id;
 
     const [sensors] = await db.query(
-      `SELECT id, device_id, sensor_type, name, unit, status, last_value, last_reading_at, min_valid, max_valid,
-              TIMESTAMPDIFF(SECOND, last_reading_at, NOW()) AS age_seconds
+      `SELECT id, device_id, sensor_type, name, unit, status, sensor_value AS last_value, last_sensor_reading_at AS last_reading_at, min_valid, max_valid,
+              TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_seconds
          FROM sensors WHERE growing_unit_id = ? ORDER BY id`, [unitId]);
     const [actuators] = await db.query(
       `SELECT id, device_id, actuator_type, name, control_mode, current_state, max_runtime_seconds, status, last_state_at

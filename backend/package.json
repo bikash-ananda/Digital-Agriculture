@@ -10,7 +10,10 @@
     "db:migrate": "node database/migrate.js",
     "db:seed": "node database/seed.js",
     "db:seed:intel": "node database/seed-intelligence.js",
-    "db:seed:dc": "node database/seed-datacenter.js"
+    "db:seed:dc": "node database/seed-datacenter.js",
+    "db:seed:dc2": "node database/seed-datacenter2.js",
+    "db:seed:research": "node database/seed-research.js",
+    "research:sim": "node database/sim-research.js"
   },
   "keywords": [],
   "author": "",

@@ -9,8 +9,12 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  charset: 'utf8mb4', dateStrings: ['DATE']
+  charset: 'utf8mb4',
+  dateStrings: ['DATE'],
+  timezone: 'Z'
 });
 
-module.exports = pool;
+// Every session runs in UTC so NOW() and stored timestamps agree on any machine.
+pool.pool.on('connection', (conn) => { conn.query("SET time_zone = '+00:00'"); });
 
+module.exports = pool;

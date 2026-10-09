@@ -253,8 +253,8 @@ CREATE TABLE sensors (
   min_valid DOUBLE NULL,
   max_valid DOUBLE NULL,
   status ENUM('active','faulty','disabled') NOT NULL DEFAULT 'active',
-  last_value DOUBLE NULL,
-  last_reading_at DATETIME NULL,
+  sensor_value DOUBLE NULL,
+  last_sensor_reading_at DATETIME NULL,
   FOREIGN KEY (device_id) REFERENCES iot_devices(id),
   FOREIGN KEY (growing_unit_id) REFERENCES growing_units(id)
 ) ENGINE=InnoDB;

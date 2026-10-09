@@ -1,77 +1,147 @@
 ﻿import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { ClipboardList, Megaphone, BookOpen, Cpu, FileDown, PhoneCall, ChevronRight, Thermometer, Wifi, Server, LayoutDashboard, Phone, Mail } from 'lucide-react';
+import useLang from '../../utils/useLang';
+import HeroLandscape from '../../components/layout/HeroLandscape';
 import { office, officers, notices, usefulLinks } from '../../data/office';
 
+const SERVICES = [
+  { to: '/programs', icon: ClipboardList, ne: ['अनुदान तथा कृषि कार्यक्रम', 'चालु कार्यक्रम, अनुदान र तालिमका जानकारी'], en: ['Grants and programs', 'Current programs, grants and training'] },
+  { to: '/notices', icon: Megaphone, ne: ['सूचना तथा समाचार', 'नयाँ सूचना, विज्ञप्ति र म्यादसहितका आह्वान'], en: ['Notices and news', 'New notices, press releases and calls with deadlines'] },
+  { to: '/knowledge', icon: BookOpen, ne: ['कृषि प्रविधि सिक्नुहोस्', 'बाली, माटो, सिँचाइ, रोग तथा कीरा व्यवस्थापन'], en: ['Learn farming practice', 'Crops, soil, irrigation, pest and disease management'] },
+  { to: '/smart-farming', icon: Cpu, ne: ['स्मार्ट फार्मिङ', 'ग्रीनहाउसमा सेन्सरबाट अनुगमन र स्वचालित सिँचाइ'], en: ['Smart farming', 'Sensor monitoring and automatic irrigation in greenhouses'] },
+  { to: '/format', icon: FileDown, ne: ['फारम तथा प्रकाशन डाउनलोड', 'आवेदन फारम, निर्देशिका र कृषि पुस्तिका'], en: ['Download forms and publications', 'Application forms, guidelines and farming booklets'] },
+  { to: '/contact', icon: PhoneCall, ne: ['कार्यालयमा सम्पर्क', 'फोन, इमेल र कार्यालय समय'], en: ['Contact the office', 'Phone, email and office hours'] }
+];
+
+const FLOW = [
+  { icon: Thermometer, ne: 'सेन्सर: तापक्रम, आर्द्रता, माटोको चिस्यान, EC', en: 'Sensors: temperature, humidity, soil moisture, EC' },
+  { icon: Cpu, ne: 'ESP32 यन्त्रले डाटा पठाउँछ', en: 'An ESP32 device sends the readings' },
+  { icon: Wifi, ne: 'इन्टरनेट मार्फत', en: 'Over the internet' },
+  { icon: Server, ne: 'सर्भर र डाटाबेसमा विश्लेषण तथा भण्डारण', en: 'Analysis and storage on the server and database' },
+  { icon: LayoutDashboard, ne: 'प्राविधिक र कृषकका लागि ड्यासबोर्ड', en: 'A dashboard for technicians and farmers' }
+];
+
+const ascii = (s) => s.replace(/[०-९]/g, (d) => '०१२३४५६७८९'.indexOf(d));
+
 export default function Home() {
-  const { i18n } = useTranslation();
-  const lang = i18n.language === 'en' ? 'en' : 'ne';
-  const cards = [
-    ['/notices', { ne: 'सूचना', en: 'Notices' }],
-    ['/programs', { ne: 'कृषि कार्यक्रम', en: 'Programs' }],
-    ['/knowledge', { ne: 'कृषि ज्ञान केन्द्र', en: 'Knowledge Center' }],
-    ['/smart-farming', { ne: 'स्मार्ट फार्मिङ', en: 'Smart Farming' }],
-    ['/learning', { ne: 'सिकाइ केन्द्र', en: 'Learning Center' }],
-    ['/publications', { ne: 'प्रकाशन', en: 'Publications' }]
-  ];
+  const { lang, t } = useLang();
+  const L = (o) => o[lang];
   return (
     <div>
-      <section className="bg-gradient-to-r from-green-700 to-green-900 text-white py-14 text-center px-4">
-        <h2 className="text-3xl md:text-4xl font-bold">{office.name[lang]}</h2>
-        <p className="mt-3 text-lg">{lang === 'ne' ? 'डिजिटल कृषि तथा स्मार्ट फार्मिङ प्लेटफर्म' : 'Digital Agriculture & Smart Farming Platform'}</p>
-      </section>
-
-      <section className="max-w-7xl mx-auto px-4 py-10 grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <h3 className="text-xl font-bold text-gov-blue border-b-2 border-gov-red pb-1 mb-3">{lang === 'ne' ? 'सूचना' : 'Notices'}</h3>
-          <div className="bg-white rounded shadow overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-100 text-left">
-                <tr><th className="p-3">{lang === 'ne' ? 'विषय' : 'Subject'}</th><th className="p-3 whitespace-nowrap">{lang === 'ne' ? 'अन्तिम म्याद' : 'Deadline'}</th></tr>
-              </thead>
-              <tbody>
-                {notices.map((n, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="p-3"><a href={`${office.website}/notice`} target="_blank" rel="noreferrer" className="text-gov-blue hover:underline">{n.title}</a></td>
-                    <td className="p-3 whitespace-nowrap">{n.deadline}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <section className="hero-sky relative overflow-hidden min-h-[540px]">
+        <HeroLandscape className="absolute inset-x-0 bottom-0 w-full h-[72%]" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-12 md:pt-16 pb-44 md:pb-52">
+          <div className="max-w-2xl">
+            <h1 className="text-4xl md:text-5xl font-bold text-terrace-900 leading-tight">{t('कास्कीका किसानका लागि डिजिटल कृषि सेवा', 'Digital agriculture services for the farmers of Kaski')}</h1>
+            <p className="mt-4 text-lg text-gray-800 max-w-xl">{t('सूचना, अनुदान कार्यक्रम, तालिम र स्मार्ट फार्मिङ — एकै ठाउँमा।', 'Notices, grant programs, training and smart farming, in one place.')}</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link to="/notices" className="bg-terrace-800 hover:bg-terrace-900 text-white px-6 py-3 rounded-md font-semibold">{t('नयाँ सूचना हेर्नुहोस्', 'View latest notices')}</Link>
+              <Link to="/login" className="bg-white/80 hover:bg-white border border-terrace-800 text-terrace-800 px-6 py-3 rounded-md font-semibold">{t('लगइन गर्नुहोस्', 'Sign in')}</Link>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div className="space-y-4">
-          {officers.map((o) => (
-            <div key={o.name} className="bg-white rounded shadow p-4 border-l-4 border-agri-green">
-              <p className="text-xs text-gray-500">{o.role[lang]}</p>
-              <p className="font-semibold text-gov-blue">{o.name}</p>
-              <p className="text-sm">{o.post}</p>
-              <p className="text-sm">📞 {o.phone}</p>
-              <p className="text-sm break-all">✉️ {o.email}</p>
-            </div>
-          ))}
+      <section className="bg-white border-y border-terrace-100">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <h2 className="text-2xl md:text-3xl font-bold text-terrace-900">{t('तपाईंलाई के चाहियो?', 'What do you need?')}</h2>
+          <ul className="mt-6 grid md:grid-cols-2 gap-x-12">
+            {SERVICES.map(({ to, icon: Icon, ne, en }) => {
+              const [h, d] = lang === 'en' ? en : ne;
+              return (
+                <li key={to} className="border-b border-terrace-100">
+                  <Link to={to} className="group flex items-center gap-4 py-5">
+                    <span className="shrink-0 w-12 h-12 rounded-full bg-terrace-50 text-terrace-800 grid place-items-center group-hover:bg-terrace-800 group-hover:text-white transition-colors"><Icon size={22} aria-hidden="true" /></span>
+                    <span className="flex-1">
+                      <span className="block font-semibold text-terrace-900 text-lg leading-snug">{h}</span>
+                      <span className="block text-sm text-gray-600">{d}</span>
+                    </span>
+                    <ChevronRight className="text-gray-400 group-hover:text-gov-red" aria-hidden="true" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 pb-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {cards.map(([to, label]) => (
-          <Link key={to} to={to} className="bg-white rounded-lg shadow hover:shadow-lg transition p-6 border-t-4 border-agri-green">
-            <h3 className="text-lg font-semibold text-gov-blue">{label[lang]}</h3>
-          </Link>
-        ))}
+      <section className="max-w-7xl mx-auto px-4 py-14 grid lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2">
+          <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-gov-red pb-2">
+            <h2 className="text-2xl font-bold text-terrace-900">{t('सूचना', 'Notices')}</h2>
+            <a href={`${office.website}/notice`} target="_blank" rel="noreferrer" className="text-sm text-gov-blue underline">{t('सबै सूचना हेर्नुहोस्', 'View all notices')}</a>
+          </div>
+          <ul>
+            {notices.map((n, i) => (
+              <li key={i} className="py-4 border-b border-terrace-100">
+                <a href={`${office.website}/notice`} target="_blank" rel="noreferrer" className="font-medium text-terrace-900 hover:text-gov-blue hover:underline">{n.title}</a>
+                <p className="text-sm text-gray-600 mt-1">{t('अन्तिम मिति', 'Deadline')}: {n.deadline}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <aside>
+          <h2 className="text-2xl font-bold text-terrace-900 border-b-2 border-gov-red pb-2">{t('सम्पर्क अधिकारी', 'Contact officers')}</h2>
+          <ul className="mt-4 space-y-4">
+            {officers.map((o) => (
+              <li key={o.name} className="bg-white border-l-4 border-agri-green p-4 shadow">
+                <p className="text-sm text-gray-600">{L(o.role)}</p>
+                <p className="font-display font-semibold text-terrace-900 text-lg">{o.name}</p>
+                <p className="text-sm text-gray-700">{o.post}</p>
+                <p className="mt-2 text-sm flex items-center gap-2"><Phone size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`tel:+977${ascii(o.phone)}`}>{o.phone}</a></p>
+                <p className="text-sm flex items-center gap-2 break-all"><Mail size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`mailto:${o.email}`}>{o.email}</a></p>
+              </li>
+            ))}
+          </ul>
+        </aside>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 pb-10 grid lg:grid-cols-2 gap-8">
+      <section className="bg-white border-y border-terrace-100">
+        <div className="max-w-7xl mx-auto px-4 py-14">
+          <h2 className="text-2xl md:text-3xl font-bold text-terrace-900">{t('हामी के गर्छौं', 'What we do')}</h2>
+          <div className="mt-8 grid md:grid-cols-2 gap-x-14 gap-y-8">
+            {office.responsibilities[lang].map(([h, d]) => (
+              <div key={h} className="border-l-4 border-terrace-100 pl-5">
+                <h3 className="text-lg font-bold text-terrace-800">{h}</h3>
+                <p className="mt-1 text-gray-700 max-w-prose">{d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-terrace-900 text-white on-dark">
+        <div className="max-w-7xl mx-auto px-4 py-16 grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <h2 className="text-3xl font-bold leading-snug">{t('बिरौटाको ग्रीनहाउसमा स्मार्ट फार्मिङको पहिलो नमूना', 'The first smart farming pilot, in a Birauta greenhouse')}</h2>
+            <p className="mt-4 text-terrace-100 max-w-xl">{t('कार्यालयको प्रदर्शन स्थलमा सेन्सरले तापक्रम, आर्द्रता र माटोको अवस्था नाप्छ। प्राविधिकले सिँचाइ र मिस्टिङ टाढैबाट नियन्त्रण गर्न वा स्वचालित बनाउन सक्छन्।', 'At the office’s demonstration site, sensors measure temperature, humidity and soil condition. Technicians can control irrigation and misting remotely, or let rules run them automatically.')}</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link to="/smart-farming" className="bg-white text-terrace-900 hover:bg-terrace-50 px-6 py-3 rounded-md font-semibold">{t('स्मार्ट फार्मिङबारे जान्नुहोस्', 'Learn about smart farming')}</Link>
+              <Link to="/login" className="border border-white/70 hover:bg-white/10 px-6 py-3 rounded-md font-semibold">{t('ड्यासबोर्डमा लगइन', 'Sign in to the dashboard')}</Link>
+            </div>
+          </div>
+          <ol className="ml-5">
+            {FLOW.map(({ icon: Icon, ne, en }, i) => (
+              <li key={i} className={`relative pl-10 pb-7 border-l-2 ${i === FLOW.length - 1 ? 'border-transparent pb-0' : 'border-white/25'}`}>
+                <span className="absolute -left-[23px] top-0 w-11 h-11 rounded-full bg-terrace-700 border-2 border-white/30 grid place-items-center"><Icon size={20} aria-hidden="true" /></span>
+                <p className="font-medium pt-2">{lang === 'en' ? en : ne}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 py-14 grid lg:grid-cols-2 gap-10">
         <div>
-          <h3 className="text-xl font-bold text-gov-blue border-b-2 border-gov-red pb-1 mb-3">{lang === 'ne' ? 'कार्यालय भएको स्थान' : 'Office Location'}</h3>
-          <iframe title="Office map" className="w-full h-72 rounded shadow" loading="lazy"
+          <h2 className="text-2xl font-bold text-terrace-900 border-b-2 border-gov-red pb-2">{t('कार्यालय भएको स्थान', 'Find the office')}</h2>
+          <iframe title="Office map" className="mt-4 w-full h-80 rounded-md border border-terrace-100" loading="lazy"
             src={`https://maps.google.com/maps?hl=en&q=${office.lat}%2C${office.lng}&t=m&z=14&output=embed`} />
         </div>
         <div>
-          <h3 className="text-xl font-bold text-gov-blue border-b-2 border-gov-red pb-1 mb-3">{lang === 'ne' ? 'महत्वपूर्ण लिङ्कहरु' : 'Important Links'}</h3>
-          <ul className="bg-white rounded shadow divide-y">
+          <h2 className="text-2xl font-bold text-terrace-900 border-b-2 border-gov-red pb-2">{t('महत्वपूर्ण लिङ्कहरू', 'Important links')}</h2>
+          <ul className="mt-2">
             {usefulLinks.map(([name, url]) => (
-              <li key={url}><a href={url} target="_blank" rel="noreferrer" className="block p-3 text-sm text-gov-blue hover:bg-gray-50">{name}</a></li>
+              <li key={url} className="border-b border-terrace-100"><a href={url} target="_blank" rel="noreferrer" className="block py-3 text-gov-blue hover:underline">{name}</a></li>
             ))}
           </ul>
         </div>
