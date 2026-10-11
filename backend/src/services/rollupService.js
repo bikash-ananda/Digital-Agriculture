@@ -1,4 +1,4 @@
-﻿const db = require('../config/db');
+const db = require('../config/db');
 
 const TZ = '+05:45';
 const LOCAL_MS = (5 * 60 + 45) * 60000;
@@ -134,7 +134,7 @@ async function backfill(days) {
 
 function start() {
   if (process.env.ROLLUPS_ENABLED === 'false') return;
-  let busy = false; let runs = 0; let runs = 0; let runs = 0;
+  let busy = false; let runs = 0;
   const run = async () => {
     if (busy) return;
     busy = true;

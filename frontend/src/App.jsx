@@ -1,4 +1,4 @@
-﻿import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import RequirePermission from './components/common/RequirePermission';
@@ -10,8 +10,6 @@ import Staff from './pages/public/Staff';
 import Contact from './pages/public/Contact';
 import Placeholder from './pages/public/Placeholder';
 import Login from './pages/auth/Login';
-import ConsoleHome from './pages/console/ConsoleHome';
-import Console from './pages/console/Console';
 import ConsoleHome from './pages/console/ConsoleHome';
 import Console from './pages/console/Console';
 import DashboardHome from './pages/dashboard/DashboardHome';
@@ -58,8 +56,6 @@ export default function App() {
             <Route path="data-center/survey/:id" element={<RequirePermission perm="datacenter.collect"><SurveyForm /></RequirePermission>} />
             <Route path="research" element={<RequirePermission perm="research.view"><ResearchLab /></RequirePermission>} />
             <Route path="data-center" element={<RequirePermission perm="datacenter.view"><DataCenter /></RequirePermission>} />
-            <Route path="console" element={<RequirePermission perm="smart_farming.view"><ConsoleHome /></RequirePermission>} />
-            <Route path="console/:id" element={<RequirePermission perm="smart_farming.view"><Console /></RequirePermission>} />
             <Route path="console" element={<RequirePermission perm="smart_farming.view"><ConsoleHome /></RequirePermission>} />
             <Route path="console/:id" element={<RequirePermission perm="smart_farming.view"><Console /></RequirePermission>} />
             <Route path="*" element={<ModulePlaceholder />} />
