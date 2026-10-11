@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -59,5 +59,5 @@ async function runMigrationFile(conn, file, sql) {
   const [t] = await conn.query('SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = ?', [dbName]);
   console.log(`Done. Tables in ${dbName}: ${t[0].n}`);
   await conn.end();
-})().catch(e => { console.error('MIGRATION FAILED:', e.message); process.exit(1); });
+})().catch(e => { console.error('MIGRATION FAILED:', e); process.exitCode = 1; });
 

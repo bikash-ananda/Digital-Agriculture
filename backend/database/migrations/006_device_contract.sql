@@ -1,0 +1,7 @@
+﻿SET NAMES utf8mb4;
+
+ALTER TABLE iot_devices
+  ADD COLUMN last_sequence BIGINT UNSIGNED NULL,
+  ADD COLUMN last_boot_count INT UNSIGNED NULL,
+  ADD COLUMN missed_messages INT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN duplicate_messages INT UNSIGNED NOT NULL DEFAULT 0;

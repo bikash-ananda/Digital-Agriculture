@@ -84,3 +84,6 @@ vite.config.ts.timestamp-*
 # OS files
 .DS_Store
 Thumbs.db
+*.bak
+*.original.jsx
+update-validation.py
