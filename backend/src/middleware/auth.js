@@ -1,4 +1,4 @@
-﻿const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const { loadAccess } = require('../services/accessService');
 
@@ -12,10 +12,18 @@ async function authenticate(req, res, next) {
     catch { return res.status(401).json({ message: 'Session expired or invalid' }); }
 
     const [rows] = await db.query(
-      `SELECT id, uuid, username, email, full_name_ne, full_name_en, position_title, organization_id, status
+      `SELECT id, uuid, username, email, phone, full_name_ne, full_name_en, position_title,
+              organization_id, status, token_version, must_change_password,
+              email_verified_at, phone_verified_at
          FROM users WHERE id = ? LIMIT 1`, [payload.sub]);
     const user = rows[0];
     if (!user || user.status !== 'active') return res.status(401).json({ message: 'Account not active' });
+    if (Number(payload.ver) !== Number(user.token_version)) return res.status(401).json({ message: 'Session revoked' });
+    if (user.must_change_password) {
+      const path = req.originalUrl.split('?')[0];
+      const allowed = ['/api/auth/me', '/api/auth/logout', '/api/auth/change-password'].includes(path);
+      if (!allowed) return res.status(403).json({ message: 'Change your temporary password before continuing', code: 'PASSWORD_CHANGE_REQUIRED' });
+    }
 
     const access = await loadAccess(user.id);
     req.user = { ...user, roles: access.roles, permissions: access.permissions };

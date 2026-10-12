@@ -1,5 +1,6 @@
 ﻿const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 const { body, param } = require('express-validator');
 const validate = require('../middleware/validate');
 const deviceAuth = require('../middleware/deviceAuth');
@@ -7,6 +8,11 @@ const ctrl = require('../controllers/deviceController');
 
 const router = express.Router();
 
+router.use(rateLimit({
+  windowMs: 60 * 1000, max: 500,
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
+  message: { message: 'Too many requests from this network' }
+}));
 router.use(rateLimit({
   windowMs: 60 * 1000, max: 120,
   keyGenerator: (req) => req.get('x-device-code') || 'anonymous',

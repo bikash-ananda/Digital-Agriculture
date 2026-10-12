@@ -34,7 +34,7 @@ export default function PublicLayout() {
 
       <header className="bg-white">
         <div className="max-w-7xl mx-auto px-4 py-5 flex items-center gap-4 md:gap-6">
-          <Link to="/" aria-label={L(office.name)} className="shrink-0">
+          <Link to="/login" aria-label={lang === 'ne' ? 'साइन इन वा खाता बनाउनुहोस्' : 'Sign in or create an account'} className="shrink-0" title={lang === 'ne' ? 'साइन इन वा खाता बनाउनुहोस्' : 'Sign in or create an account'}>
             <img src="/images/nepal-gov-logo.png" alt="" className="w-16 h-16 md:w-20 md:h-20 object-contain" />
           </Link>
           <div className="min-w-0">
@@ -69,9 +69,6 @@ export default function PublicLayout() {
             ) : (
               <li key={i}><NavLink to={item.to} end={item.to === '/'} className={topLink}>{L(item.label)}</NavLink></li>
             ))}
-            <li className="lg:ml-auto lg:pl-3 pt-2 lg:pt-0">
-              <Link to="/login" className="inline-block bg-terrace-800 hover:bg-terrace-900 text-white px-5 py-2 rounded-md font-semibold text-[15px]">{lang === 'ne' ? 'लगइन' : 'Sign in'}</Link>
-            </li>
           </ul>
         </div>
       </nav>

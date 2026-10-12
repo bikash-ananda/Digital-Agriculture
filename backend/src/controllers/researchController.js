@@ -1,4 +1,4 @@
-﻿const db = require('../config/db');
+const db = require('../config/db');
 const { logAudit } = require('../utils/audit');
 const S = require('../services/dataCenterService');
 const ST = require('../services/stats');
@@ -145,7 +145,7 @@ exports.devicesHealth = async (req, res, next) => {
   try {
     const sc = orgSql(req);
     const [rows] = await db.query(
-      `SELECT d.id, d.device_code, d.status, d.last_seen_at, d.firmware_version, gu.name_en AS unit_name, TIMESTAMPDIFF(SECOND, d.last_seen_at, NOW()) AS age_s,
+      `SELECT d.id, d.device_code, d.status, d.last_seen_at, d.firmware_version, d.missed_messages, d.duplicate_messages, gu.name_en AS unit_name, TIMESTAMPDIFF(SECOND, d.last_seen_at, NOW()) AS age_s,
               (SELECT t.rssi FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS rssi,
               (SELECT t.uptime_s FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS uptime_s,
               (SELECT t.free_heap FROM device_telemetry t WHERE t.device_id = d.id ORDER BY t.id DESC LIMIT 1) AS free_heap,

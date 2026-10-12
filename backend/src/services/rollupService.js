@@ -1,4 +1,4 @@
-﻿const db = require('../config/db');
+const db = require('../config/db');
 
 const TZ = '+05:45';
 const LOCAL_MS = (5 * 60 + 45) * 60000;
@@ -134,14 +134,14 @@ async function backfill(days) {
 
 function start() {
   if (process.env.ROLLUPS_ENABLED === 'false') return;
-  let busy = false;
+  let busy = false; let runs = 0;
   const run = async () => {
     if (busy) return;
     busy = true;
     try {
-      await rollupHourly(3);
+      runs += 1; const deep = runs % 6 === 1; await rollupHourly(deep ? 72 : 3);
       const today = localDate(0);
-      const yesterday = localDate(-1);
+      const yesterday = localDate(deep ? -3 : -1);
       await rollupSensorDaily(yesterday, today);
       await rollupUnitRange(yesterday, today);
     } catch (e) { console.error('[rollups]', e.message); } finally { busy = false; }

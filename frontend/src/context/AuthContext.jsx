@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import api from '../services/api';
 
 const AuthContext = createContext(null);
@@ -8,29 +8,33 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const refresh = async () => {
+    const response = await api.get('/auth/me');
+    setUser(response.data.user);
+    return response.data.user;
+  };
+
   useEffect(() => {
-    api.get('/auth/me')
-      .then((r) => setUser(r.data.user))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    const onUnauthorized = () => setUser(null);
+    window.addEventListener('da:unauthorized', onUnauthorized);
+    refresh().catch(() => setUser(null)).finally(() => setLoading(false));
+    return () => window.removeEventListener('da:unauthorized', onUnauthorized);
   }, []);
 
-  const login = async (username, password) => {
-    await api.post('/auth/login', { username, password });
-    const r = await api.get('/auth/me');
-    setUser(r.data.user);
+  const login = async (email, password) => {
+    // Keep the legacy field during rollout: older API builds validate `username`.
+    const loginId = String(email || '').trim().toLowerCase();
+    const response = await api.post('/auth/login', { email: loginId, username: loginId, password });
+    setUser(response.data.user);
+    return response.data.user;
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
-    setUser(null);
+    try { await api.post('/auth/logout'); }
+    finally { setUser(null); }
   };
 
-  const can = (permission) => !!user && user.permissions.includes(permission);
+  const can = (permission) => !!user?.permissions?.includes(permission);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout, can }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, loading, login, logout, refresh, can }}>{children}</AuthContext.Provider>;
 }

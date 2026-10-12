@@ -6,7 +6,8 @@ bower_components/
 # Environment variables
 .env
 .env.*
-!.env.example
+*.env
+!**/.env.example
 
 # Build / production output
 dist/
@@ -18,6 +19,8 @@ out/
 
 # Logs
 logs/
+deploy-output.txt
+frontend/deploy-output.txt
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -84,3 +87,7 @@ vite.config.ts.timestamp-*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local photo edits and deployment scratch output
+frontend/photo-work/
+*-output.txt

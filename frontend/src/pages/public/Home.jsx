@@ -1,7 +1,7 @@
 ﻿import { Link } from 'react-router-dom';
 import { ClipboardList, Megaphone, BookOpen, Cpu, FileDown, PhoneCall, ChevronRight, Thermometer, Wifi, Server, LayoutDashboard, Phone, Mail } from 'lucide-react';
 import useLang from '../../utils/useLang';
-import HeroLandscape from '../../components/layout/HeroLandscape';
+import { AgricultureHero, AgriculturePhotoSections } from '../../components/layout/AgricultureShowcase';
 import { office, officers, notices, usefulLinks } from '../../data/office';
 
 const SERVICES = [
@@ -28,19 +28,8 @@ export default function Home() {
   const L = (o) => o[lang];
   return (
     <div>
-      <section className="hero-sky relative overflow-hidden min-h-[540px]">
-        <HeroLandscape className="absolute inset-x-0 bottom-0 w-full h-[72%]" />
-        <div className="relative z-10 max-w-7xl mx-auto px-4 pt-12 md:pt-16 pb-44 md:pb-52">
-          <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-5xl font-bold text-terrace-900 leading-tight">{t('कास्कीका किसानका लागि डिजिटल कृषि सेवा', 'Digital agriculture services for the farmers of Kaski')}</h1>
-            <p className="mt-4 text-lg text-gray-800 max-w-xl">{t('सूचना, अनुदान कार्यक्रम, तालिम र स्मार्ट फार्मिङ — एकै ठाउँमा।', 'Notices, grant programs, training and smart farming, in one place.')}</p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link to="/notices" className="bg-terrace-800 hover:bg-terrace-900 text-white px-6 py-3 rounded-md font-semibold">{t('नयाँ सूचना हेर्नुहोस्', 'View latest notices')}</Link>
-              <Link to="/login" className="bg-white/80 hover:bg-white border border-terrace-800 text-terrace-800 px-6 py-3 rounded-md font-semibold">{t('लगइन गर्नुहोस्', 'Sign in')}</Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <AgricultureHero />
+      <AgriculturePhotoSections />
 
       <section className="bg-white border-y border-terrace-100">
         <div className="max-w-7xl mx-auto px-4 py-12">
