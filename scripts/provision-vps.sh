@@ -10,7 +10,8 @@ DEPLOY_USER="${DEPLOY_USER:-agri-deploy}"
 [[ "$ID" == debian || "$ID" == ubuntu ]] || { echo "Only Debian/Ubuntu supported; got $ID." >&2; exit 1; }
 command -v curl >/dev/null || { apt-get update && apt-get install -y ca-certificates curl; }
 apt-get update
-apt-get install -y ca-certificates curl gnupg openssl ufw
+apt-get install -y ca-certificates curl gnupg openssl ufw openssh-server
+systemctl enable --now ssh
 if ! command -v docker >/dev/null || ! docker compose version >/dev/null 2>&1; then
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL "https://download.docker.com/linux/$ID/gpg" -o /etc/apt/keyrings/docker.asc
@@ -96,6 +97,9 @@ $DOMAIN {
   @api path /api /api/*
   reverse_proxy @api 127.0.0.1:5001
   reverse_proxy 127.0.0.1:8080
+}
+www.$DOMAIN {
+  redir https://$DOMAIN{uri} permanent
 }
 CADDY
 caddy validate --config "$CADDYFILE" --adapter caddyfile

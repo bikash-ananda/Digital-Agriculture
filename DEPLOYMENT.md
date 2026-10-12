@@ -4,16 +4,26 @@ The production stack uses Docker Compose for MySQL, the API and the static front
 
 ## One-time VPS setup
 
-1. In the VPS provider panel, enable SSH and allow inbound TCP 22, 80 and 443. The domain A record should point to 169.58.25.131.
-2. Generate a separate deploy key on the Windows computer:
+1. The root, `www`, and wildcard A records should point to `169.58.25.131`. Allow inbound TCP 22, 80, and 443 in the VPS provider firewall.
+2. If SSH times out, open the provider's web console for the VPS and run these commands as root. Then allow TCP 22 in the provider firewall and check `Test-NetConnection 169.58.25.131 -Port 22` in PowerShell.
+
+~~~bash
+apt-get update
+apt-get install -y openssh-server
+systemctl enable --now ssh
+ss -ltnp | grep ':22'
+~~~
+
+3. Generate a separate deploy key on the Windows computer:
 
 ~~~
+New-Item -ItemType Directory -Force "$HOME\.ssh" | Out-Null
 ssh-keygen -t ed25519 -C "Digital Agriculture deploy" -f "$HOME\.ssh\digital-agriculture-deploy"
 ~~~
 
-3. Once SSH is reachable, copy scripts/provision-vps.sh to the VPS and run it as root. It installs Docker Compose and Caddy if needed, creates agri-deploy, preserves the existing Caddyfile as a backup, configures HTTPS routing and creates a private production environment file. Paste the deploy key's .pub contents when prompted. Enter the initial super-admin password at the hidden prompt.
-4. Set SMTP and Twilio WhatsApp values in /etc/digital-agriculture/production.env. Without those provider credentials, email and WhatsApp codes cannot be delivered.
-5. Add these repository Actions secrets under Settings → Secrets and variables → Actions:
+4. Once SSH is reachable, copy scripts/provision-vps.sh to the VPS and run it as root. It installs Docker Compose, Caddy, and OpenSSH if needed, creates agri-deploy, preserves the existing Caddyfile as a backup, configures HTTPS for the root domain and redirects `www` to it, and creates a private production environment file. Paste the deploy key's `.pub` contents when prompted. Enter the initial super-admin password at the hidden prompt.
+5. Set SMTP and Twilio WhatsApp values in `/etc/digital-agriculture/production.env`. Without those provider credentials, email and WhatsApp codes cannot be delivered.
+6. Add these repository Actions secrets under Settings → Secrets and variables → Actions:
    - VPS_HOST: kaskikotagro.com.np
    - VPS_USER: agri-deploy
    - VPS_DEPLOY_KEY: contents of digital-agriculture-deploy (private key)
