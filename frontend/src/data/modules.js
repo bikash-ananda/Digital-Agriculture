@@ -15,6 +15,8 @@ export const modules = [
   { to: '/app/notices', perm: 'notices.view', group: 'services', icon: 'Megaphone', label: { ne: 'सूचना', en: 'Notices' }, desc: { ne: 'सूचना तथा समाचार व्यवस्थापन', en: 'Manage notices and news' } },
   { to: '/app/learning', perm: 'learning.view', group: 'learn', icon: 'GraduationCap', label: { ne: 'सिकाइ केन्द्र', en: 'Learning center' }, desc: { ne: 'पाठ्यक्रम, भिडियो र तालिम सामग्री', en: 'Courses, videos and training material' } },
   { to: '/app/knowledge', perm: 'knowledge.view', group: 'learn', icon: 'BookOpen', label: { ne: 'कृषि ज्ञान केन्द्र', en: 'Knowledge center' }, desc: { ne: 'बाली अनुसारका सन्दर्भ जानकारी', en: 'Crop-by-crop reference information' } },
+  { to: '/app/console', perm: 'smart_farming.view', group: 'smart', icon: 'Gauge', label: { ne: 'ग्रीनहाउस कन्सोल', en: 'Greenhouse Console' }, desc: { ne: 'अनुगमन, पम्प नियन्त्रण, स्वचालन र एआई विश्लेषण', en: 'Monitoring, pump control, automation and AI analysis' } },
+  { to: '/app/console', perm: 'smart_farming.view', group: 'smart', icon: 'Gauge', label: { ne: 'ग्रीनहाउस कन्सोल', en: 'Greenhouse Console' }, desc: { ne: 'अनुगमन, पम्प नियन्त्रण, स्वचालन र एआई विश्लेषण', en: 'Monitoring, pump control, automation and AI analysis' } },
   { to: '/app/smart-farming', perm: 'smart_farming.view', group: 'smart', icon: 'Cpu', label: { ne: 'स्मार्ट फार्मिङ', en: 'Smart farming' }, desc: { ne: 'ग्रीनहाउस अनुगमन र नियन्त्रण', en: 'Greenhouse monitoring and control' } },
   { to: '/app/data-center', perm: 'datacenter.view', group: 'smart', icon: 'Database', label: { ne: 'डाटा केन्द्र', en: 'Data Center' }, desc: { ne: 'जिल्लाव्यापी तथ्याङ्क र विश्लेषण', en: 'District-wide data and analysis' } },
   { to: '/app/research', perm: 'research.view', group: 'smart', icon: 'FlaskConical', label: { ne: 'अनुसन्धान प्रयोगशाला', en: 'Research Lab' }, desc: { ne: 'सेन्सर तथ्याङ्कको विश्लेषण र प्रयोग', en: 'Analysis and experiments on sensor data' } },
@@ -22,4 +24,3 @@ export const modules = [
   { to: '/app/documents', perm: 'documents.view', group: 'office', icon: 'Folder', label: { ne: 'कागजातहरू', en: 'Documents' }, desc: { ne: 'फारम, निर्देशिका र प्रकाशन', en: 'Forms, guidelines and publications' } },
   { to: '/app/admin', perm: 'users.view', group: 'office', icon: 'Settings', label: { ne: 'प्रशासन', en: 'Administration' }, desc: { ne: 'प्रयोगकर्ता, भूमिका र लग', en: 'Users, roles and logs' } }
 ];
-

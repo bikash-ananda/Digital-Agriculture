@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import RequirePermission from './components/common/RequirePermission';
@@ -12,6 +12,7 @@ import Placeholder from './pages/public/Placeholder';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import ChangePassword from './pages/auth/ChangePassword';
 import AdminUsers from './pages/dashboard/AdminUsers';
 import DashboardHome from './pages/dashboard/DashboardHome';
@@ -26,6 +27,10 @@ import SurveyForm from './pages/datacenter/SurveyForm';
 import SmartFarmingOverview from './pages/smartfarming/SmartFarmingOverview';
 import SiteDetail from './pages/smartfarming/SiteDetail';
 import DeviceDetail from './pages/smartfarming/DeviceDetail';
+import UnitControlCenter from './pages/smartfarming/UnitControlCenter';
+import ConsoleHome from './pages/console/ConsoleHome';
+import Console from './pages/console/Console';
+import DataCenter from './pages/datacenter/DataCenter';
 
 export default function App() {
   return (
@@ -40,7 +45,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
           </Route>
 
@@ -54,10 +59,14 @@ export default function App() {
             <Route path="farmers/:id/edit" element={<RequirePermission perm="farmers.update"><FarmerForm /></RequirePermission>} />
             <Route path="smart-farming" element={<RequirePermission perm="smart_farming.view"><SmartFarmingOverview /></RequirePermission>} />
             <Route path="smart-farming/sites/:id" element={<RequirePermission perm="smart_farming.view"><SiteDetail /></RequirePermission>} />
+            <Route path="smart-farming/units/:id" element={<RequirePermission perm="smart_farming.view"><UnitControlCenter /></RequirePermission>} />
             <Route path="smart-farming/devices/:id" element={<RequirePermission perm="devices.view"><DeviceDetail /></RequirePermission>} />
             <Route path="data-center/survey" element={<RequirePermission perm="datacenter.collect"><SurveyHome /></RequirePermission>} />
             <Route path="data-center/survey/:id" element={<RequirePermission perm="datacenter.collect"><SurveyForm /></RequirePermission>} />
             <Route path="research" element={<RequirePermission perm="research.view"><ResearchLab /></RequirePermission>} />
+            <Route path="data-center" element={<RequirePermission perm="datacenter.view"><DataCenter /></RequirePermission>} />
+            <Route path="console" element={<RequirePermission perm="smart_farming.view"><ConsoleHome /></RequirePermission>} />
+            <Route path="console/:id" element={<RequirePermission perm="smart_farming.view"><Console /></RequirePermission>} />
             <Route path="*" element={<ModulePlaceholder />} />
           </Route>
 

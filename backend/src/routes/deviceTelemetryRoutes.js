@@ -10,7 +10,7 @@ const router = express.Router();
 const telemetryIpLimiter = rateLimit({ windowMs: 60 * 1000, max: 300, keyGenerator: (req) => ipKeyGenerator(req.ip), message: { message: 'Too many telemetry requests from this network' } });
 const telemetryDeviceLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyGenerator: (req) => req.get('x-device-code') || 'anonymous', message: { message: 'Too many requests from this device' } });
 
-router.post('/telemetry', telemetryIpLimiter, telemetryDeviceLimiter, deviceAuth, [
+router.post('/', telemetryIpLimiter, telemetryDeviceLimiter, deviceAuth, [
   body('rssi').optional().isInt({ min: -130, max: 0 }), body('uptime_s').optional().isInt({ min: 0 }), body('free_heap').optional().isInt({ min: 0 }),
   body('reset_reason').optional().isString().isLength({ max: 30 }), body('firmware').optional().isString().isLength({ max: 30 }),
   body('sensor_errors').optional().isInt({ min: 0 }), body('wifi_reconnects').optional().isInt({ min: 0 }), body('http_failures').optional().isInt({ min: 0 })

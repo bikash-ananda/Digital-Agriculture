@@ -7,6 +7,8 @@ const { authenticate, authorize } = require('../middleware/auth');
 const c = require('../controllers/opsController');
 
 const router = express.Router();
+const { ipKeyGenerator } = rateLimit;
+const ipLimiter = rateLimit({ windowMs: 60 * 1000, max: 300, keyGenerator: (req) => ipKeyGenerator(req.ip), message: { message: 'Too many requests from this network' } });
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 90, message: { message: 'Too many requests from this device' } });
 const small = (req, res, next) => (Number(req.get('content-length') || 0) > 16384 ? res.status(413).json({ message: 'Payload too large' }) : next());
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024, files: 1 } }).single('file');
@@ -14,9 +16,9 @@ const uploadMw = (req, res, next) => upload(req, res, (err) => (err ? res.status
 const opsId = param('opsId').matches(/^[A-Za-z0-9_-]{3,60}$/);
 
 // device-facing (compatible with the old service)
-router.post('/devices/:opsId/telemetry', limiter, small, c.deviceAuth, c.telemetry);
-router.post('/devices/:opsId/poll', limiter, small, c.deviceAuth, c.poll);
-router.post('/devices/:opsId/ack', limiter, small, c.deviceAuth, c.ack);
+router.post('/devices/:opsId/telemetry', ipLimiter, limiter, small, c.deviceAuth, c.telemetry);
+router.post('/devices/:opsId/poll', ipLimiter, limiter, small, c.deviceAuth, c.poll);
+router.post('/devices/:opsId/ack', ipLimiter, limiter, small, c.deviceAuth, c.ack);
 
 // staff-facing
 router.get('/admin/devices', authenticate, authorize('devices.view'), c.listDevices);

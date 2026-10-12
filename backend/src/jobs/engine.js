@@ -27,7 +27,7 @@ const resolveAlerts = (where, params) =>
 function inWindow(from, to) {
   if (!from || !to) return true;
   const n = new Date();
-  const cur = n.getHours() * 3600 + n.getMinutes() * 60 + n.getSeconds();
+  const cur = (n.getUTCHours() * 3600 + n.getUTCMinutes() * 60 + n.getUTCSeconds() + 20700) % 86400; // Nepal time (UTC+05:45)
   const sec = (t) => { const [h, m, s] = String(t).split(':').map(Number); return h * 3600 + m * 60 + (s || 0); };
   const a = sec(from), b = sec(to);
   return a <= b ? cur >= a && cur <= b : cur >= a || cur <= b;
