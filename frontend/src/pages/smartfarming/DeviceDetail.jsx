@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import FormField, { inputCls } from '../../components/common/FormField';
 import StatusBadge from '../../components/common/StatusBadge';
 import { errMsgs } from '../../utils/errors';
+import HistoryChart from '../../components/greenhouse/HistoryChart';
 
 const emptySensor = { sensor_type: 'temperature', name: '', unit: '', min_valid: '', max_valid: '' };
 const emptyAct = { actuator_type: 'irrigation', name: '', max_runtime_seconds: '900' };
@@ -22,8 +23,26 @@ export default function DeviceDetail() {
   const [errs, setErrs] = useState([]);
   const [newKey, setNewKey] = useState(null);
 
-  const load = () => api.get(`/smart/devices/${id}`).then((r) => setData(r.data)).catch((e) => setError(errMsgs(e)[0]));
-  useEffect(() => { load(); }, [id]);
+  const load = useCallback(async () => {
+    try {
+      const response = await api.get('/smart/devices/' + id);
+      setData(response.data);
+      setError('');
+    } catch (loadError) {
+      setError(errMsgs(loadError)[0]);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(load, 0);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 15000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [load]);
 
   const post = async (path, body, reset) => {
     setErrs([]);
@@ -36,9 +55,9 @@ export default function DeviceDetail() {
     catch (err) { setErrs(errMsgs(err)); }
   };
 
-  if (error) return <div className="p-4 bg-red-50 text-red-700 rounded">{error}</div>;
+  if (error && !data) return <div className="p-4 bg-red-50 text-red-700 rounded">{error}</div>;
   if (!data) return <p className="text-gray-500">...</p>;
-  const { device, sensors, actuators } = data;
+  const { device, sensors, actuators, telemetry } = data;
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -48,8 +67,69 @@ export default function DeviceDetail() {
           <h2 className="text-2xl font-bold text-gov-blue mt-1">{device.device_code} <StatusBadge value={device.live_status} /></h2>
           <p className="text-sm text-gray-600">{device.device_type} · {device.unit_name_en || '-'} · {t('अन्तिम सम्पर्क', 'last seen')}: {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : '-'}</p>
         </div>
-        {can('devices.update') && <button onClick={rotate} className="border border-gov-red text-gov-red px-3 py-1.5 rounded text-sm">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={load} className="border px-3 py-2 rounded text-sm min-h-10">{t('ताजा गर्नुहोस्', 'Refresh')}</button>
+          <button onClick={() => window.print()} className="border px-3 py-2 rounded text-sm min-h-10">{t('छाप्नुहोस् / PDF', 'Print / PDF')}</button>
+          {can('devices.update') && <button onClick={rotate} className="border border-gov-red text-gov-red px-3 py-2 rounded text-sm min-h-10">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
+        </div>
       </div>
+
+      {error && data && <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded text-sm">{t('सर्भरबाट नयाँ डाटा आउन सकेन। देखाइएको मान अन्तिम प्राप्त डाटा हो।', 'Could not refresh from the server. Values shown are the last received readings.')} {error}</div>}
+
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <article className="bg-white rounded-lg shadow p-4">
+          <p className="text-xs text-gray-500">{t('सर्भरमा अन्तिम डाटा', 'Last data received')}</p>
+          <p className="mt-2 font-semibold text-sm">{device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : t('डाटा आएको छैन', 'No data received')}</p>
+          <div className="mt-2"><StatusBadge value={device.live_status} /></div>
+        </article>
+        <article className="bg-white rounded-lg shadow p-4">
+          <p className="text-xs text-gray-500">{t('वाई-फाई संकेत', 'Wi-Fi signal')}</p>
+          <p className="mt-2 text-2xl font-bold">{telemetry?.rssi == null ? '—' : String(telemetry.rssi) + ' dBm'}</p>
+          <p className="mt-1 text-xs text-gray-500">{telemetry?.recorded_at ? new Date(telemetry.recorded_at).toLocaleString() : t('स्वास्थ्य डाटा छैन', 'No health telemetry yet')}</p>
+        </article>
+        <article className="bg-white rounded-lg shadow p-4">
+          <p className="text-xs text-gray-500">{t('चालू अवधि', 'Uptime')}</p>
+          <p className="mt-2 text-2xl font-bold">{telemetry?.uptime_s == null ? '—' : Math.floor(Number(telemetry.uptime_s) / 3600) + ' h'}</p>
+          <p className="mt-1 text-xs text-gray-500">{t('फर्मवेयर', 'Firmware')}: {telemetry?.firmware || device.firmware_version || '—'}</p>
+        </article>
+        <article className="bg-white rounded-lg shadow p-4">
+          <p className="text-xs text-gray-500">{t('यन्त्र त्रुटि', 'Device errors')}</p>
+          <p className="mt-2 text-2xl font-bold">{telemetry?.sensor_errors ?? '—'} <span className="text-xs font-normal text-gray-500">{t('सेन्सर', 'sensor')}</span></p>
+          <p className="mt-1 text-xs text-gray-500">HTTP: {telemetry?.http_failures ?? '—'} · Wi-Fi {t('पुनःजडान', 'reconnects')}: {telemetry?.wifi_reconnects ?? '—'}</p>
+        </article>
+      </section>
+
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        {sensors.map((s) => {
+          const hasValue = s.last_value !== null && s.last_value !== undefined && Number.isFinite(Number(s.last_value));
+          const value = hasValue ? Number(s.last_value) : null;
+          const inRange = hasValue && (s.min_valid == null || value >= Number(s.min_valid)) && (s.max_valid == null || value <= Number(s.max_valid));
+          const age = s.age_seconds == null ? null : Number(s.age_seconds);
+          const offline = device.live_status === 'offline' || device.live_status === 'disabled' || (age != null && age > 900);
+          const stale = age != null && age > 180 && !offline;
+          const state = age == null ? t('डाटा छैन', 'No reading') : offline ? t('अफलाइन', 'Offline') : stale ? t('पुरानो डाटा', 'Stale') : t('लाइभ', 'Live');
+          const stateClass = age == null || offline ? 'bg-slate-100 text-slate-700' : stale ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800';
+          return (
+            <article key={s.id} className="bg-white rounded-lg shadow p-4">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-semibold">{s.name}</h3>
+                <span className={'rounded-full px-2 py-1 text-xs ' + stateClass}>{state}</span>
+              </div>
+              <p className="mt-3 text-3xl font-bold text-gov-blue">{hasValue ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'} <span className="text-base font-medium">{s.unit || ''}</span></p>
+              <p className="mt-2 text-xs text-gray-500">{s.last_reading_at ? t('अन्तिम प्राप्त', 'Last received') + ': ' + new Date(s.last_reading_at).toLocaleString() : t('अहिलेसम्म डाटा आएको छैन', 'No reading received yet')}</p>
+              {(s.min_valid != null || s.max_valid != null) && <p className={'mt-2 text-xs ' + (inRange ? 'text-emerald-700' : hasValue ? 'text-amber-700' : 'text-gray-500')}>{t('दर्ता गरिएको दायरा', 'Configured range')}: {s.min_valid ?? '−∞'}–{s.max_valid ?? '+∞'} {inRange ? '· ' + t('दायराभित्र', 'within range') : hasValue ? '· ' + t('दायराबाहिर', 'out of range') : ''}</p>}
+            </article>
+          );
+        })}
+        {!sensors.length && <p className="col-span-full p-5 text-center bg-white rounded-lg text-gray-600">{t('यस यन्त्रमा सेन्सर दर्ता छैन', 'No sensors are registered for this device')}</p>}
+      </section>
+
+      {sensors.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-lg font-semibold text-gov-blue">{t('सेन्सर इतिहास', 'Sensor history')}</h3>
+          <HistoryChart sensors={sensors} parameters={[]} t={t} live />
+        </section>
+      )}
 
       {errs.length > 0 && <ul className="p-3 bg-red-50 text-red-700 rounded text-sm list-disc pl-6">{errs.map((x, i) => <li key={i}>{x}</li>)}</ul>}
       {newKey && (

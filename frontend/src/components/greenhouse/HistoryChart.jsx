@@ -5,7 +5,7 @@ import { fmt } from '../../utils/greenhouse';
 
 const RANGES = [[6, '6h'], [24, '24h'], [72, '3d'], [168, '7d'], [720, '30d']];
 
-export default function HistoryChart({ sensors, parameters, lang, t }) {
+export default function HistoryChart({ sensors, parameters, t, live = false }) {
   const [sensorId, setSensorId] = useState(sensors.length ? sensors[0].id : null);
   const [hours, setHours] = useState(24);
   const [data, setData] = useState(null);
@@ -14,12 +14,13 @@ export default function HistoryChart({ sensors, parameters, lang, t }) {
   useEffect(() => {
     if (!sensorId) return undefined;
     let alive = true;
-    setData(null);
-    api.get(`/smart/sensors/${sensorId}/history`, { params: { hours } })
+    const refresh = () => api.get('/smart/sensors/' + sensorId + '/history', { params: { hours } })
       .then((r) => { if (alive) { setData(r.data); setErr(''); } })
       .catch((e) => alive && setErr(e.response?.data?.message || 'Failed to load history'));
-    return () => { alive = false; };
-  }, [sensorId, hours]);
+    refresh();
+    const timer = live ? window.setInterval(refresh, 30000) : null;
+    return () => { alive = false; if (timer) window.clearInterval(timer); };
+  }, [sensorId, hours, live]);
 
   if (!sensors.length) return <p className="text-gray-500">{t('कुनै सेन्सर छैन', 'No sensors')}</p>;
   const sensor = sensors.find((s) => s.id === Number(sensorId)) || sensors[0];
@@ -33,12 +34,12 @@ export default function HistoryChart({ sensors, parameters, lang, t }) {
   return (
     <div className="bg-white rounded-lg shadow p-4">
       <div className="flex flex-wrap items-center gap-3 mb-3">
-        <select value={sensor.id} onChange={(e) => setSensorId(Number(e.target.value))} className="border rounded p-2 bg-white text-sm">
+        <select value={sensor.id} onChange={(e) => { setData(null); setErr(''); setSensorId(Number(e.target.value)); }} className="border rounded p-2 bg-white text-sm">
           {sensors.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <div className="flex gap-1">
           {RANGES.map(([h, label]) => (
-            <button key={h} onClick={() => setHours(h)} className={`px-3 py-1.5 rounded text-sm border ${hours === h ? 'bg-agri-green text-white border-agri-green' : 'bg-white'}`}>{label}</button>
+            <button key={h} onClick={() => { setData(null); setErr(''); setHours(h); }} className={`px-3 py-1.5 rounded text-sm border ${hours === h ? 'bg-agri-green text-white border-agri-green' : 'bg-white'}`}>{label}</button>
           ))}
         </div>
         {stats && (

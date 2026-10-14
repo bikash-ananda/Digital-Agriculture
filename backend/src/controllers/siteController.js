@@ -142,12 +142,17 @@ exports.getDevice = async (req, res, next) => {
     const device = await findDevice(req, req.params.id);
     if (!device) return res.status(404).json({ message: 'Device not found' });
     const [sensors] = await db.query(
-      `SELECT id, sensor_type, name, unit, model, status, sensor_value AS last_value, last_sensor_reading_at AS last_reading_at, min_valid, max_valid
-         FROM sensors WHERE device_id = ? ORDER BY id`, [device.id]);
+      'SELECT id, sensor_type, name, unit, model, status, sensor_value AS last_value, ' +
+      'last_sensor_reading_at AS last_reading_at, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_seconds, ' +
+      'min_valid, max_valid FROM sensors WHERE device_id = ? ORDER BY id', [device.id]);
     const [actuators] = await db.query(
-      `SELECT id, actuator_type, name, control_mode, current_state, max_runtime_seconds, status, last_state_at
-         FROM actuators WHERE device_id = ? ORDER BY id`, [device.id]);
-    res.json({ device, sensors, actuators });
+      'SELECT id, actuator_type, name, control_mode, current_state, max_runtime_seconds, status, last_state_at ' +
+      'FROM actuators WHERE device_id = ? ORDER BY id', [device.id]);
+    const [telemetryRows] = await db.query(
+      'SELECT rssi, uptime_s, free_heap, reset_reason, firmware, sensor_errors, wifi_reconnects, http_failures, ' +
+      'recorded_at, TIMESTAMPDIFF(SECOND, recorded_at, NOW()) AS age_seconds ' +
+      'FROM device_telemetry WHERE device_id = ? ORDER BY recorded_at DESC, id DESC LIMIT 1', [device.id]);
+    res.json({ device, sensors, actuators, telemetry: telemetryRows[0] || null });
   } catch (e) { next(e); }
 };
 
