@@ -1,14 +1,17 @@
 ﻿// Links an ops device id (used by the ESP32) to a platform device, and stores only a hash of its token.
-// Usage (on the server):  node database/ops-link.js greenhouse-kaski-01 GH-KASKI-01 --env-file /etc/greenhouse.env --key THE_VARIABLE_NAME
+// Usage (on the server):  node database/ops-link.js greenhouse-kaski-01 GH-KASKI-01 --env-file /etc/digital-agriculture/production.env --key THE_VARIABLE_NAME
 // Local test only:        node database/ops-link.js greenhouse-demo-01 ESP32-01 --token demo-token-123
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const mysql = require('mysql2/promise');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const args = process.argv.slice(2);
 const opt = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : null; };
+const envFile = opt('--env-file');
+const envPath = envFile ? path.resolve(envFile) : path.join(__dirname, '..', '.env');
+const envLoad = require('dotenv').config({ path: envPath, override: Boolean(envFile) });
+if (envFile && envLoad.error) { console.error('Unable to load env file.'); process.exit(1); }
 const [opsId, deviceCode] = args;
 let token = opt('--token');
 if (!token && opt('--env-file') && opt('--key')) {

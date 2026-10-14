@@ -84,6 +84,20 @@ exports.createSite = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+exports.updateLocation = async (req, res, next) => {
+  try {
+    const site = await findSite(req, req.params.id);
+    if (!site) return res.status(404).json({ message: 'Site not found' });
+    const { latitude, longitude } = req.body;
+    if ((latitude === undefined || latitude === '') !== (longitude === undefined || longitude === ''))
+      return res.status(400).json({ message: 'Enter both latitude and longitude, or leave both blank' });
+    const lat = clean(latitude), lng = clean(longitude);
+    await db.query('UPDATE sites SET latitude = ?, longitude = ? WHERE id = ?', [lat, lng, site.id]);
+    await logAudit(req.user.id, 'site_location_update', 'site', site.id, { latitude: lat, longitude: lng }, req);
+    res.json({ id: site.id, latitude: lat, longitude: lng });
+  } catch (e) { next(e); }
+};
+
 exports.createUnit = async (req, res, next) => {
   try {
     const site = await findSite(req, req.params.id);

@@ -20,15 +20,99 @@ function Tile({ tile, lang, t }) {
   );
 }
 
-function PumpCard({ a, minOff, fetchedAt, offline, canControl, canConfigure, onChanged, lang, t }) {
+function WeatherPanel({ id, lang, t }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    let timer;
+    const load = async () => {
+      try {
+        const r = await api.get(`/console/units/${id}/weather`, { params: { lang } });
+        if (!alive) return;
+        setData(r.data);
+        const untilExpiry = r.data.expires_at ? new Date(r.data.expires_at).getTime() - Date.now() + 1000 : 5 * 60 * 1000;
+          timer = setTimeout(load, Math.max(5000, Math.min(untilExpiry, 45 * 60 * 1000)));
+      } catch (e) {
+        if (!alive) return;
+        setData(e.response?.data || { configured: false, available: false, reason: 'provider_unavailable' });
+        timer = setTimeout(load, 5 * 60 * 1000);
+      }
+    };
+    load();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [id, lang]);
+
+  const value = (n, digits = 1) => Number.isFinite(Number(n)) && n !== null && n !== undefined ? Number(n).toFixed(digits) : '—';
+  if (!data) return <div className="rounded-2xl bg-sky-50 border border-sky-100 p-5 text-sm text-sky-900">{t('स्थानअनुसार बाहिरी मौसम लोड हुँदैछ…', 'Loading location-based outdoor weather…')}</div>;
+  if (!data.available) {
+    const text = data.reason === 'location_missing'
+      ? t('मौसम देखाउन साइट सेटिङमा अक्षांश र देशान्तर थप्नुहोस्।', 'Add latitude and longitude in site settings to show local weather.')
+      : data.reason === 'api_key_missing'
+        ? t('बाहिरी मौसमका लागि backend मा Google Weather API key आवश्यक छ।', 'A Google Weather API key is required in the backend environment.')
+        : t('बाहिरी मौसम अहिले उपलब्ध छैन। केही बेरपछि फेरि प्रयास हुनेछ।', 'Outdoor weather is unavailable right now. The system will retry shortly.');
+    return <div className="rounded-2xl bg-sky-50 border border-sky-100 p-5"><h3 className="font-display font-bold text-terrace-900">🌦️ {t('स्थानीय वायुमण्डलीय अवस्था', 'Local atmospheric conditions')}</h3><p className="mt-1 text-sm text-gray-600">{text}</p></div>;
+  }
+
+  const c = data.current;
+  const currentText = String(c.condition.text || '').toLowerCase();
+  const currentGlyph = /thunder|storm/.test(currentText) ? '⛈️' : /rain|shower|drizzle/.test(currentText) ? '🌧️' : /snow/.test(currentText) ? '❄️' : /cloud|overcast/.test(currentText) ? '☁️' : /fog|mist/.test(currentText) ? '🌫️' : '☀️';
+  const stats = [
+    ['🌡️', t('बाहिरी तापक्रम', 'Outdoor temperature'), `${value(c.temperature_c)} °C`],
+    ['💧', t('आर्द्रता', 'Humidity'), `${value(c.humidity_pct, 0)}%`],
+    ['🧭', t('समुद्र सतहको चाप', 'Sea-level pressure'), `${value(c.pressure_hpa, 0)} hPa`],
+    ['🌧️', t('वर्षा (१ घण्टा, अनुमान)', 'Rain (1 h, modeled)'), `${value(c.precipitation.rain_mm)} mm`],
+    ['☔', t('वर्षा सम्भावना', 'Rain chance'), `${value(c.precipitation.probability_pct, 0)}%`],
+    ['💨', t('हावाको गति / दिशा', 'Wind speed / direction'), `${value(c.wind.speed_kmh)} km/h · ${value(c.wind.direction_degrees, 0)}°`]
+  ];
+  const hourLabel = (iso) => {
+    try { return new Intl.DateTimeFormat(lang === 'ne' ? 'ne-NP' : 'en-GB', { hour: 'numeric', timeZone: data.time_zone }).format(new Date(iso)); }
+    catch { return new Date(iso).toLocaleTimeString([], { hour: 'numeric' }); }
+  };
+  return (
+    <section className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-emerald-50 p-4 sm:p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wider font-semibold text-sky-800">{t('मोडेल गरिएको बाहिरी मौसम', 'Modeled outdoor weather')}</p>
+          <h3 className="font-display text-lg font-bold text-terrace-900">🌦️ {t('ग्रीनहाउस स्थानको मौसम', 'Weather near this greenhouse')}</h3>
+        </div>
+        <span className="text-xs rounded-full bg-white/80 border border-sky-200 px-3 py-1 text-sky-900">{t('अस्थायी पूर्वानुमान', 'Temporary forecast')}</span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
+        {stats.map(([icon, label, v]) => <div key={label} className="rounded-xl bg-white/80 border border-white p-3"><p className="text-xs text-gray-600">{icon} {label}</p><p className="mt-1 text-lg font-bold text-terrace-900">{v}</p></div>)}
+      </div>
+      {c.condition.text && <p className="mt-3 text-sm font-medium text-sky-950">{currentGlyph} {c.condition.text} · {t('महसुस हुने', 'Feels like')} {value(c.feels_like_c)} °C · UV {value(c.uv_index, 0)} · {t('बादल', 'cloud')} {value(c.cloud_cover_pct, 0)}%</p>}
+      {data.hourly.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-semibold text-terrace-900 mb-2">{t('आगामी घण्टाहरू', 'Coming hours')}</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {data.hourly.slice(0, 12).map((h, i) => <div key={`${h.time}-${i}`} className="min-w-24 rounded-xl border border-sky-100 bg-white/80 p-2.5 text-center">
+              <p className="text-xs text-gray-500">{h.time ? hourLabel(h.time) : '—'}</p>
+              <p className="my-1 text-xl" aria-hidden="true">{/thunder|storm/i.test(h.condition.text || '') ? '⛈️' : /rain|shower|drizzle/i.test(h.condition.text || '') ? '🌧️' : /snow/i.test(h.condition.text || '') ? '❄️' : /cloud|overcast/i.test(h.condition.text || '') ? '☁️' : '☀️'}</p>
+              <p className="font-bold text-terrace-900">{value(h.temperature_c)}°</p>
+              <p className="text-xs text-sky-800">🌧 {value(h.precipitation.probability_pct, 0)}%</p>
+            </div>)}
+          </div>
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-sky-100 pt-3 text-xs text-gray-600">
+        <p>{t('वायुमण्डलीय पूर्वानुमान प्रत्यक्ष सेन्सर मापन होइन। दीर्घकालीन अभिलेखका लागि बाहिरी मौसम सेन्सर जडान गर्नुहोस्।', 'Forecasts are not direct station readings. Use an outdoor weather sensor for long-term records.')}</p>
+        <p translate="no" className="whitespace-nowrap font-normal text-[#5e5e5e]">Google Maps · Source: Includes weather data from Google</p>
+      </div>
+    </section>
+  );
+}
+
+function PumpCard({ a, minOff, fetchedAt, offline, canControl, canConfigure, onChanged, t }) {
   const presets = [30, 60, 120, 300, 600, 900].filter((s) => s <= a.max_runtime_seconds);
   if (!presets.includes(a.max_runtime_seconds) && a.max_runtime_seconds < 3600) presets.push(a.max_runtime_seconds);
   const [sel, setSel] = useState(presets.includes(60) ? 60 : presets[0]);
   const [phase, setPhase] = useState(null);
   const [msg, setMsg] = useState(null);
-  const [tick, setTick] = useState(0);
-  useEffect(() => { const iv = setInterval(() => setTick((x) => x + 1), 1000); return () => clearInterval(iv); }, []);
-  const lapsed = Math.floor((Date.now() - fetchedAt) / 1000);
+  const [lapsed, setLapsed] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setLapsed(Math.max(0, Math.floor((Date.now() - fetchedAt) / 1000))), 1000);
+    return () => clearInterval(iv);
+  }, [fetchedAt]);
   const cool = Math.max(0, a.cooldown_left_s - lapsed);
   const left = a.ends_in_s === null ? null : Math.max(0, a.ends_in_s - lapsed);
   const on = a.state === 'on';
@@ -96,23 +180,28 @@ export default function LiveTab({ id, ov, reload, offline, lang, t, can }) {
   const [m1, setM1] = useState('soil_moisture');
   const [m2, setM2] = useState('');
   const [data, setData] = useState(null);
+  const [dataKey, setDataKey] = useState('');
   const types = useMemo(() => ov.tiles.map((x) => x.type), [ov.tiles]);
-  useEffect(() => { if (types.length && !types.includes(m1)) setM1(types[0]); }, [types]);
+  const activeM1 = types.includes(m1) ? m1 : types[0] || '';
+  const activeM2 = types.includes(m2) && m2 !== activeM1 ? m2 : '';
+  const requestKey = `${id}|${hours}|${activeM1}|${activeM2}`;
+  const visibleData = dataKey === requestKey ? data : null;
   useEffect(() => {
-    if (!m1) return undefined;
+    if (!activeM1) return undefined;
     let alive = true;
-    const load = () => api.get(`/console/units/${id}/series`, { params: { hours, types: [m1, m2].filter(Boolean).join(',') } }).then((r) => alive && setData(r.data)).catch(() => {});
-    setData(null); load();
+    const load = () => api.get(`/console/units/${id}/series`, { params: { hours, types: [activeM1, activeM2].filter(Boolean).join(',') } })
+      .then((r) => { if (alive) { setData(r.data); setDataKey(requestKey); } }).catch(() => {});
+    load();
     const iv = setInterval(load, 45000);
     return () => { alive = false; clearInterval(iv); };
-  }, [id, hours, m1, m2]);
+  }, [id, hours, activeM1, activeM2, requestKey]);
 
   const rows = useMemo(() => {
-    if (!data) return [];
+    if (!visibleData) return [];
     const map = new Map();
-    Object.entries(data.series).forEach(([k, pts]) => pts.forEach((p) => { const r = map.get(p.ts) || { ts: p.ts }; r[k] = Number(p.v.toFixed(2)); map.set(p.ts, r); }));
+    Object.entries(visibleData.series).forEach(([k, pts]) => pts.forEach((p) => { const r = map.get(p.ts) || { ts: p.ts }; r[k] = Number(p.v.toFixed(2)); map.set(p.ts, r); }));
     return [...map.values()].sort((a, b) => a.ts - b.ts);
-  }, [data]);
+  }, [visibleData]);
   const tick = (v) => (hours <= 24 ? hhmm(v) : new Date(v * 1000).toLocaleDateString([], { month: 'short', day: 'numeric' }));
   const sel = (v, set, blank) => (
     <select value={v} onChange={(e) => set(e.target.value)} className="border rounded-md p-1.5 bg-white text-sm">{blank && <option value="">—</option>}{types.map((x) => <option key={x} value={x}>{meta(x)[lang]}</option>)}</select>
@@ -122,14 +211,16 @@ export default function LiveTab({ id, ov, reload, offline, lang, t, can }) {
     <div className="space-y-6">
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">{ov.tiles.map((x) => <Tile key={x.type} tile={x} lang={lang} t={t} />)}</div>
 
+      <WeatherPanel id={id} lang={lang} t={t} />
+
       <div className="bg-white rounded-xl shadow p-4">
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <h3 className="font-display font-bold text-terrace-900">{t('इतिहास', 'History')}</h3>
           <div className="flex gap-1">{RANGES.map(([h, l]) => <button key={h} onClick={() => setHours(h)} className={`px-3 py-1 rounded border text-sm ${hours === h ? 'bg-agri-green text-white border-agri-green' : 'bg-white'}`}>{l}</button>)}</div>
-          <div className="ml-auto flex items-center gap-2 text-sm">{sel(m1, setM1, false)}<span className="text-gray-400">+</span>{sel(m2, setM2, true)}</div>
+          <div className="ml-auto flex items-center gap-2 text-sm">{sel(activeM1, setM1, false)}<span className="text-gray-400">+</span>{sel(activeM2, setM2, true)}</div>
         </div>
-        {!data && <p className="text-gray-500 text-sm py-12 text-center">…</p>}
-        {data && rows.length === 0 && <p className="text-gray-500 text-sm py-12 text-center">{t('यस अवधिमा तथ्याङ्क छैन', 'No data in this period')}</p>}
+        {!visibleData && <p className="text-gray-500 text-sm py-12 text-center">…</p>}
+        {visibleData && rows.length === 0 && <p className="text-gray-500 text-sm py-12 text-center">{t('यस अवधिमा तथ्याङ्क छैन', 'No data in this period')}</p>}
         {rows.length > 0 && (
           <div style={{ width: '100%', height: 320 }}>
             <ResponsiveContainer>
@@ -139,9 +230,9 @@ export default function LiveTab({ id, ov, reload, offline, lang, t, can }) {
                 <YAxis yAxisId="l" width={46} tick={{ fontSize: 12 }} domain={['auto', 'auto']} />
                 {m2 && <YAxis yAxisId="r" orientation="right" width={46} tick={{ fontSize: 12 }} domain={['auto', 'auto']} />}
                 <Tooltip labelFormatter={(v) => new Date(v * 1000).toLocaleString()} />
-                {data.events.map((e, i) => <ReferenceArea key={i} yAxisId="l" x1={e.s} x2={Math.max(e.e, e.s + data.bucket)} fill={e.type === 'misting' ? '#60a5fa' : '#22c55e'} fillOpacity={0.18} ifOverflow="hidden" />)}
-                <Line yAxisId="l" type="monotone" dataKey={m1} name={meta(m1)[lang]} stroke={meta(m1).color} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
-                {m2 && <Line yAxisId="r" type="monotone" dataKey={m2} name={meta(m2)[lang]} stroke={meta(m2).color} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />}
+                {visibleData.events.map((e, i) => <ReferenceArea key={i} yAxisId="l" x1={e.s} x2={Math.max(e.e, e.s + visibleData.bucket)} fill={e.type === 'misting' ? '#60a5fa' : '#22c55e'} fillOpacity={0.18} ifOverflow="hidden" />)}
+                <Line yAxisId="l" type="monotone" dataKey={activeM1} name={meta(activeM1)[lang]} stroke={meta(activeM1).color} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />
+                {activeM2 && <Line yAxisId="r" type="monotone" dataKey={activeM2} name={meta(activeM2)[lang]} stroke={meta(activeM2).color} strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls />}
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -153,7 +244,7 @@ export default function LiveTab({ id, ov, reload, offline, lang, t, can }) {
         <h3 className="font-display font-bold text-terrace-900 mb-3">{t('पम्प नियन्त्रण', 'Pump control')}</h3>
         {ov.actuators.length === 0 && <p className="text-gray-500 text-sm">{t('कुनै एक्चुएटर दर्ता छैन', 'No actuators registered')}</p>}
         <div className="grid md:grid-cols-2 gap-5">
-          {ov.actuators.map((a) => <PumpCard key={a.id} a={a} minOff={ov.min_off_s} fetchedAt={ov._at} offline={offline} canControl={can('irrigation_control.control')} canConfigure={can('irrigation_control.configure')} onChanged={reload} lang={lang} t={t} />)}
+          {ov.actuators.map((a) => <PumpCard key={a.id} a={a} minOff={ov.min_off_s} fetchedAt={ov._at} offline={offline} canControl={can('irrigation_control.control')} canConfigure={can('irrigation_control.configure')} onChanged={reload} t={t} />)}
         </div>
       </div>
 

@@ -34,6 +34,7 @@ const farmRules = [
 ];
 
 router.get('/', authorize('farmers.view'), ctrl.list);
+router.get('/farms', authorize('farms.view'), ctrl.listFarms);
 router.post('/', authorize('farmers.create'), farmerRules(true), validate, ctrl.create);
 router.get('/:id', authorize('farmers.view'), idRule, validate, ctrl.getOne);
 router.put('/:id', authorize('farmers.update'), idRule, farmerRules(false), validate, ctrl.update);

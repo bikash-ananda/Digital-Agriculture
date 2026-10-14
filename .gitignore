@@ -91,3 +91,17 @@ Thumbs.db
 # Local photo edits and deployment scratch output
 frontend/photo-work/
 *-output.txt
+build-out.txt
+
+# Local machine copies, backups, and diagnostic scripts are not release source.
+*-DESKTOP-CA62IOU*
+*.bak
+SmartFarmingOverview.original.jsx
+backend/src/App.jsx
+backend/database/test-mail.js
+backend/database/create-dev-users-DESKTOP-CA62IOU.js
+deploy-vps.sh
+diag-vps.sh
+https-vps.sh
+restore-vps.sh
+update-validation.py

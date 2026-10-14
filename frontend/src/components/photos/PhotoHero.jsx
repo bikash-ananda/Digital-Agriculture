@@ -4,11 +4,11 @@ import { ChevronLeft, ChevronRight, MapPin, Pause, Play } from 'lucide-react';
 import useLang from '../../utils/useLang';
 import HeroLandscape from '../layout/HeroLandscape';
 import { allPhotos, altOf, fallbackSrc, interleave, motionOf, placeOf, srcset, transitionOf } from '../../utils/photos';
+import useReducedMotion from '../../utils/useReducedMotion';
 
 const DWELL_MS = 8000;
 const SCRIM = 'linear-gradient(90deg, rgba(8,20,13,.62) 0%, rgba(8,20,13,.28) 45%, rgba(8,20,13,0) 75%), linear-gradient(180deg, rgba(8,20,13,.30) 0%, rgba(8,20,13,.05) 30%, rgba(8,20,13,.72) 100%)';
 
-const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const liteConnection = () => {
   const c = typeof navigator !== 'undefined' ? navigator.connection : null;
   return !!(c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || '')));
@@ -42,8 +42,8 @@ function IllustratedHero({ t }) {
 
 export default function PhotoHero() {
   const { lang, t } = useLang();
-  const reduced = useMemo(prefersReduced, []);
-  const lite = useMemo(liteConnection, []);
+  const reduced = useReducedMotion();
+  const lite = useMemo(() => liteConnection(), []);
   const slides = useMemo(() => interleave(allPhotos, lite ? 1 : 7), [lite]);
   const n = slides.length;
   const [cur, setCur] = useState(0);
@@ -54,7 +54,7 @@ export default function PhotoHero() {
   const [visible, setVisible] = useState(true);
   const [pageVisible, setPageVisible] = useState(typeof document === 'undefined' ? true : !document.hidden);
   const curRef = useRef(0);
-  const seen = useRef(new Set([0, 1]));
+  const [seen, setSeen] = useState(() => new Set([0, 1]));
   const root = useRef(null);
   const layer = useRef(null);
   const sx = useRef(null);
@@ -67,8 +67,7 @@ export default function PhotoHero() {
     if (next === curRef.current) return;
     setPrev(curRef.current);
     curRef.current = next;
-    seen.current.add(next);
-    seen.current.add((next + 1) % n);
+    setSeen((current) => new Set([...current, next, (next + 1) % n]));
     setCur(next);
     setIntro(false);
   }, [n]);
@@ -83,14 +82,15 @@ export default function PhotoHero() {
     return () => io.disconnect();
   }, [n]);
   useEffect(() => {
-    if (!motionOK || !layer.current) return undefined;
+    const element = layer.current;
+    if (!motionOK || !element) return undefined;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
-      raf = requestAnimationFrame(() => { raf = 0; if (layer.current) layer.current.style.transform = `translate3d(0, ${(Math.min(window.scrollY, 700) * 0.22).toFixed(1)}px, 0)`; });
+      raf = requestAnimationFrame(() => { raf = 0; element.style.transform = `translate3d(0, ${(Math.min(window.scrollY, 700) * 0.22).toFixed(1)}px, 0)`; });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); if (layer.current) layer.current.style.transform = ''; };
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf); element.style.transform = ''; };
   }, [motionOK, n]);
 
   if (!n) return <IllustratedHero t={t} />;
@@ -116,7 +116,7 @@ export default function PhotoHero() {
             <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${i + 1} / ${n}`} aria-hidden={i !== cur}
               className={`slide ${state} tr-${transitionOf(s)} ${intro && i === 0 ? 'no-intro' : ''}`}
               style={{ backgroundColor: s.color, backgroundImage: `url(${s.placeholder})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-              {seen.current.has(i) && (
+              {seen.has(i) && (
                 <picture>
                   <source type="image/avif" srcSet={srcset(s, 'avif')} sizes="100vw" />
                   <source type="image/webp" srcSet={srcset(s, 'webp')} sizes="100vw" />

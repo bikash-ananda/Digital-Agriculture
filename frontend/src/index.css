@@ -18,8 +18,8 @@
   --color-suntala: #e08a1e;
 }
 
-html { scroll-behavior: smooth; }
-body { font-family: var(--font-sans); background: var(--color-mist); color: var(--color-ink); font-size: 17px; line-height: 1.6; }
+html { scroll-behavior: smooth; font-size: calc(100% * var(--a11y-text-scale, 1)); }
+body { min-width: 320px; overflow-x: clip; font-family: var(--font-sans); background: var(--color-mist); color: var(--color-ink); font-size: calc(17px * var(--a11y-text-scale, 1)); line-height: 1.6; }
 h1, h2, h3 { font-family: var(--font-display); line-height: 1.3; text-wrap: balance; }
 ::selection { background: var(--color-terrace-100); }
 
@@ -65,4 +65,43 @@ th { color: var(--color-terrace-800); font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+html[data-text-scale="115"] { --a11y-text-scale: 1.15; }
+html[data-text-scale="130"] { --a11y-text-scale: 1.3; }
+html[data-high-contrast="true"] body { background: #fff !important; color: #111 !important; }
+html[data-high-contrast="true"] a { color: #003399; text-decoration: underline; text-underline-offset: 0.15em; }
+html[data-high-contrast="true"] button, html[data-high-contrast="true"] input, html[data-high-contrast="true"] select, html[data-high-contrast="true"] textarea { border-color: currentColor; }
+html[data-high-contrast="true"] .text-gray-400, html[data-high-contrast="true"] .text-gray-500, html[data-high-contrast="true"] .text-gray-600, html[data-high-contrast="true"] .text-gray-700 { color: #111 !important; }
+html[data-high-contrast="true"] .bg-terrace-900, html[data-high-contrast="true"] .bg-terrace-800 { background-color: #000 !important; color: #fff !important; }
+html[data-high-contrast="true"] .text-terrace-100\/80, html[data-high-contrast="true"] .text-terrace-100\/70 { color: #fff !important; }
+html[data-high-contrast="true"] .on-dark a { color: #ffff00 !important; text-decoration: underline; }
+html[data-high-contrast="true"] :focus-visible { outline: 4px solid #d00000 !important; outline-offset: 3px; }
+
+html[data-reduce-motion="true"] *, html[data-reduce-motion="true"] *::before, html[data-reduce-motion="true"] *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+
+.a11y-dock { position: fixed; z-index: 70; right: max(0.75rem, env(safe-area-inset-right)); bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+.a11y-panel { position: fixed; right: max(0.75rem, env(safe-area-inset-right)); bottom: calc(4.5rem + env(safe-area-inset-bottom)); width: min(25rem, calc(100vw - 1.5rem)); max-height: min(75vh, 38rem); overflow-y: auto; overscroll-behavior: contain; color: #123221; }
+.a11y-panel[hidden] { display: none; }
+.a11y-float-button { display: grid; min-width: 3rem; min-height: 3rem; place-items: center; border: 2px solid #fff; border-radius: 999px; background: #123221; color: #fff; box-shadow: 0 5px 0 #091a11, 0 8px 18px rgb(0 0 0 / .22); transition: transform 160ms ease, box-shadow 160ms ease; }
+.a11y-float-button:hover { transform: translateY(-2px); box-shadow: 0 7px 0 #091a11, 0 11px 20px rgb(0 0 0 / .25); }
+.a11y-float-button:active { transform: translateY(2px); box-shadow: 0 2px 0 #091a11, 0 4px 12px rgb(0 0 0 / .2); }
+.a11y-control[aria-pressed="true"] { outline: 2px solid #003893; outline-offset: 1px; background: #d7e8dc; }
+.a11y-control:disabled { cursor: wait; opacity: .65; }
+
+@media (pointer: coarse) {
+  button, input, select, textarea { min-height: 2.75rem; }
+  nav a { min-height: 2.75rem; }
+  .agri-photo-card:hover, .agri-photo-card:hover .agri-photo-frame img { transform: none; filter: none; }
+}
+
+@media (max-width: 639px) {
+  h1 { font-size: clamp(1.45rem, 6vw, 2rem); }
+  .agri-photo-grid { gap: 0.9rem; }
+  .a11y-panel { max-height: min(78vh, 36rem); }
+}
+
+@media (forced-colors: active) {
+  :focus-visible { outline: 3px solid Highlight; }
+  .a11y-float-button { border: 2px solid ButtonText; }
 }

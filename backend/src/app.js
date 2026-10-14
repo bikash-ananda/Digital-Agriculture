@@ -22,6 +22,9 @@ const monitorRoutes = require('./routes/monitorRoutes');
 const deviceRoutes = require('./routes/deviceRoutes');
 const opsRoutes = require('./routes/opsRoutes');
 const intelligenceRoutes = require('./routes/intelligenceRoutes');
+const contentRoutes = require('./routes/contentRoutes');
+const supportChatRoutes = require('./routes/supportChatRoutes');
+const smartChatRoutes = require('./routes/smartChatRoutes');
 
 const app = express();
 const proxyHops = Number(process.env.TRUST_PROXY_HOPS);
@@ -60,6 +63,9 @@ app.use('/api/smart', monitorRoutes);
 app.use('/api/device', deviceRoutes);
 app.use('/api/ops', opsRoutes);
 app.use('/api/smart', intelligenceRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/support-chat', supportChatRoutes);
+app.use('/api/smart-chat', smartChatRoutes);
 
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 app.use((err, req, res, next) => {

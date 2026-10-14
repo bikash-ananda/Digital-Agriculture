@@ -3,21 +3,31 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Menu, X, Phone, Mail, ChevronDown, Globe, MapPin, Clock } from 'lucide-react';
 import { office, nav, usefulLinks } from '../../data/office';
+import AccessibilityTools from '../common/AccessibilityTools';
+import LoginSupportChat from '../auth/LoginSupportChat';
 
 export default function PublicLayout() {
   const { i18n } = useTranslation();
   const lang = i18n.language === 'en' ? 'en' : 'ne';
   const L = (o) => o[lang];
   const { pathname } = useLocation();
-  const [open, setOpen] = useState(false);
-  useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [pathname]);
+  const [openPath, setOpenPath] = useState(null);
+  const open = openPath === pathname;
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'auto' }); }, [pathname]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => { if (event.key === 'Escape') setOpenPath(null); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
 
   const topLink = ({ isActive }) =>
     `block px-3 py-3 text-[15px] font-medium border-b-[3px] ${isActive ? 'border-gov-red text-terrace-900' : 'border-transparent text-terrace-800 hover:text-gov-blue hover:border-terrace-100'}`;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-[100svh] flex flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 bg-white p-3 text-gov-blue">{lang === 'ne' ? 'मुख्य सामग्रीमा जानुहोस्' : 'Skip to main content'}</a>
+      <a href="#accessibility-toggle" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-16 focus:z-[80] focus:rounded focus:bg-white focus:p-3 focus:text-gov-blue">{lang === 'ne' ? 'सहज पहुँच सेटिङमा जानुहोस्' : 'Skip to accessibility settings'}</a>
 
       <div className="bg-terrace-900 text-white text-sm on-dark">
         <div className="max-w-7xl mx-auto px-4 py-1.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
@@ -52,9 +62,9 @@ export default function PublicLayout() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between lg:hidden py-2">
             <span className="font-semibold text-terrace-800">{lang === 'ne' ? 'मेनु' : 'Menu'}</span>
-            <button onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Toggle menu" className="p-2">{open ? <X /> : <Menu />}</button>
+            <button type="button" onClick={() => setOpenPath(open ? null : pathname)} aria-controls="public-navigation" aria-expanded={open} aria-label={open ? (lang === 'ne' ? 'मेनु बन्द गर्नुहोस्' : 'Close menu') : (lang === 'ne' ? 'मेनु खोल्नुहोस्' : 'Open menu')} className="min-h-11 min-w-11 rounded-lg p-2">{open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}</button>
           </div>
-          <ul className={`${open ? 'block pb-3' : 'hidden'} lg:flex lg:flex-wrap lg:items-center`}>
+          <ul id="public-navigation" className={`${open ? 'block pb-3' : 'hidden'} lg:flex lg:flex-wrap lg:items-center`}>
             {nav.map((item, i) => item.children ? (
               <li key={i} className="relative group">
                 <button aria-haspopup="true" className={`flex items-center gap-1 px-3 py-3 text-[15px] font-medium border-b-[3px] w-full lg:w-auto ${item.children.some(([to]) => to === pathname) ? 'border-gov-red text-terrace-900' : 'border-transparent text-terrace-800 hover:text-gov-blue'}`}>
@@ -62,18 +72,18 @@ export default function PublicLayout() {
                 </button>
                 <ul className="pl-4 lg:pl-0 lg:hidden lg:group-hover:block lg:group-focus-within:block lg:absolute lg:left-0 lg:top-full lg:min-w-64 lg:bg-white lg:border lg:border-terrace-100 lg:border-t-[3px] lg:border-t-gov-red lg:shadow-lg">
                   {item.children.map(([to, label]) => (
-                    <li key={to}><Link to={to} className="block px-4 py-2.5 text-[15px] text-terrace-800 hover:bg-terrace-50 hover:text-gov-blue">{L(label)}</Link></li>
+                    <li key={to}><Link to={to} onClick={() => setOpenPath(null)} className="block px-4 py-2.5 text-[15px] text-terrace-800 hover:bg-terrace-50 hover:text-gov-blue">{L(label)}</Link></li>
                   ))}
                 </ul>
               </li>
             ) : (
-              <li key={i}><NavLink to={item.to} end={item.to === '/'} className={topLink}>{L(item.label)}</NavLink></li>
+              <li key={i}><NavLink to={item.to} end={item.to === '/'} onClick={() => setOpenPath(null)} className={topLink}>{L(item.label)}</NavLink></li>
             ))}
           </ul>
         </div>
       </nav>
 
-      <main id="main" className="flex-1"><Outlet /></main>
+      <main id="main" tabIndex="-1" className="flex-1"><Outlet /></main>
 
       <footer className="bg-terrace-900 text-terrace-100 border-t-4 border-gov-red on-dark mt-16">
         <div className="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-3 gap-10 text-[15px]">
@@ -101,6 +111,8 @@ export default function PublicLayout() {
           © {new Date().getFullYear()} {L(office.name)} · {lang === 'ne' ? 'डिजिटल कृषि तथा स्मार्ट फार्मिङ प्लेटफर्म' : 'Digital Agriculture & Smart Farming Platform'}
         </div>
       </footer>
+      <AccessibilityTools />
+      {pathname === '/login' && <LoginSupportChat />}
     </div>
   );
 }
