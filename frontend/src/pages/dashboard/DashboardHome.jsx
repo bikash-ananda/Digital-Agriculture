@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { UserPlus, Search, Cpu, Database, GraduationCap, Megaphone, ChevronRight, Sprout, MapPin, LoaderCircle } from 'lucide-react';
+import { UserPlus, Search, Cpu, FlaskConical, Database, GraduationCap, Megaphone, ChevronRight, Sprout, MapPin, LoaderCircle } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,7 @@ const ACTIONS = [
   { perm: 'farmers.create', to: '/app/farmers/new', icon: UserPlus, ne: 'कृषक दर्ता गर्नुहोस्', en: 'Register a farmer' },
   { perm: 'farmers.view', to: '/app/farmers', icon: Search, ne: 'कृषक खोज्नुहोस्', en: 'Find a farmer' },
   { perm: 'smart_farming.view', to: '/app/smart-farming', icon: Cpu, ne: 'ग्रीनहाउस अनुगमन गर्नुहोस्', en: 'Monitor a greenhouse' },
+  { perm: 'research.view', to: '/app/research', icon: FlaskConical, ne: 'ग्रीनहाउस विज्ञान ड्यासबोर्ड', en: 'Greenhouse science dashboard' },
   { perm: 'datacenter.view', to: '/app/data-center', icon: Database, ne: 'डाटा केन्द्र हेर्नुहोस्', en: 'Open the Data Center' },
   { perm: 'knowledge.view', to: '/app/knowledge?tab=training', icon: GraduationCap, ne: 'सिक्न थाल्नुहोस्', en: 'Start learning' },
   { perm: 'notices.view', to: '/app/notices', icon: Megaphone, ne: 'सूचना हेर्नुहोस्', en: 'Read notices' }
@@ -27,7 +28,7 @@ export default function DashboardHome() {
   const [ov, setOv] = useState(null);
   const [sites, setSites] = useState([]);
   const [selectedSiteId, setSelectedSiteId] = useState('');
-  const [siteLoading, setSiteLoading] = useState(false);
+  const [siteLoading, setSiteLoading] = useState(canSeeFarms);
   const [siteError, setSiteError] = useState('');
 
   useEffect(() => {
@@ -40,7 +41,6 @@ export default function DashboardHome() {
   useEffect(() => {
     if (!canSeeFarms) return undefined;
     let active = true;
-    setSiteLoading(true);
     api.get('/smart/sites').then((r) => {
       if (!active) return;
       const list = Array.isArray(r.data) ? r.data : [];
@@ -108,7 +108,9 @@ export default function DashboardHome() {
         </div>
       </section>}
 
-      <section className="space-y-7">
+      <details className="rounded-2xl border border-terrace-100 bg-white shadow-sm">
+        <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 px-4 font-semibold text-terrace-900">{t('सबै उपकरण तथा पृष्ठहरू', 'Browse all tools and pages')}<span className="text-xs font-normal text-gray-500">{t('आवश्यक पर्दा मात्र खोल्नुहोस्', 'Expand when you need a tool')}</span></summary>
+        <section className="space-y-7 border-t border-terrace-100 p-4 md:p-6">
         {groups.map((g) => {
           const items = modules.filter((m) => m.group === g.key && m.to !== '/app' && (!m.perm || can(m.perm)));
           if (!items.length) return null;
@@ -128,7 +130,8 @@ export default function DashboardHome() {
             </ul>
           </div>;
         })}
-      </section>
+        </section>
+      </details>
     </div>
   );
 }

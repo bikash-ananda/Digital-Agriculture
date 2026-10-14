@@ -15,6 +15,7 @@ const publicCommentLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standar
 
 // Public read-only Knowledge Center endpoints. Public comments enter moderation first.
 router.get('/public/articles', c.publicArticles);
+router.get('/public/news', c.publicNews);
 router.get('/public/papers', c.publicPapers);
 router.get('/public/papers/:paperId/comments', paperId, validate, c.publicPaperComments);
 router.post('/public/papers/:paperId/comments', publicCommentLimit, paperId, [

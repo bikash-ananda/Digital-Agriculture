@@ -2,7 +2,7 @@
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Menu, X, LogOut, Globe } from 'lucide-react';
+import { Menu, X, LogOut, Globe, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import useLang from '../../utils/useLang';
 import { modules, groups } from '../../data/modules';
@@ -18,6 +18,7 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [openPath, setOpenPath] = useState(null);
+  const [expandedGroup, setExpandedGroup] = useState('auto');
   const open = openPath === pathname;
   const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
   const asideRef = useRef(null);
@@ -53,6 +54,8 @@ export default function DashboardLayout() {
   const allowed = modules.filter((m) => !m.perm || can(m.perm));
   const current = [...modules].sort((a, b) => b.to.length - a.to.length)
     .find((m) => (m.end ? pathname === m.to : pathname === m.to || pathname.startsWith(`${m.to}/`)));
+  const activeGroup = current?.group || 'main';
+  const openGroup = expandedGroup === 'auto' ? activeGroup : expandedGroup;
   const name = user.fullNameEn || user.username;
   const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const doLogout = async () => { await logout(); navigate('/login'); };
@@ -81,13 +84,15 @@ export default function DashboardLayout() {
             if (!items.length) return null;
             return (
               <div key={g.key}>
-                <p className="px-4 pb-1.5 text-xs font-semibold text-terrace-100/55">{g.label[lang]}</p>
-                <ul>
+                <button type="button" aria-expanded={openGroup === g.key} onClick={() => setExpandedGroup(openGroup === g.key ? 'none' : g.key)} className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-xs font-semibold text-terrace-100/65 hover:text-white">
+                  <span className="flex-1">{g.label[lang]}</span><span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{items.length}</span><ChevronDown size={15} className={`transition-transform ${openGroup === g.key ? 'rotate-180' : ''}`} aria-hidden="true" />
+                </button>
+                {openGroup === g.key && <ul>
                   {items.map((m) => {
                     const Icon = ICONS[m.icon] || ICONS.LayoutDashboard;
-                    return <li key={m.to}><NavLink to={m.to} end={m.end} onClick={() => setOpenPath(null)} className={itemCls}><Icon size={19} aria-hidden="true" /> {m.label[lang]}</NavLink></li>;
+                    return <li key={m.to}><NavLink to={m.to} end={m.end} onClick={() => { setOpenPath(null); setExpandedGroup('auto'); }} className={itemCls}><Icon size={19} aria-hidden="true" /> {m.label[lang]}</NavLink></li>;
                   })}
-                </ul>
+                </ul>}
               </div>
             );
           })}

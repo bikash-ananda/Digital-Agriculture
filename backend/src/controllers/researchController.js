@@ -57,7 +57,8 @@ exports.units = async (req, res, next) => {
               (SELECT MIN(d.day) FROM unit_daily d WHERE d.growing_unit_id = gu.id) AS first_day,
               (SELECT MAX(d.day) FROM unit_daily d WHERE d.growing_unit_id = gu.id) AS last_day,
               (SELECT COUNT(*) FROM unit_daily d WHERE d.growing_unit_id = gu.id) AS days,
-              (SELECT c.name_en FROM crop_cycles cc JOIN crops c ON c.id = cc.crop_id WHERE cc.growing_unit_id = gu.id AND cc.status = 'active' ORDER BY cc.id DESC LIMIT 1) AS crop_en
+              (SELECT c.name_en FROM crop_cycles cc JOIN crops c ON c.id = cc.crop_id WHERE cc.growing_unit_id = gu.id AND cc.status = 'active' ORDER BY cc.id DESC LIMIT 1) AS crop_en,
+              (SELECT c.name_ne FROM crop_cycles cc JOIN crops c ON c.id = cc.crop_id WHERE cc.growing_unit_id = gu.id AND cc.status = 'active' ORDER BY cc.id DESC LIMIT 1) AS crop_ne
          FROM growing_units gu JOIN sites s ON s.id = gu.site_id LEFT JOIN farms fm ON fm.id = gu.farm_id LEFT JOIN farmers f ON f.id = fm.farmer_id
         WHERE (gu.farm_id IS NULL OR (f.consent_research = 1 AND f.verification_status = 'verified'))${sc.sql} ORDER BY gu.is_simulated, gu.id`, sc.params);
     res.json(rows.map((r) => ({ ...r, days: Number(r.days), farmer_owned: !!r.farmer_owned, is_simulated: !!r.is_simulated })));

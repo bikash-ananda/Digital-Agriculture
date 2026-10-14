@@ -324,6 +324,17 @@ exports.publicArticles = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+exports.publicNews = async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, category, title_ne, title_en, body, file_path, published_at, created_at
+         FROM notices
+        WHERE is_published = 1 AND category IN ('news', 'press_release', 'program', 'training')
+        ORDER BY COALESCE(published_at, created_at) DESC, id DESC LIMIT 12`);
+    res.json(rows);
+  } catch (e) { next(e); }
+};
+
 exports.publicPapers = async (req, res, next) => {
   try {
     const [rows] = await db.query(
