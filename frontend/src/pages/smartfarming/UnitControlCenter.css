@@ -1,0 +1,25 @@
+.sf-print-only { display: none; }
+
+@media print {
+  @page { margin: 14mm; }
+  body * { visibility: hidden !important; }
+  .sf-dashboard, .sf-dashboard * { visibility: visible !important; }
+  .sf-dashboard {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #111 !important;
+    background: #fff !important;
+  }
+  .sf-print-only { display: block !important; margin-bottom: 1rem; }
+  .sf-no-print, .sf-print-hide { display: none !important; }
+  .sf-dashboard .shadow { box-shadow: none !important; }
+  .sf-dashboard .bg-white { background: #fff !important; }
+  .sf-live-readings article, .sf-comparison-chart, .sf-dashboard table { break-inside: avoid; }
+  .sf-comparison-chart { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .sf-dashboard h2, .sf-dashboard h3, .sf-dashboard h4 { color: #123221 !important; }
+}
+
