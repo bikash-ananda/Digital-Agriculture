@@ -44,6 +44,35 @@ exports.list = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+exports.listFarms = async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 25, 1), 100);
+    const offset = (page - 1) * limit;
+    const sc = scopeSql(req, 'f');
+    let where = `WHERE fm.status = 'active'${sc.sql}`;
+    const params = [...sc.params];
+    if (req.query.search) {
+      const term = `%${String(req.query.search).trim()}%`;
+      where += ' AND (fm.name LIKE ? OR fm.address LIKE ? OR f.full_name_en LIKE ? OR f.full_name_ne LIKE ? OR f.farmer_code LIKE ?)';
+      params.push(term, term, term, term, term);
+    }
+    const [[count]] = await db.query(`SELECT COUNT(*) AS total FROM farms fm JOIN farmers f ON f.id = fm.farmer_id ${where}`, params);
+    const [rows] = await db.query(
+      `SELECT fm.id, fm.name, fm.farmer_id, fm.local_level_id, fm.ward_no, fm.address, fm.area_sqm, fm.ownership_type,
+              fm.irrigation_type, fm.latitude, fm.longitude, fm.altitude_m, fm.soil_type, fm.water_source, fm.land_use,
+              fm.terrace_farming, fm.organic_certified, f.farmer_code, f.full_name_en, f.full_name_ne,
+              ll.name_en AS local_level_en, ll.name_ne AS local_level_ne,
+              (SELECT COUNT(*) FROM growing_units gu WHERE gu.farm_id = fm.id) AS unit_count,
+              (SELECT COUNT(*) FROM iot_devices d WHERE d.farm_id = fm.id AND d.status <> 'disabled') AS device_count,
+              (SELECT COUNT(*) FROM crop_production cp WHERE cp.farm_id = fm.id) AS production_records
+         FROM farms fm JOIN farmers f ON f.id = fm.farmer_id
+         LEFT JOIN local_levels ll ON ll.id = fm.local_level_id ${where}
+        ORDER BY fm.id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+    res.json({ data: rows, total: Number(count.total), page, limit });
+  } catch (e) { next(e); }
+};
+
 exports.getOne = async (req, res, next) => {
   try {
     const farmer = await findFarmer(req, req.params.id);

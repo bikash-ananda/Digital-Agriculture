@@ -23,6 +23,11 @@ router.post('/sites', authorize('smart_farming.create'), [
   opt('longitude').isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude')
 ], validate, ctrl.createSite);
 
+router.put('/sites/:id/location', authorize('smart_farming.create'), idRule, [
+  opt('latitude').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
+  opt('longitude').isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude')
+], validate, ctrl.updateLocation);
+
 router.post('/sites/:id/units', authorize('smart_farming.create'), idRule, [
   body('unit_type').isIn(['greenhouse', 'tunnel', 'open_field']).withMessage('Invalid unit type'),
   body('name_en').trim().notEmpty().withMessage('Name is required').isLength({ max: 150 }),

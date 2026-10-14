@@ -16,6 +16,7 @@ const ids = query('unit_ids').matches(/^[\d,]+$/).withMessage('unit_ids must be 
 const view = authorize('research.view');
 
 router.get('/metrics', view, c.metrics);
+router.get('/storage', view, c.storage);
 router.get('/units', view, c.units);
 router.get('/units/:id/daily', view, idRule, day('from'), day('to'), validate, c.daily);
 router.get('/units/:id/hourly', view, idRule, query('type').isIn(TYPES), day('from'), day('to'), validate, c.hourly);

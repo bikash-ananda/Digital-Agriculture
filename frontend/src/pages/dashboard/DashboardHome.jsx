@@ -14,15 +14,16 @@ const ACTIONS = [
   { perm: 'farmers.view', to: '/app/farmers', icon: Search, ne: 'कृषक खोज्नुहोस्', en: 'Find a farmer' },
   { perm: 'smart_farming.view', to: '/app/smart-farming', icon: Cpu, ne: 'ग्रीनहाउस अनुगमन गर्नुहोस्', en: 'Monitor a greenhouse' },
   { perm: 'datacenter.view', to: '/app/data-center', icon: Database, ne: 'डाटा केन्द्र हेर्नुहोस्', en: 'Open the Data Center' },
-  { perm: 'learning.view', to: '/app/learning', icon: GraduationCap, ne: 'सिक्न थाल्नुहोस्', en: 'Start learning' },
+  { perm: 'knowledge.view', to: '/app/knowledge?tab=training', icon: GraduationCap, ne: 'सिक्न थाल्नुहोस्', en: 'Start learning' },
   { perm: 'notices.view', to: '/app/notices', icon: Megaphone, ne: 'सूचना हेर्नुहोस्', en: 'Read notices' }
 ];
 
 export default function DashboardHome() {
   const { lang, t } = useLang();
   const { user, can } = useAuth();
+  const canSeeOverview = user?.permissions?.includes('datacenter.view');
   const [ov, setOv] = useState(null);
-  useEffect(() => { if (can('datacenter.view')) api.get('/datacenter/overview').then((r) => setOv(r.data)).catch(() => {}); }, []);
+  useEffect(() => { if (canSeeOverview) api.get('/datacenter/overview').then((r) => setOv(r.data)).catch(() => {}); }, [canSeeOverview]);
 
   const h = new Date().getHours();
   const greet = h < 12 ? t('शुभ प्रभात', 'Good morning') : h < 17 ? t('शुभ दिन', 'Good afternoon') : t('शुभ साँझ', 'Good evening');

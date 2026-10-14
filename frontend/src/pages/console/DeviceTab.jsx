@@ -50,7 +50,7 @@ export default function DeviceTab({ id, ov, lang, t, can }) {
       <div className="bg-white rounded-xl shadow p-5 space-y-2">
         <h3 className="font-display font-bold text-terrace-900">{t('यो ग्रीनहाउसको नियन्त्रक अझै जोडिएको छैन', 'This greenhouse’s controller is not linked yet')}</h3>
         <p className="text-sm text-gray-700">{t('यन्त्रको स्वास्थ्य, Wi-Fi, क्यालिब्रेसन र फर्मवेयर व्यवस्थापन गर्न “ops” परिचय प्लेटफर्म यन्त्रसँग जोड्नुपर्छ। सर्भरमा यो आदेश चलाउनुहोस्:', 'To manage health, Wi-Fi, calibration and firmware, the controller’s ops id must be linked to the platform device. On the server run:')}</p>
-        <pre className="bg-gray-100 rounded p-3 text-xs overflow-x-auto">node database/ops-link.js greenhouse-kaski-01 GH-KASKI-01 --env-file /etc/greenhouse.env --key &lt;TOKEN_VARIABLE_NAME&gt;</pre>
+        <pre className="bg-gray-100 rounded p-3 text-xs overflow-x-auto">node database/ops-link.js greenhouse-kaski-01 GH-KASKI-01 --env-file /etc/digital-agriculture/production.env --key &lt;TOKEN_VARIABLE_NAME&gt;</pre>
         {err && <p className="text-sm text-red-700">{err}</p>}
       </div>
     );

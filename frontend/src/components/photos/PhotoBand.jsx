@@ -2,30 +2,33 @@
 import useLang from '../../utils/useLang';
 import Photo from './Photo';
 import { pickOne, placeOf } from '../../utils/photos';
+import useReducedMotion from '../../utils/useReducedMotion';
 
 export default function PhotoBand({ theme = 'himal' }) {
   const { lang, t } = useLang();
+  const reduced = useReducedMotion();
   const p = pickOne(theme);
   const wrap = useRef(null);
   const inner = useRef(null);
   useEffect(() => {
-    if (!p || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const container = wrap.current;
+    const element = inner.current;
+    if (!p || reduced || !container || !element) return undefined;
     let raf = 0;
     const upd = () => {
       raf = 0;
-      if (!wrap.current || !inner.current) return;
-      const r = wrap.current.getBoundingClientRect();
+      const r = container.getBoundingClientRect();
       const vh = window.innerHeight;
       if (r.bottom < -100 || r.top > vh + 100) return;
       const prog = (vh - r.top) / (vh + r.height);
-      inner.current.style.transform = `translate3d(0, ${((prog - 0.5) * -90).toFixed(1)}px, 0) scale(1.12)`;
+      element.style.transform = `translate3d(0, ${((prog - 0.5) * -90).toFixed(1)}px, 0) scale(1.12)`;
     };
     const on = () => { if (!raf) raf = requestAnimationFrame(upd); };
     on();
     window.addEventListener('scroll', on, { passive: true });
     window.addEventListener('resize', on);
-    return () => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); cancelAnimationFrame(raf); };
-  }, [p]);
+    return () => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); cancelAnimationFrame(raf); element.style.transform = ''; };
+  }, [p, reduced]);
   if (!p) return null;
   const place = placeOf(p, lang);
   return (

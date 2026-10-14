@@ -12,7 +12,7 @@ const isDay = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !Number.isNa
 const parseIds = (v, max = 10) => [...new Set(String(v || '').split(',').map((x) => parseInt(x, 10)).filter((x) => Number.isInteger(x) && x > 0))].slice(0, max);
 const num = (v) => (v === null || v === undefined ? null : Number(v));
 
-function range(req, defDays = 30, maxDays = 366) {
+function range(req, defDays = 30, maxDays = 730) {
   const to = isDay(req.query.to) ? req.query.to : localDate(0);
   const from = isDay(req.query.from) ? req.query.from : addDays(to, -(defDays - 1));
   const span = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000 + 1;
@@ -25,11 +25,29 @@ async function allowedUnits(req, ids) {
   if (!ids.length) return [];
   const sc = orgSql(req);
   const [rows] = await db.query(
-    `SELECT gu.id, gu.code, gu.name_en, gu.name_ne, gu.is_simulated, gu.farm_id FROM growing_units gu JOIN sites s ON s.id = gu.site_id WHERE gu.id IN (?)${sc.sql}`, [ids, ...sc.params]);
+    `SELECT gu.id, gu.code, gu.name_en, gu.name_ne, gu.is_simulated, gu.farm_id FROM growing_units gu JOIN sites s ON s.id = gu.site_id
+       LEFT JOIN farms fm ON fm.id = gu.farm_id LEFT JOIN farmers f ON f.id = fm.farmer_id
+      WHERE gu.id IN (?) AND (gu.farm_id IS NULL OR (f.consent_research = 1 AND f.verification_status = 'verified'))${sc.sql}`, [ids, ...sc.params]);
   return rows;
 }
 
 exports.metrics = (req, res) => res.json(Object.entries(METRICS).map(([key, v]) => ({ key, ...v })));
+
+exports.storage = async (req, res, next) => {
+  try {
+    const [[dbSize]] = await db.query(
+      `SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes, COUNT(*) AS tables
+         FROM information_schema.tables WHERE table_schema = DATABASE()`);
+    const [[daily]] = await db.query('SELECT MIN(day) AS first_day, MAX(day) AS last_day, COUNT(*) AS rows FROM unit_daily');
+    res.json({
+      database_bytes: Number(dbSize.bytes), database_tables: Number(dbSize.tables),
+      backup_limit_bytes: 5_000_000_000,
+      daily_rollups: { first_day: daily.first_day, last_day: daily.last_day, rows: Number(daily.rows) },
+      retention_plan: { raw_readings_days: 30, hourly_rollups_days: 62, daily_rollups_days: 730, automated_pruning: false },
+      note: 'Database footprint is reported separately from compressed backup files. Google Weather API values are not part of the research archive.'
+    });
+  } catch (e) { next(e); }
+};
 
 exports.units = async (req, res, next) => {
   try {
@@ -40,7 +58,8 @@ exports.units = async (req, res, next) => {
               (SELECT MAX(d.day) FROM unit_daily d WHERE d.growing_unit_id = gu.id) AS last_day,
               (SELECT COUNT(*) FROM unit_daily d WHERE d.growing_unit_id = gu.id) AS days,
               (SELECT c.name_en FROM crop_cycles cc JOIN crops c ON c.id = cc.crop_id WHERE cc.growing_unit_id = gu.id AND cc.status = 'active' ORDER BY cc.id DESC LIMIT 1) AS crop_en
-         FROM growing_units gu JOIN sites s ON s.id = gu.site_id WHERE 1 = 1${sc.sql} ORDER BY gu.is_simulated, gu.id`, sc.params);
+         FROM growing_units gu JOIN sites s ON s.id = gu.site_id LEFT JOIN farms fm ON fm.id = gu.farm_id LEFT JOIN farmers f ON f.id = fm.farmer_id
+        WHERE (gu.farm_id IS NULL OR (f.consent_research = 1 AND f.verification_status = 'verified'))${sc.sql} ORDER BY gu.is_simulated, gu.id`, sc.params);
     res.json(rows.map((r) => ({ ...r, days: Number(r.days), farmer_owned: !!r.farmer_owned, is_simulated: !!r.is_simulated })));
   } catch (e) { next(e); }
 };
@@ -58,7 +77,7 @@ exports.daily = async (req, res, next) => {
 
 exports.hourly = async (req, res, next) => {
   try {
-    const rg = range(req, 7, 31);
+    const rg = range(req, 7, 62);
     if (rg.error) return res.status(400).json({ message: rg.error });
     const [u] = await allowedUnits(req, [Number(req.params.id)]);
     if (!u) return notFound(res, 'Growing unit');
@@ -156,7 +175,8 @@ exports.devicesHealth = async (req, res, next) => {
               (SELECT ROUND(AVG(t.rssi)) FROM device_telemetry t WHERE t.device_id = d.id AND t.recorded_at >= NOW() - INTERVAL 24 HOUR) AS rssi_avg_24h,
               (SELECT COUNT(*) FROM device_telemetry t WHERE t.device_id = d.id AND t.recorded_at >= NOW() - INTERVAL 24 HOUR AND t.uptime_s < 120) AS reboots_24h
          FROM iot_devices d JOIN sites s ON s.id = d.site_id LEFT JOIN growing_units gu ON gu.id = d.growing_unit_id
-        WHERE d.status <> 'disabled'${sc.sql} ORDER BY d.id`, sc.params);
+         LEFT JOIN farms fm ON fm.id = d.farm_id LEFT JOIN farmers f ON f.id = fm.farmer_id
+        WHERE d.status <> 'disabled' AND (d.farm_id IS NULL OR (f.consent_research = 1 AND f.verification_status = 'verified'))${sc.sql} ORDER BY d.id`, sc.params);
     res.json(rows.map((r) => ({ ...r, reboots_24h: Number(r.reboots_24h), live: r.last_seen_at === null ? 'registered' : r.age_s > 300 ? 'offline' : 'online' })));
   } catch (e) { next(e); }
 };
@@ -237,7 +257,7 @@ exports.dictionary = (req, res) => {
     '## Time', 'All daily and hourly values use Nepal local time (UTC+05:45). Raw readings are stored in UTC.', '',
     '## Method notes',
     '- Hourly rows: count, mean, min, max and population standard deviation of raw (calibrated) readings.',
-    '- Daily per-greenhouse metrics are built from hourly rows; every hour counts equally.',
+    '- Daily per-greenhouse means are sample-count weighted across hourly rollups. Data coverage is the received sample count divided by the expected count (DEVICE_UPLOAD_SECONDS, default 30 seconds); it is not a measure of accuracy.',
     '- Calibration offset and scale are applied when a reading arrives. Changing a calibration does not alter earlier readings.',
     '- Time in range uses the optimum range of the active crop (or the generic crop when none is active). These ranges are reference defaults, not validated local recommendations.',
     '- Rows with data coverage below 70 % should normally be excluded from analysis.',
@@ -245,7 +265,7 @@ exports.dictionary = (req, res) => {
     '## Metrics', '| Key | Name | Unit | Definition |', '|---|---|---|---|'
   ];
   Object.entries(METRICS).forEach(([k, v]) => lines.push(`| ${k} | ${v.en} | ${v.unit} | ${v.def} |`));
-  lines.push('', '## Limitations', '- Analog EC and low-cost soil sensors are indicative; validate against reference instruments.', '- Lux-to-PAR conversion assumes sunlight.', '- Hourly means smooth short peaks of VPD and temperature.');
+  lines.push('', '## Limitations', '- Analog EC and low-cost soil sensors are indicative; validate against reference instruments.', '- Lux-to-PAR conversion uses an approximate sunlight factor and scales partial hours by sample coverage; it is not a substitute for a quantum PAR sensor.', '- Hourly means smooth short peaks of VPD and temperature.', '- Google Weather API values are transient context and are not retained in long-term exports.');
   res.set({ 'Content-Type': 'text/markdown; charset=utf-8', 'Content-Disposition': 'attachment; filename="research_data_dictionary.md"' });
   res.send(lines.join('\n'));
 };
@@ -256,7 +276,7 @@ exports.exportData = async (req, res, next) => {
     const purpose = String(req.query.purpose || '').trim();
     if (purpose.length < 10 || purpose.length > 255) return res.status(400).json({ message: 'Enter the purpose of this export (10-255 characters)' });
     if (!process.env.EXPORT_SECRET) return res.status(500).json({ message: 'Export is not configured (EXPORT_SECRET is missing in .env)' });
-    const rg = range(req, 30, dataset === 'hourly' ? 62 : 366);
+    const rg = range(req, 30, dataset === 'hourly' ? 62 : 730);
     if (rg.error) return res.status(400).json({ message: rg.error });
     const ids = parseIds(req.query.unit_ids, 50);
     const sc = orgSql(req);

@@ -9,6 +9,7 @@ import { errMsgs } from '../../utils/errors';
 
 const emptyUnit = { unit_type: 'greenhouse', name_en: '', name_ne: '', area_sqm: '' };
 const emptyDev = { device_code: '', growing_unit_id: '', device_type: 'esp32' };
+const emptyLocation = { latitude: '', longitude: '' };
 
 export default function SiteDetail() {
   const { i18n } = useTranslation();
@@ -20,12 +21,16 @@ export default function SiteDetail() {
   const [error, setError] = useState('');
   const [unit, setUnit] = useState(emptyUnit);
   const [dev, setDev] = useState(emptyDev);
+  const [location, setLocation] = useState(emptyLocation);
   const [showUnit, setShowUnit] = useState(false);
   const [showDev, setShowDev] = useState(false);
   const [errs, setErrs] = useState([]);
   const [newKey, setNewKey] = useState(null);
 
-  const load = () => api.get(`/smart/sites/${id}`).then((r) => setData(r.data)).catch((e) => setError(errMsgs(e)[0]));
+  const load = () => api.get(`/smart/sites/${id}`).then((r) => {
+    setData(r.data);
+    setLocation({ latitude: r.data.site.latitude ?? '', longitude: r.data.site.longitude ?? '' });
+  }).catch((e) => setError(errMsgs(e)[0]));
   useEffect(() => { load(); }, [id]);
 
   const addUnit = async (e) => {
@@ -41,6 +46,11 @@ export default function SiteDetail() {
       setDev(emptyDev); setShowDev(false); load();
     } catch (err) { setErrs(errMsgs(err)); }
   };
+  const saveLocation = async (e) => {
+    e.preventDefault(); setErrs([]);
+    try { await api.put(`/smart/sites/${id}/location`, location); load(); }
+    catch (err) { setErrs(errMsgs(err)); }
+  };
 
   if (error) return <div className="p-4 bg-red-50 text-red-700 rounded">{error}</div>;
   if (!data) return <p className="text-gray-500">...</p>;
@@ -55,6 +65,13 @@ export default function SiteDetail() {
       </div>
 
       {errs.length > 0 && <ul className="p-3 bg-red-50 text-red-700 rounded text-sm list-disc pl-6">{errs.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+
+      {can('smart_farming.create') && <form onSubmit={saveLocation} className="bg-white rounded-lg shadow p-4 grid sm:grid-cols-2 gap-3">
+        <div className="sm:col-span-2"><h3 className="font-semibold text-gov-blue">{t('साइटको स्थान तथा बाहिरी मौसम', 'Site location and outdoor weather')}</h3><p className="text-sm text-gray-600">{t('अक्षांश र देशान्तर राखेपछि स्थानीय मौसम यस साइटको कन्सोलमा देखिन्छ।', 'Set coordinates to show local outdoor weather in this site’s console.')}</p></div>
+        <FormField label={t('अक्षांश', 'Latitude')}><input type="number" step="any" min="-90" max="90" value={location.latitude} onChange={(e) => setLocation({ ...location, latitude: e.target.value })} className={inputCls} /></FormField>
+        <FormField label={t('देशान्तर', 'Longitude')}><input type="number" step="any" min="-180" max="180" value={location.longitude} onChange={(e) => setLocation({ ...location, longitude: e.target.value })} className={inputCls} /></FormField>
+        <div className="sm:col-span-2"><button className="bg-agri-green text-white px-4 py-2 rounded text-sm">{t('स्थान सुरक्षित गर्नुहोस्', 'Save location')}</button></div>
+      </form>}
 
       {newKey && (
         <div className="p-4 bg-yellow-50 border border-yellow-300 rounded">

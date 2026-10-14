@@ -1,5 +1,6 @@
 ﻿const db = require('../config/db');
 
+const { getWeather } = require('../services/weatherService');
 const isSuper = (req) => req.user.roles.includes('super_admin');
 const orgSql = (req) => (isSuper(req) ? { sql: '', params: [] } : { sql: ' AND s.organization_id = ?', params: [req.user.organization_id] });
 const LIVE = `CASE WHEN d.status = 'disabled' THEN 'disabled' WHEN d.last_seen_at IS NULL THEN 'registered' WHEN d.last_seen_at < (NOW() - INTERVAL 5 MINUTE) THEN 'offline' ELSE 'online' END`;
@@ -87,6 +88,26 @@ exports.overview = async (req, res, next) => {
     }
     const [alerts] = await db.query("SELECT id, severity, message, triggered_at FROM alerts WHERE growing_unit_id = ? AND status = 'open' ORDER BY id DESC LIMIT 5", [unit.id]);
     res.json({ unit: { ...unit, is_simulated: !!unit.is_simulated }, devices, tiles, actuators, commands, alerts, min_off_s: minOff, server_time: new Date().toISOString() });
+  } catch (e) { next(e); }
+};
+
+exports.weather = async (req, res, next) => {
+  try {
+    const unit = await unitOf(req, req.params.id);
+    if (!unit) return res.status(404).json({ message: 'Growing unit not found' });
+    const sc = orgSql(req);
+    const [[site]] = await db.query(
+      `SELECT s.latitude, s.longitude FROM growing_units gu JOIN sites s ON s.id = gu.site_id WHERE gu.id = ?${sc.sql}`,
+      [unit.id, ...sc.params]);
+    let data;
+    try {
+      data = await getWeather(site && site.latitude, site && site.longitude, req.query.lang === 'ne' ? 'ne' : 'en');
+    } catch (e) {
+      console.error('[weather provider]', e.message);
+      return res.status(502).json({ configured: Boolean(process.env.GOOGLE_WEATHER_API_KEY), available: false, reason: 'provider_unavailable' });
+    }
+    res.set('Cache-Control', 'no-store');
+    res.json(data);
   } catch (e) { next(e); }
 };
 

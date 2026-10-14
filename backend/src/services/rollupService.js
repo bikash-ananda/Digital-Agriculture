@@ -3,14 +3,18 @@ const db = require('../config/db');
 const TZ = '+05:45';
 const LOCAL_MS = (5 * 60 + 45) * 60000;
 const LUX_TO_PPFD = 0.0185;
+const UPLOAD_SECONDS = Math.min(Math.max(parseInt(process.env.DEVICE_UPLOAD_SECONDS, 10) || 30, 10), 300);
 
 const localDate = (offsetDays = 0) => new Date(Date.now() + LOCAL_MS + offsetDays * 86400000).toISOString().slice(0, 10);
-const localHour = () => new Date(Date.now() + LOCAL_MS).getUTCHours();
 const addDays = (d, n) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 const utcStr = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
 const svp = (t) => 0.6108 * Math.exp((17.27 * t) / (t + 237.3));
 const dewPoint = (t, rh) => { const a = 17.27, b = 237.3; const al = (a * t) / (b + t) + Math.log(Math.max(rh, 1) / 100); return (b * al) / (a - al); };
 const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+const weightedAvg = (a) => {
+  const n = a.reduce((sum, x) => sum + Number(x.n || 0), 0);
+  return n ? a.reduce((sum, x) => sum + Number(x.avg) * Number(x.n || 0), 0) / n : null;
+};
 const rd = (v, d = 2) => (v === null || v === undefined || !Number.isFinite(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 
 async function rollupHourly(hoursBack = 3) {
@@ -59,12 +63,12 @@ async function rollupUnitDay(unit, day) {
   Object.entries(acc).forEach(([k, list]) => {
     const [type, hh] = k.split('|');
     const w = list.reduce((a, x) => a + x.n, 0);
-    (T[type] = T[type] || {})[hh] = { hh, avg: list.reduce((a, x) => a + x.v_avg * x.n, 0) / w, min: Math.min(...list.map((x) => x.v_min)), max: Math.max(...list.map((x) => x.v_max)) };
+    (T[type] = T[type] || {})[hh] = { hh, n: w, avg: list.reduce((a, x) => a + x.v_avg * x.n, 0) / w, min: Math.min(...list.map((x) => x.v_min)), max: Math.max(...list.map((x) => x.v_max)) };
   });
   const series = (t) => Object.values(T[t] || {}).sort((a, b) => a.hh.localeCompare(b.hh));
   const temp = series('temperature'), rh = series('humidity'), sm = series('soil_moisture'), st = series('soil_temperature');
   const ec = series('ec'), wl = series('water_level'), lux = series('light');
-  const mean = (a) => avg(a.map((x) => x.avg));
+  const mean = (a) => weightedAvg(a);
   const lo = (a) => (a.length ? Math.min(...a.map((x) => x.min)) : null);
   const hi = (a) => (a.length ? Math.max(...a.map((x) => x.max)) : null);
 
@@ -75,11 +79,17 @@ async function rollupUnitDay(unit, day) {
   const tg = await unitTargets(cycle ? cycle.crop_id : null);
   const base = cycle ? Number(cycle.base_temp_c) : 10;
 
-  const rhMap = Object.fromEntries(rh.map((x) => [x.hh, x.avg]));
+  const rhMap = Object.fromEntries(rh.map((x) => [x.hh, x]));
   const vpdS = temp.filter((x) => rhMap[x.hh] !== undefined).map((x) => ({
-    hh: x.hh, v: svp(x.avg) * (1 - Math.min(Math.max(rhMap[x.hh], 0), 100) / 100), dp: dewPoint(x.avg, rhMap[x.hh])
+    hh: x.hh, n: Math.min(x.n, rhMap[x.hh].n),
+    v: svp(x.avg) * (1 - Math.min(Math.max(rhMap[x.hh].avg, 0), 100) / 100), dp: dewPoint(x.avg, rhMap[x.hh].avg)
   }));
-  const tir = (ser, target, pick = (x) => x.avg) => (!target || !ser.length ? null : (100 * ser.filter((x) => pick(x) >= target.opt_min && pick(x) <= target.opt_max).length) / ser.length);
+  const tir = (ser, target, pick = (x) => x.avg) => {
+    if (!target || !ser.length) return null;
+    const total = ser.reduce((sum, x) => sum + Number(x.n || 1), 0);
+    const within = ser.reduce((sum, x) => sum + (pick(x) >= target.opt_min && pick(x) <= target.opt_max ? Number(x.n || 1) : 0), 0);
+    return total ? (100 * within) / total : null;
+  };
 
   const [types] = await db.query('SELECT DISTINCT actuator_type FROM actuators WHERE growing_unit_id = ?', [unit.id]);
   const haveAct = new Set(types.map((x) => x.actuator_type));
@@ -93,24 +103,31 @@ async function rollupUnitDay(unit, day) {
   const A = Object.fromEntries(act.map((x) => [x.type, x]));
   const mins = (t) => (haveAct.has(t) ? rd(Number((A[t] && A[t].secs) || 0) / 60, 1) : null);
 
-  const expected = day === localDate(0) ? localHour() + 1 : 24;
+  const dayStartMs = Date.parse(`${day}T00:00:00Z`) - LOCAL_MS;
+  const elapsedSeconds = day === localDate(0) ? Math.max(0, (Date.now() - dayStartMs) / 1000) : 86400;
+  const expectedSamples = Math.max(1, Math.floor(elapsedSeconds / UPLOAD_SECONDS));
   const perSensor = {};
-  hrs.forEach((h) => { perSensor[h.sensor_id] = (perSensor[h.sensor_id] || 0) + 1; });
-  const coverage = avg(sensors.map((s) => Math.min(100, (100 * (perSensor[s.id] || 0)) / expected)));
+  hrs.forEach((h) => { perSensor[h.sensor_id] = (perSensor[h.sensor_id] || 0) + Number(h.n); });
+  const coverage = avg(sensors.map((s) => Math.min(100, (100 * (perSensor[s.id] || 0)) / expectedSamples)));
 
   const row = {
     growing_unit_id: unit.id, day, cycle_id: cycle ? cycle.id : null, crop_id: cycle ? cycle.crop_id : null, dap: cycle ? cycle.dap : null,
     temp_avg: rd(mean(temp)), temp_min: rd(lo(temp)), temp_max: rd(hi(temp)), rh_avg: rd(mean(rh)),
-    vpd_avg: rd(avg(vpdS.map((x) => x.v)), 3), vpd_max: vpdS.length ? rd(Math.max(...vpdS.map((x) => x.v)), 3) : null,
+    vpd_avg: rd(vpdS.length ? vpdS.reduce((sum, x) => sum + x.v * x.n, 0) / vpdS.reduce((sum, x) => sum + x.n, 0) : null, 3), vpd_max: vpdS.length ? rd(Math.max(...vpdS.map((x) => x.v)), 3) : null,
     dew_point_min: vpdS.length ? rd(Math.min(...vpdS.map((x) => x.dp))) : null,
-    dli: lux.length ? rd(lux.reduce((a, x) => a + (x.avg * LUX_TO_PPFD * 3600) / 1e6, 0), 2) : null,
+    dli: lux.length ? rd(lux.reduce((a, x) => {
+      const lightSensors = Math.max(1, sensors.filter((s) => s.sensor_type === 'light').length);
+      const expectedSamples = (3600 / UPLOAD_SECONDS) * lightSensors;
+      const coveredSeconds = 3600 * Math.min(1, x.n / expectedSamples);
+      return a + (x.avg * LUX_TO_PPFD * coveredSeconds) / 1e6;
+    }, 0), 2) : null,
     gdd: temp.length ? rd(Math.max(0, (hi(temp) + lo(temp)) / 2 - base)) : null,
     soil_moisture_avg: rd(mean(sm)), soil_moisture_min: rd(lo(sm)), soil_moisture_max: rd(hi(sm)), soil_temp_avg: rd(mean(st)), ec_avg: rd(mean(ec), 3), water_level_min: rd(lo(wl)),
     irrigation_min: mins('irrigation'), misting_min: mins('misting'), fan_min: mins('fan'),
     irrigation_events: haveAct.has('irrigation') ? Number((A.irrigation && A.irrigation.events) || 0) : null,
     tir_temp: rd(tir(temp, tg.temperature), 1), tir_rh: rd(tir(rh, tg.humidity), 1), tir_soil_moisture: rd(tir(sm, tg.soil_moisture), 1), tir_vpd: rd(tir(vpdS, tg.vpd, (x) => x.v), 1),
-    h_temp_above: tg.temperature && temp.length ? temp.filter((x) => x.avg > tg.temperature.opt_max).length : null,
-    h_temp_below: tg.temperature && temp.length ? temp.filter((x) => x.avg < tg.temperature.opt_min).length : null,
+    h_temp_above: tg.temperature && temp.length ? rd(temp.filter((x) => x.avg > tg.temperature.opt_max).reduce((sum, x) => sum + Math.min(1, x.n / ((3600 / UPLOAD_SECONDS) * Math.max(1, sensors.filter((s) => s.sensor_type === 'temperature').length))), 0), 2) : null,
+    h_temp_below: tg.temperature && temp.length ? rd(temp.filter((x) => x.avg < tg.temperature.opt_min).reduce((sum, x) => sum + Math.min(1, x.n / ((3600 / UPLOAD_SECONDS) * Math.max(1, sensors.filter((s) => s.sensor_type === 'temperature').length))), 0), 2) : null,
     data_coverage: rd(coverage, 1)
   };
   const { growing_unit_id: _u, day: _d, ...rest } = row;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceArea,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -34,14 +34,12 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
   const [hours, setHours] = useState(24);
   const [selectedByGroup, setSelectedByGroup] = useState({});
   const [history, setHistory] = useState([]);
+  const [historyKey, setHistoryKey] = useState('');
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    if (!groups.some((item) => item.key === groupKey)) setGroupKey(groups[0]?.key || '');
-  }, [groups, groupKey]);
-
-  const group = groups.find((item) => item.key === groupKey);
+  const activeGroupKey = groups.some((item) => item.key === groupKey) ? groupKey : groups[0]?.key || '';
+  const group = groups.find((item) => item.key === activeGroupKey);
   const selectedIds = useMemo(() => {
     if (!group) return [];
     return (selectedByGroup[group.key] || group.sensors.map((sensor) => sensor.id))
@@ -51,21 +49,14 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
     ? group.sensors.filter((sensor) => selectedIds.includes(sensor.id))
     : [], [group, selectedIds]);
 
-  const queryRef = useRef({ group, selectedSensors });
-  queryRef.current = { group, selectedSensors };
-  const requestKey = groupKey + '|' + hours + '|' + selectedIds.slice().sort().join(',') + '|' + refreshKey;
+  const requestKey = activeGroupKey + '|' + hours + '|' + selectedIds.slice().sort().join(',') + '|' + refreshKey;
+  const visibleHistory = historyKey === requestKey ? history : [];
+  const selectionError = group && !selectedSensors.length ? t('चयन गर्न कम्तीमा एउटा सेन्सर छान्नुहोस्', 'Select at least one sensor') : '';
 
   useEffect(() => {
-    const current = queryRef.current;
-    if (!current.group || !current.selectedSensors.length) {
-      setHistory([]);
-      setError(current.group ? t('चयन गर्न कम्तीमा एउटा सेन्सर छान्नुहोस्', 'Select at least one sensor') : '');
-      return undefined;
-    }
+    if (!group || !selectedSensors.length) return undefined;
     let alive = true;
-    setHistory([]);
-    setError('');
-    Promise.allSettled(current.selectedSensors.map((sensor) =>
+    Promise.allSettled(selectedSensors.map((sensor) =>
       api.get('/smart/sensors/' + sensor.id + '/history', { params: { hours } })
         .then((response) => ({ sensor, points: response.data.points || [] }))))
       .then((results) => {
@@ -73,15 +64,16 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
         const successful = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
         const failedCount = results.length - successful.length;
         setHistory(successful);
+        setHistoryKey(requestKey);
         if (!successful.length) setError(t('इतिहास डाटा लोड भएन', 'Could not load sensor history'));
-        else if (failedCount) setError(failedCount + ' ' + t('सेन्सरको डाटा लोड भएन', 'sensor history request(s) failed'));
+        else setError(failedCount ? failedCount + ' ' + t('सेन्सरको डाटा लोड भएन', 'sensor history request(s) failed') : '');
       });
     return () => { alive = false; };
-  }, [requestKey, hours, t]);
+  }, [group, selectedSensors, requestKey, hours, t]);
 
   const rows = useMemo(() => {
     const map = new Map();
-    history.forEach(({ sensor, points }) => points.forEach((point) => {
+    visibleHistory.forEach(({ sensor, points }) => points.forEach((point) => {
       const ts = new Date(point.t).getTime();
       if (!Number.isFinite(ts)) return;
       const row = map.get(ts) || { ts };
@@ -90,9 +82,9 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
       map.set(ts, row);
     }));
     return [...map.values()].sort((a, b) => a.ts - b.ts);
-  }, [history]);
+  }, [visibleHistory]);
 
-  const summaries = useMemo(() => history.map(({ sensor, points }) => {
+  const summaries = useMemo(() => visibleHistory.map(({ sensor, points }) => {
     const valid = points.filter((point) => Number.isFinite(Number(point.avg)));
     const samples = valid.reduce((sum, point) => sum + Number(point.n || 0), 0);
     const weighted = valid.reduce((sum, point) => sum + Number(point.avg) * Number(point.n || 0), 0);
@@ -103,7 +95,7 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
       max: valid.length ? Math.max(...valid.map((point) => Number(point.max))) : null,
       samples
     };
-  }), [history]);
+  }), [visibleHistory]);
 
   const target = (parameters || []).find((parameter) => parameter.key === group?.sensor_type)?.target;
   const tick = (value) => hours <= 48
@@ -122,7 +114,7 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
         </div>
         <label className="sf-no-print text-sm flex items-center gap-2">
           <span>{t('मापन', 'Measurement')}</span>
-          <select aria-label={t('मापन छान्नुहोस्', 'Choose measurement')} value={groupKey} onChange={(event) => setGroupKey(event.target.value)} className="border rounded p-2 bg-white">
+          <select aria-label={t('मापन छान्नुहोस्', 'Choose measurement')} value={activeGroupKey} onChange={(event) => setGroupKey(event.target.value)} className="border rounded p-2 bg-white">
             {groups.map((item) => <option key={item.key} value={item.key}>{metricLabel(item.sensor_type, lang)}{item.unit ? ' (' + item.unit + ')' : ''}</option>)}
           </select>
         </label>
@@ -149,9 +141,9 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
         </fieldset>
       )}
 
-      {error && <p role="status" className="p-2 bg-yellow-50 text-yellow-800 rounded text-sm">{error}</p>}
-      {!history.length && !error && <p className="text-gray-500 text-sm py-8 text-center">{t('डाटा लोड हुँदैछ…', 'Loading history…')}</p>}
-      {history.length > 0 && rows.length === 0 && <p className="text-gray-500 text-sm py-8 text-center">{t('यस अवधिमा डाटा छैन', 'No data in this period')}</p>}
+      {(selectionError || (historyKey === requestKey && error)) && <p role="status" className="p-2 bg-yellow-50 text-yellow-800 rounded text-sm">{selectionError || error}</p>}
+      {!visibleHistory.length && !selectionError && !(historyKey === requestKey && error) && <p className="text-gray-500 text-sm py-8 text-center">{t('डाटा लोड हुँदैछ…', 'Loading history…')}</p>}
+      {visibleHistory.length > 0 && rows.length === 0 && <p className="text-gray-500 text-sm py-8 text-center">{t('यस अवधिमा डाटा छैन', 'No data in this period')}</p>}
 
       {rows.length > 0 && (
         <>
@@ -206,4 +198,3 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
     </section>
   );
 }
-
