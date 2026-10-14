@@ -9,7 +9,29 @@ concurrency:
   group: production-deploy
   cancel-in-progress: false
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
   deploy:
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -25,30 +47,34 @@ jobs:
             -czf /tmp/digital-agriculture-release.tgz .
       - name: Configure SSH
         env:
-          DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_KEY }}
-          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          HOST: ${{ secrets.HOST }}
+          PORT: ${{ secrets.PORT }}
         run: |
-          test -n "$DEPLOY_KEY" || { echo "Missing VPS_DEPLOY_KEY"; exit 1; }
-          test -n "$KNOWN_HOSTS" || { echo "Missing VPS_KNOWN_HOSTS"; exit 1; }
+          test -n "$SSH_KEY" || { echo "Missing SSH_KEY"; exit 1; }
+          test -n "$HOST" || { echo "Missing HOST"; exit 1; }
+          PORT="${PORT:-22}"
+          case "$PORT" in *[!0-9]*|'') echo "PORT must be a number"; exit 1 ;; esac
           install -m 700 -d "$HOME/.ssh"
-          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/id_ed25519"
-          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          ssh-keyscan -H -p "$PORT" "$HOST" > "$HOME/.ssh/known_hosts" 2>/dev/null
+          test -s "$HOME/.ssh/known_hosts" || { echo "Could not retrieve SSH host key"; exit 1; }
           chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
       - name: Upload release
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PORT: ${{ secrets.PORT }}
         run: |
-          test -n "$VPS_HOST" && test -n "$VPS_USER" || { echo "Missing VPS_HOST or VPS_USER"; exit 1; }
-          port="${VPS_SSH_PORT:-22}"
-          scp -i "$HOME/.ssh/id_ed25519" -P "$port" -o IdentitiesOnly=yes /tmp/digital-agriculture-release.tgz "$VPS_USER@$VPS_HOST:/tmp/digital-agriculture-release-$GITHUB_SHA.tgz"
+          test -n "$HOST" && test -n "$USERNAME" || { echo "Missing HOST or USERNAME"; exit 1; }
+          port="${PORT:-22}"
+          scp -i "$HOME/.ssh/id_ed25519" -P "$port" -o IdentitiesOnly=yes /tmp/digital-agriculture-release.tgz "$USERNAME@$HOST:/tmp/digital-agriculture-release-$GITHUB_SHA.tgz"
       - name: Deploy and check health
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PORT: ${{ secrets.PORT }}
         run: |
-          port="${VPS_SSH_PORT:-22}"
-          ssh -i "$HOME/.ssh/id_ed25519" -p "$port" -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
+          port="${PORT:-22}"
+          ssh -i "$HOME/.ssh/id_ed25519" -p "$port" -o IdentitiesOnly=yes "$USERNAME@$HOST" \
             "set -eu; release='/srv/digital-agriculture/releases/$GITHUB_SHA'; mkdir -p \"\$release\"; tar -xzf '/tmp/digital-agriculture-release-$GITHUB_SHA.tgz' -C \"\$release\"; rm -f '/tmp/digital-agriculture-release-$GITHUB_SHA.tgz'; bash \"\$release/scripts/deploy-release.sh\" \"\$release\""
