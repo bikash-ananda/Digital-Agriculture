@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
@@ -63,6 +63,16 @@ export default function SiteDetail() {
         <h2 className="text-2xl font-bold text-gov-blue mt-1">{lang === 'en' ? site.name_en : site.name_ne}</h2>
         <p className="text-sm text-gray-600">{site.code} · {site.site_type} · {site.address || '-'}{site.latitude ? ` · ${site.latitude}, ${site.longitude}` : ''}</p>
       </div>
+
+      {(() => {
+        const online = devices.filter((device) => device.live_status === 'online').length;
+        const lastDevice = devices.filter((device) => device.last_seen_at).sort((a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at))[0];
+        return <section aria-label={t('फार्म अवस्था', 'Farm status')} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <article className="rounded-xl border border-terrace-100 bg-white p-4 shadow-sm"><p className="text-xs font-medium text-gray-600">{t('यन्त्र जडान', 'Device connection')}</p><p className={`mt-1 text-xl font-bold ${online > 0 ? 'text-emerald-700' : 'text-slate-700'}`}>{devices.length === 0 ? t('यन्त्र दर्ता छैन', 'No devices registered') : online > 0 ? t('अनलाइन', 'Online') : t('अफलाइन', 'Offline')} <span className="text-sm font-semibold">{online}/{devices.length}</span></p><p className="text-xs text-gray-500">{t('फार्मका अनलाइन यन्त्र', 'farm devices online')}</p></article>
+          <article className="rounded-xl border border-terrace-100 bg-white p-4 shadow-sm"><p className="text-xs font-medium text-gray-600">{t('उत्पादन इकाई', 'Growing units')}</p><p className="mt-1 text-2xl font-bold text-terrace-900">{units.length}</p><p className="text-xs text-gray-500">{t('ग्रीनहाउस, टनेल वा खेत', 'greenhouses, tunnels, or fields')}</p></article>
+          <article className="rounded-xl border border-terrace-100 bg-white p-4 shadow-sm"><p className="text-xs font-medium text-gray-600">{t('अन्तिम यन्त्र सम्पर्क', 'Last device contact')}</p><p className="mt-1 text-sm font-semibold text-terrace-900">{lastDevice?.last_seen_at ? new Date(lastDevice.last_seen_at).toLocaleString(lang === 'en' ? 'en-GB' : 'ne-NP', { dateStyle: 'medium', timeStyle: 'short' }) : t('अहिलेसम्म कुनै सम्पर्क छैन', 'No device contact yet')}</p><p className="mt-1 text-xs text-gray-500">{lastDevice?.device_code || t('दर्ता भएका यन्त्रहरू', 'Registered devices')}</p></article>
+        </section>;
+      })()}
 
       {errs.length > 0 && <ul className="p-3 bg-red-50 text-red-700 rounded text-sm list-disc pl-6">{errs.map((x, i) => <li key={i}>{x}</li>)}</ul>}
 

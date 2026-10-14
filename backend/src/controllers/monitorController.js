@@ -1,4 +1,4 @@
-﻿const db = require('../config/db');
+const db = require('../config/db');
 const { logAudit } = require('../utils/audit');
 
 const isSuper = (req) => req.user.roles.includes('super_admin');
@@ -43,17 +43,46 @@ exports.history = async (req, res, next) => {
     const sensor = rows[0];
     if (!sensor) return res.status(404).json({ message: 'Sensor not found' });
 
-    const hours = Math.min(Math.max(parseInt(req.query.hours, 10) || 24, 1), 720);
+    const hasFrom = Boolean(req.query.from);
+    const hasTo = Boolean(req.query.to);
+    if (hasFrom !== hasTo) return res.status(400).json({ message: 'Both from and to dates are required' });
+
+    let hours = Math.min(Math.max(parseInt(req.query.hours, 10) || 24, 1), 720);
+    let rangeSql;
+    let rangeParams = [];
+    let fromIso = null;
+    let toIso = null;
+    if (hasFrom && hasTo) {
+      const from = new Date(req.query.from);
+      const requestedTo = new Date(req.query.to);
+      const now = new Date();
+      if (!Number.isFinite(from.getTime()) || !Number.isFinite(requestedTo.getTime()) || from >= requestedTo || from > now) {
+        return res.status(400).json({ message: 'The custom date range is invalid' });
+      }
+      const to = requestedTo > now ? now : requestedTo;
+      const spanMs = to.getTime() - from.getTime();
+      if (spanMs <= 0 || spanMs > 720 * 60 * 60 * 1000) {
+        return res.status(400).json({ message: 'Custom date ranges must be 30 days or less' });
+      }
+      hours = Math.max(1, Math.ceil(spanMs / 3600000));
+      const sqlDate = (date) => date.toISOString().slice(0, 19).replace('T', ' ');
+      fromIso = from.toISOString();
+      toIso = to.toISOString();
+      rangeSql = 'recorded_at >= ? AND recorded_at < ?';
+      rangeParams = [sqlDate(from), sqlDate(to)];
+    } else {
+      rangeSql = `recorded_at >= (NOW() - INTERVAL ${hours} HOUR)`;
+    }
+
     const bucketSeconds = Math.max(60, Math.ceil((hours * 3600) / 240 / 60) * 60);
     const [points] = await db.query(
-      `SELECT FROM_UNIXTIME(b * ${bucketSeconds}) AS t, AVG(value) AS avg, MIN(value) AS min, MAX(value) AS max, COUNT(*) AS n
-         FROM (SELECT FLOOR(UNIX_TIMESTAMP(recorded_at) / ${bucketSeconds}) AS b, value
-                 FROM sensor_readings WHERE sensor_id = ? AND recorded_at >= (NOW() - INTERVAL ${hours} HOUR)) x
-        GROUP BY b ORDER BY b`, [sensor.id]);
-    res.json({ sensor, hours, bucket_seconds: bucketSeconds, points });
+      `SELECT FROM_UNIXTIME(b * ?) AS t, AVG(value) AS avg, MIN(value) AS min, MAX(value) AS max, COUNT(*) AS n
+         FROM (SELECT FLOOR(UNIX_TIMESTAMP(recorded_at) / ?) AS b, value
+                 FROM sensor_readings WHERE sensor_id = ? AND ${rangeSql}) x
+        GROUP BY b ORDER BY b`, [bucketSeconds, bucketSeconds, sensor.id, ...rangeParams]);
+    res.json({ sensor, hours, from: fromIso, to: toIso, bucket_seconds: bucketSeconds, points });
   } catch (e) { next(e); }
 };
-
 async function findActuator(req, id) {
   const sc = orgSql(req);
   const [rows] = await db.query(

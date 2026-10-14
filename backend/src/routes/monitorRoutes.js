@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { body, param, query } = require('express-validator');
 const validate = require('../middleware/validate');
 const { authenticate, authorize } = require('../middleware/auth');
@@ -9,8 +9,11 @@ router.use(authenticate);
 const idRule = param('id').isInt({ min: 1 });
 
 router.get('/units/:id/live', authorize('smart_farming.view'), idRule, validate, ctrl.live);
-router.get('/sensors/:id/history', authorize('smart_farming.view'), idRule,
-  query('hours').optional().isInt({ min: 1, max: 720 }), validate, ctrl.history);
+router.get('/sensors/:id/history', authorize('smart_farming.view'), idRule, [
+  query('hours').optional().isInt({ min: 1, max: 720 }),
+  query('from').optional().isISO8601({ strict: true }),
+  query('to').optional().isISO8601({ strict: true })
+], validate, ctrl.history);
 
 router.post('/actuators/:id/command', authorize('irrigation_control.control'), idRule, [
   body('command').isIn(['on', 'off']).withMessage('Command must be on or off'),
