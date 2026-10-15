@@ -1,10 +1,11 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Menu, X, Phone, Mail, ChevronDown, Globe, MapPin, Clock } from 'lucide-react';
+import { Menu, X, Phone, Mail, ChevronDown, Globe, MapPin, Clock, ExternalLink } from 'lucide-react';
 import { office, nav, usefulLinks } from '../../data/office';
 import AccessibilityTools from '../common/AccessibilityTools';
 import LoginSupportChat from '../auth/LoginSupportChat';
+import { ThemeControl, UiSoundToggle } from '../common/UiExperience';
 
 export default function PublicLayout() {
   const { i18n } = useTranslation();
@@ -25,16 +26,23 @@ export default function PublicLayout() {
     `block px-3 py-3 text-[15px] font-medium border-b-[3px] ${isActive ? 'border-gov-red text-terrace-900' : 'border-transparent text-terrace-800 hover:text-gov-blue hover:border-terrace-100'}`;
 
   return (
-    <div className="min-h-[100svh] flex flex-col">
+    <div className={`agri-app agri-app-public min-h-[100svh] flex flex-col ${pathname === '/' ? 'agri-app-home' : ''}`}>
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 bg-white p-3 text-gov-blue">{lang === 'ne' ? 'मुख्य सामग्रीमा जानुहोस्' : 'Skip to main content'}</a>
       <a href="#accessibility-toggle" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-16 focus:z-[80] focus:rounded focus:bg-white focus:p-3 focus:text-gov-blue">{lang === 'ne' ? 'सहज पहुँच सेटिङमा जानुहोस्' : 'Skip to accessibility settings'}</a>
 
       <div className="bg-terrace-900 text-white text-sm on-dark">
         <div className="max-w-7xl mx-auto px-4 py-1.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
           <span>{L(office.province)} · {L(office.ministry)}</span>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 md:gap-5">
             <a href={`tel:+977${office.phone.replace('-', '')}`} className="hidden sm:flex items-center gap-1.5 hover:underline"><Phone size={14} aria-hidden="true" /> {office.phone}</a>
             <a href={`mailto:${office.email}`} className="hidden md:flex items-center gap-1.5 hover:underline"><Mail size={14} aria-hidden="true" /> {office.email}</a>
+            <a href={office.website} target="_blank" rel="noopener noreferrer" aria-label={lang === 'ne' ? 'आधिकारिक वेबसाइट, नयाँ ट्याबमा खुल्नेछ' : 'Official website, opens in a new tab'} className="inline-flex items-center gap-1.5 font-semibold hover:underline">
+              <ExternalLink size={14} aria-hidden="true" />
+              <span>{lang === 'ne' ? 'आधिकारिक वेबसाइट' : 'Official website'}</span>
+              <span className="hidden sm:inline">kaski.ado.gov.np</span>
+            </a>
+            <ThemeControl variant="dark" />
+            <UiSoundToggle className="text-white hover:bg-white/10" />
             <button onClick={() => i18n.changeLanguage(lang === 'ne' ? 'en' : 'ne')} className="flex items-center gap-1.5 font-semibold hover:underline">
               <Globe size={14} aria-hidden="true" /> {lang === 'ne' ? 'English' : 'नेपाली'}
             </button>
@@ -107,8 +115,16 @@ export default function PublicLayout() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-white/10 py-4 text-center text-sm text-terrace-100/80">
-          © {new Date().getFullYear()} {L(office.name)} · {lang === 'ne' ? 'डिजिटल कृषि तथा स्मार्ट फार्मिङ प्लेटफर्म' : 'Digital Agriculture & Smart Farming Platform'}
+        <div className="border-t border-white/10">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3 text-sm text-terrace-100/80 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-center sm:text-left">© {new Date().getFullYear()} {L(office.name)} · {lang === 'ne' ? 'डिजिटल कृषि तथा स्मार्ट फार्मिङ प्लेटफर्म' : 'Digital Agriculture & Smart Farming Platform'}</p>
+            <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center sm:justify-end">
+              <span>{lang === 'ne' ? 'सफ्टवेयर प्राविधिक समस्याका लागि:' : 'Software technical issues:'}</span>
+              <span className="font-semibold text-white">Bikas Engineering Pvt. Ltd.</span>
+              <span aria-hidden="true">·</span>
+              <a href="tel:+9779856056205" className="inline-flex items-center gap-1 font-semibold text-white underline-offset-2 hover:underline"><Phone size={14} aria-hidden="true" />9856056205</a>
+            </p>
+          </div>
         </div>
       </footer>
       <AccessibilityTools />

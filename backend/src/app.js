@@ -25,6 +25,7 @@ const intelligenceRoutes = require('./routes/intelligenceRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 const supportChatRoutes = require('./routes/supportChatRoutes');
 const smartChatRoutes = require('./routes/smartChatRoutes');
+const publicFarmingRoutes = require('./routes/publicFarmingRoutes');
 
 const app = express();
 const proxyHops = Number(process.env.TRUST_PROXY_HOPS);
@@ -66,6 +67,7 @@ app.use('/api/smart', intelligenceRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/support-chat', supportChatRoutes);
 app.use('/api/smart-chat', smartChatRoutes);
+app.use('/api/public-farming', publicFarmingRoutes);
 
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 app.use((err, req, res, next) => {

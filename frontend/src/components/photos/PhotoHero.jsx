@@ -22,9 +22,9 @@ function HeroText({ t, dark }) {
       <h1 className={`text-4xl md:text-6xl font-bold leading-tight ${dark ? 'text-terrace-900' : 'text-white'}`} style={dark ? undefined : { textShadow: '0 2px 18px rgba(0,0,0,.45)' }}>
         {t('कास्कीका किसानका लागि डिजिटल कृषि सेवा', 'Digital agriculture services for the farmers of Kaski')}
       </h1>
-      <p className={`mt-4 text-lg md:text-xl max-w-xl ${dark ? 'text-gray-800' : 'text-white/95'}`}>{t('सूचना, अनुदान कार्यक्रम, तालिम र स्मार्ट फार्मिङ — एकै ठाउँमा।', 'Notices, grant programs, training and smart farming, in one place.')}</p>
+      <p className={`mt-4 text-lg md:text-xl max-w-xl ${dark ? 'text-gray-800' : 'text-white/95'}`}>{t('कृषि ज्ञान, कार्यक्रम, तालिम र स्मार्ट फार्मिङ — एकै ठाउँमा।', 'Farming guidance, programs, training and smart farming, in one place.')}</p>
       <div className="mt-7 flex flex-wrap gap-3">
-        <Link to="/notices" className={`px-6 py-3 rounded-md font-semibold ${cta}`}>{t('नयाँ सूचना हेर्नुहोस्', 'View latest notices')}</Link>
+        <Link to="/knowledge" className={`px-6 py-3 rounded-md font-semibold ${cta}`}>{t('कृषि ज्ञान हेर्नुहोस्', 'Explore farming guidance')}</Link>
         <Link to="/login" className={`px-6 py-3 rounded-md font-semibold ${ghost}`}>{t('लगइन गर्नुहोस्', 'Sign in')}</Link>
       </div>
     </div>

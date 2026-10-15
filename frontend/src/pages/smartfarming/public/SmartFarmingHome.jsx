@@ -1,0 +1,59 @@
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Activity, ArrowRight, BookOpen, CalendarDays, CloudSun, Cpu, Database, ImagePlus, Search, ShoppingBasket, Sparkles, Sprout, UsersRound } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { copy } from './helpers';
+import { AgricultureScenicSection } from '../../../components/layout/AgricultureShowcase';
+
+const tools = [
+  { id: 'assistant', to: '/smart-farming/assistant', title: ['AI Farming Assistant', 'कृषि एआई सहायक'], description: ['Ask farming questions in Nepali or English. Connect an AI provider to receive grounded answers.', 'नेपाली वा अंग्रेजीमा कृषि प्रश्न सोध्नुहोस्। उपयोगी उत्तरका लागि एआई सेवा जडान हुनुपर्छ।'], icon: Sparkles, tag: ['Provider required', 'सेवा जडान आवश्यक'], words: 'ai advice questions chat' },
+  { id: 'doctor', to: '/smart-farming/crop-doctor', title: ['Crop Doctor', 'बाली समस्या सहायक'], description: ['Share a crop photo and symptoms for preliminary AI triage when image analysis is configured.', 'तस्बिर र लक्षणबाट प्रारम्भिक एआई विश्लेषण; तस्बिर विश्लेषण सेवा जडान हुनुपर्छ।'], icon: ImagePlus, tag: ['Preliminary analysis', 'प्रारम्भिक विश्लेषण'], words: 'disease pest symptom photo diagnosis' },
+  { id: 'weather', to: '/smart-farming/weather', title: ['Weather & advisory', 'मौसम तथा कृषि सल्लाह'], description: ['Check current conditions and the next 24 hours for a selected location.', 'छानिएको स्थानको हालको मौसम र आगामी २४ घण्टाको पूर्वानुमान हेर्नुहोस्।'], icon: CloudSun, words: 'weather rain forecast temperature' },
+  { id: 'guides', to: '/smart-farming/crop-guides', title: ['Crop reference library', 'बाली सन्दर्भ सामग्री'], description: ['Find practical topics and links to official crop-production resources.', 'व्यावहारिक विषय र सरकारी बाली उत्पादन सामग्रीका लिङ्क खोज्नुहोस्।'], icon: BookOpen, words: 'crop guides tomato maize rice potato' },
+  { id: 'planner', to: '/smart-farming/planner', title: ['Seasonal planner', 'मौसमी कार्ययोजना'], description: ['Create field tasks and track due dates on this device.', 'खेतका काम र मिति यसै उपकरणमा राख्नुहोस्।'], icon: CalendarDays, tag: ['Saved on this device', 'यस उपकरणमा सुरक्षित'], words: 'calendar tasks reminders planting' },
+  { id: 'services', to: '/smart-farming/services', title: ['Agricultural services', 'कृषि सेवा तथा प्राविधिक'], description: ['Reach the Agriculture Development Office and verified government service directories.', 'कृषि विकास कार्यालय र सरकारी सेवा निर्देशिकामा पुग्नुहोस्।'], icon: UsersRound, words: 'experts contact soil lab seed cooperative' },
+  { id: 'iot', to: '/app/smart-farming', title: ['Smart farm monitoring', 'स्मार्ट फार्म अनुगमन'], description: ['Open the existing sensor and greenhouse console. Sign-in and office permissions are required.', 'हालको सेन्सर तथा ग्रीनहाउस कन्सोल खोल्नुहोस्। लगइन र कार्यालय अनुमति आवश्यक छ।'], icon: Cpu, tag: ['Sign-in required', 'लगइन आवश्यक'], words: 'iot sensors greenhouse device moisture' },
+  { id: 'farm', title: ['Personal farm records', 'व्यक्तिगत फार्म अभिलेख'], description: ['Private farm profiles, plots, expenses and harvest records are not connected yet.', 'निजी फार्म, प्लट, खर्च र बाली अभिलेख सेवा अझै जडान भएको छैन।'], icon: Database, tag: ['Not available yet', 'अहिले उपलब्ध छैन'], words: 'farm records expenses harvest management', unavailable: true },
+  { id: 'market', title: ['Agricultural marketplace', 'कृषि बजार'], description: ['Listings, buyer inquiries and verified market quotations are not connected yet.', 'बिक्री सूची, खरिदकर्ता सोधपुछ र प्रमाणित बजार मूल्य सेवा अझै जडान भएको छैन।'], icon: ShoppingBasket, tag: ['Not available yet', 'अहिले उपलब्ध छैन'], words: 'market price buyers produce sales', unavailable: true }
+];
+
+export default function SmartFarmingHome() {
+  const { i18n } = useTranslation();
+  const lang = i18n.language === 'en' ? 'en' : 'ne';
+  const [query, setQuery] = useState('');
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return tools.filter((tool) => !q || `${tool.title.join(' ')} ${tool.description.join(' ')} ${tool.words}`.toLowerCase().includes(q));
+  }, [query]);
+  return <div className="bg-[#f5f8f4]">
+    <AgricultureScenicSection className="text-white">
+      <div className="relative z-10 mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.2fr_.8fr] lg:items-center lg:py-20">
+        <div><div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-100"><Sprout size={15} aria-hidden="true" />{copy(lang, 'PRACTICAL TOOLS FOR KASKI FARMERS', 'कास्कीका किसानका लागि व्यावहारिक उपकरण')}</div>
+          <h1 className="mt-5 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">{copy(lang, 'Make your next farm decision with better information.', 'सही जानकारीसँगै खेतीको अर्को निर्णय लिनुहोस्।')}</h1>
+          <p className="mt-5 max-w-2xl text-base leading-7 text-emerald-50">{copy(lang, 'A public starting point for crop references, field planning, weather and connected farm services. Use the tools that are ready today; provider-dependent services show their connection status clearly.', 'बाली सन्दर्भ, खेत योजना, मौसम र जडित कृषि सेवाको सार्वजनिक सुरुवात। उपलब्ध उपकरण प्रयोग गर्नुहोस्; बाह्य सेवा चाहिने सुविधाले आफ्नो अवस्था स्पष्ट देखाउँछन्।')}</p>
+          <div className="mt-7 flex flex-wrap gap-3"><Link to="/smart-farming/crop-guides" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-lime-300 px-5 text-sm font-bold text-emerald-950 transition hover:bg-lime-200">{copy(lang, 'Explore crop guides', 'बाली सन्दर्भ हेर्नुहोस्')}<ArrowRight size={17} aria-hidden="true" /></Link><Link to="/smart-farming/planner" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-white/30 px-5 text-sm font-semibold text-white transition hover:bg-white/10"><CalendarDays size={17} aria-hidden="true" />{copy(lang, 'Plan field tasks', 'खेतका काम योजना गर्नुहोस्')}</Link></div>
+        </div>
+        <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-2xl backdrop-blur-sm sm:p-7">
+          <div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-lime-300 text-emerald-950"><Activity size={23} aria-hidden="true" /></span><div><p className="text-sm font-semibold text-emerald-100">{copy(lang, 'Start with the local context', 'स्थानीय अवस्था बुझेर सुरु गर्नुहोस्')}</p><p className="text-xl font-bold">{copy(lang, 'Kaski · Gandaki, Nepal', 'कास्की · गण्डकी, नेपाल')}</p></div></div>
+          <ul className="mt-6 space-y-3 text-sm leading-6 text-emerald-50"><li className="flex gap-2"><span className="text-lime-300">✓</span>{copy(lang, 'Check elevation, aspect, water and variety before following a crop calendar.', 'बाली पात्रो मान्नुअघि उचाइ, मोहडा, पानी र जात हेर्नुहोस्।')}</li><li className="flex gap-2"><span className="text-lime-300">✓</span>{copy(lang, 'Use official technical references and confirm uncertain cases with a technician.', 'सरकारी प्राविधिक सामग्री हेर्नुहोस् र अन्योलमा प्राविधिकसँग बुझ्नुहोस्।')}</li><li className="flex gap-2"><span className="text-lime-300">✓</span>{copy(lang, 'Weather, AI and sensor tools only show real data when their services are connected.', 'मौसम, एआई र सेन्सरले सेवा जडान भएपछि मात्र वास्तविक तथ्य देखाउँछन्।')}</li></ul>
+        </div>
+      </div>
+    </AgricultureScenicSection>
+    <section className="mx-auto max-w-7xl px-4 py-9 sm:px-6 sm:py-12">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">{copy(lang, 'TOOLS & SERVICES', 'उपकरण तथा सेवा')}</p><h2 className="mt-1 text-2xl font-bold text-slate-950">{copy(lang, 'What would help your farm today?', 'आज तपाईंको खेतका लागि के उपयोगी हुन्छ?')}</h2></div>
+        <label className="relative block w-full sm:w-80"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} aria-hidden="true" /><span className="sr-only">{copy(lang, 'Search tools', 'उपकरण खोज्नुहोस्')}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={copy(lang, 'Search crops, weather, sensors…', 'बाली, मौसम, सेन्सर खोज्नुहोस्…')} className="min-h-12 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-sm outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100" /></label>
+      </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map((tool) => {
+        const Icon = tool.icon;
+        const content = <><div className="flex items-start justify-between gap-3"><span className={`grid h-12 w-12 place-items-center rounded-2xl ${tool.unavailable ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-800'}`}><Icon size={22} aria-hidden="true" /></span>{tool.tag && <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tool.unavailable ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-800'}`}>{tool.tag[lang === 'en' ? 0 : 1]}</span>}</div><h3 className="mt-4 text-lg font-bold text-slate-950">{tool.title[lang === 'en' ? 0 : 1]}</h3><p className="mt-2 min-h-[4.5rem] text-sm leading-6 text-slate-600">{tool.description[lang === 'en' ? 0 : 1]}</p>{!tool.unavailable && <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-900">{copy(lang, 'Open tool', 'उपकरण खोल्नुहोस्')}<ArrowRight size={16} aria-hidden="true" /></span>}</>;
+        return tool.unavailable ? <article key={tool.id} className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">{content}</article> : <Link key={tool.id} to={tool.to} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-700">{content}</Link>;
+      })}</div>
+      {!visible.length && <p className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-7 text-center text-sm text-slate-600">{copy(lang, 'No tools match that search.', 'खोजसँग मिल्ने उपकरण भेटिएन।')}</p>}
+    </section>
+    <section className="border-y border-emerald-100 bg-white"><div className="mx-auto grid max-w-7xl gap-5 px-4 py-8 sm:px-6 md:grid-cols-3">
+      <Link to="/knowledge?tab=training" className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 p-5 hover:bg-emerald-50"><div><p className="font-bold text-slate-900">{copy(lang, 'Digital learning', 'डिजिटल सिकाइ')}</p><p className="mt-1 text-sm text-slate-600">{copy(lang, 'Open the existing Knowledge Center learning area.', 'हालको ज्ञान केन्द्रको सिकाइ खण्ड खोल्नुहोस्।')}</p></div><ArrowRight className="shrink-0 text-emerald-800" aria-hidden="true" /></Link>
+      <Link to="/knowledge?tab=training" className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 p-5 hover:bg-emerald-50"><div><p className="font-bold text-slate-900">{copy(lang, 'Agriculture games', 'कृषि खेल')}</p><p className="mt-1 text-sm text-slate-600">{copy(lang, 'Play the guest-accessible farm game in the existing learning area.', 'हालको सिकाइ खण्डमा अतिथि रूपमा खेत खेल खेल्नुहोस्।')}</p></div><ArrowRight className="shrink-0 text-emerald-800" aria-hidden="true" /></Link>
+      <Link to="/knowledge?tab=papers" className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 p-5 hover:bg-emerald-50"><div><p className="font-bold text-slate-900">{copy(lang, 'Research & innovation', 'अनुसन्धान तथा नवप्रवर्तन')}</p><p className="mt-1 text-sm text-slate-600">{copy(lang, 'Browse the existing public Knowledge Center research collection.', 'हालको ज्ञान केन्द्रको सार्वजनिक अनुसन्धान सामग्री हेर्नुहोस्।')}</p></div><ArrowRight className="shrink-0 text-emerald-800" aria-hidden="true" /></Link>
+    </div></section>
+  </div>;
+}

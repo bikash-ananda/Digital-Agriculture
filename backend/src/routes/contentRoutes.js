@@ -12,6 +12,8 @@ const optionalDate = (field) => body(field).optional({ values: 'falsy' }).isISO8
 const safeLink = (value) => !value || /^https?:\/\//i.test(value) || (value.startsWith('/') && !value.startsWith('//'));
 const publicCommentLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false,
   message: { message: 'Comment limit reached. Please try again later.' } });
+const innovationSubmitLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false,
+  message: { message: 'Innovation idea limit reached. Please try again later.' } });
 
 // Public read-only Knowledge Center endpoints. Public comments enter moderation first.
 router.get('/public/articles', c.publicArticles);
@@ -25,8 +27,25 @@ router.post('/public/papers/:paperId/comments', publicCommentLimit, paperId, [
 router.get('/public/training', c.publicCourses);
 router.get('/public/training/:id', id, validate, c.publicCourse);
 router.get('/public/library', c.publicLibrary);
+router.get('/public/innovations', c.publicInnovations);
 
 router.use(authenticate);
+
+router.get('/innovations/mine', authorize('knowledge.view'), c.myInnovations);
+router.get('/innovations/manage', authorize('knowledge.publish'), c.manageInnovations);
+router.post('/innovations', innovationSubmitLimit, authorize('knowledge.view'), [
+  body('title').trim().notEmpty().isLength({ max: 255 }),
+  body('category').isIn(['climate_smart', 'water_soil', 'crop_health', 'post_harvest', 'digital', 'other']),
+  body('problem').trim().isLength({ min: 20, max: 4000 }),
+  body('solution').trim().isLength({ min: 20, max: 4000 }),
+  body('crops').optional({ values: 'falsy' }).trim().isLength({ max: 300 }),
+  body('location').optional({ values: 'falsy' }).trim().isLength({ max: 180 }),
+  body('expected_impact').optional({ values: 'falsy' }).trim().isLength({ max: 2000 })
+], validate, c.submitInnovation);
+router.put('/innovations/:id/review', authorize('knowledge.publish'), id, [
+  body('status').isIn(['reviewing', 'pilot', 'showcase', 'declined']),
+  body('review_note').optional({ values: 'falsy' }).trim().isLength({ max: 5000 })
+], validate, c.reviewInnovation);
 
 router.post('/papers', authorize('knowledge.create'), [
   body('title').trim().notEmpty().isLength({ max: 300 }),

@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#123221" />
     <meta name="description" content="Digital Agriculture and Smart Farming Platform for Kaski, Nepal." />
+    <script>
+      (() => {
+        let preference = 'auto';
+        try {
+          const saved = localStorage.getItem('digital-agriculture-theme');
+          if (['auto', 'light', 'dark'].includes(saved)) preference = saved;
+        } catch { /* Use the automatic local-time theme when storage is unavailable. */ }
+        const hour = new Date().getHours();
+        const theme = preference === 'auto' ? (hour >= 6 && hour < 18 ? 'light' : 'dark') : preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
     <title>Digital Agriculture | Smart Farming</title>
   </head>
   <body>

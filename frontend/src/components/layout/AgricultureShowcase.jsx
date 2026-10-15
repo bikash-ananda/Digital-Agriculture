@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import useLang from '../../utils/useLang';
 
 const CAPTIONS = {
@@ -78,7 +79,7 @@ function useAgriculturePhotos() {
   return photos;
 }
 
-export function AgricultureHero() {
+export function AgricultureScenicSection({ children, className = '' }) {
   const { lang, t } = useLang();
   const photos = useAgriculturePhotos().filter((photo) => photo.category === 'header');
   const [active, setActive] = useState(0);
@@ -91,27 +92,57 @@ export function AgricultureHero() {
   }, [photos.length]);
 
   return (
-    <section className="agri-hero relative isolate overflow-hidden min-h-[540px] md:min-h-[650px] flex items-center">
+    <section className={`agri-hero relative isolate overflow-hidden ${className}`}>
       <div className="agri-hero-scenes" aria-hidden="true">
         {photos.map((photo, index) => <img key={photo.src} src={photo.src} alt="" className={`agri-hero-image ${index === active ? 'is-active' : ''}`} fetchPriority={index === active ? 'high' : 'auto'} />)}
       </div>
       <div className="agri-hero-shade absolute inset-0" aria-hidden="true" />
+      {children}
+      {photos.length > 0 && <p className="agri-hero-caption absolute bottom-3 left-4 z-10 max-w-[60%] rounded-md bg-black/30 px-3 py-1.5 text-xs text-white/95 backdrop-blur-sm md:bottom-4 md:left-6 md:text-sm" aria-live="polite">{captionFor('header', active, lang)}</p>}
+      {dots.length > 1 && <div className="absolute bottom-4 right-4 z-10 flex gap-2 md:right-6" aria-label={t('पृष्ठभूमि तस्बिर छान्नुहोस्', 'Choose a background photo')}>
+        {dots.map((photo, dotIndex) => { const index = photos.findIndex((item) => item.src === photo.src); return <button key={photo.src} type="button" onClick={() => setActive(index)} aria-label={`${t('तस्बिर', 'Photo')} ${index + 1}`} aria-pressed={dotIndex === selectedDot} className={`h-2.5 rounded-full transition-all ${dotIndex === selectedDot ? 'w-8 bg-white' : 'w-2.5 bg-white/55 hover:bg-white/90'}`} />; })}
+      </div>}
+    </section>
+  );
+}
+
+export function AgricultureHero() {
+  const { t } = useLang();
+  return (
+    <AgricultureScenicSection className="min-h-[540px] flex items-center md:min-h-[650px]">
       <div className="relative z-10 max-w-7xl w-full mx-auto px-4 py-20 md:py-28">
         <div className="max-w-3xl text-white">
           <p className="agri-hero-kicker inline-flex items-center gap-2 rounded-full border border-white/40 bg-black/20 px-4 py-1.5 text-sm font-semibold backdrop-blur-sm">{t('कास्की · गण्डकी प्रदेश', 'Kaski · Gandaki Province')}</p>
           <h1 className="mt-5 text-4xl md:text-6xl font-bold leading-tight drop-shadow-lg">{t('कास्कीका किसानका लागि डिजिटल कृषि सेवा', 'Digital agriculture services for the farmers of Kaski')}</h1>
-          <p className="mt-5 max-w-2xl text-lg md:text-xl text-white/95 drop-shadow">{t('सूचना, अनुदान कार्यक्रम, तालिम र स्मार्ट फार्मिङ — एकै ठाउँमा।', 'Notices, grant programs, training and smart farming, in one place.')}</p>
+          <p className="mt-5 max-w-2xl text-lg md:text-xl text-white/95 drop-shadow">{t('कृषि ज्ञान, कार्यक्रम, तालिम र स्मार्ट फार्मिङ — एकै ठाउँमा।', 'Farming guidance, programs, training and smart farming, in one place.')}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/notices" className="rounded-md bg-white px-6 py-3 font-semibold text-terrace-900 shadow hover:bg-terrace-50">{t('नयाँ सूचना हेर्नुहोस्', 'View latest notices')}</Link>
+            <Link to="/knowledge" className="rounded-md bg-white px-6 py-3 font-semibold text-terrace-900 shadow hover:bg-terrace-50">{t('कृषि ज्ञान हेर्नुहोस्', 'Explore farming guidance')}</Link>
             <Link to="/smart-farming" className="rounded-md border border-white/80 bg-black/20 px-6 py-3 font-semibold text-white backdrop-blur-sm hover:bg-white/15">{t('स्मार्ट फार्मिङ', 'Explore smart farming')}</Link>
           </div>
         </div>
-        {photos.length > 0 && <p className="agri-hero-caption absolute left-4 bottom-5 z-10 max-w-[55%] rounded-md bg-black/30 px-3 py-1.5 text-sm text-white/95 backdrop-blur-sm" aria-live="polite">{captionFor('header', active, lang)}</p>}
-        {dots.length > 1 && <div className="absolute bottom-6 right-4 z-10 flex gap-2" aria-label={t('पृष्ठभूमि तस्बिर छान्नुहोस्', 'Choose a background photo')}>
-          {dots.map((photo, dotIndex) => { const index = photos.findIndex((item) => item.src === photo.src); return <button key={photo.src} type="button" onClick={() => setActive(index)} aria-label={`${t('तस्बिर', 'Photo')} ${index + 1}`} aria-pressed={dotIndex === selectedDot} className={`h-2.5 rounded-full transition-all ${dotIndex === selectedDot ? 'w-8 bg-white' : 'w-2.5 bg-white/55 hover:bg-white/90'}`} />; })}
-        </div>}
       </div>
-    </section>
+    </AgricultureScenicSection>
+  );
+}
+
+export function AgriculturePageHero({ title, intro, parent, parentTo, eyebrow }) {
+  const { t } = useLang();
+  return (
+    <AgricultureScenicSection className="agri-page-hero">
+      <div className="relative z-10 max-w-7xl w-full mx-auto px-4 py-10 md:py-14">
+        <nav aria-label="Breadcrumb" className="mb-4 text-sm text-white/85">
+          <ol className="flex flex-wrap items-center gap-1.5">
+            <li><Link to="/" className="font-medium text-white underline-offset-4 hover:underline">{t('गृहपृष्ठ', 'Home')}</Link></li>
+            {parent && <><li aria-hidden="true"><ChevronRight size={14} /></li><li>{parentTo ? <Link to={parentTo} className="underline-offset-4 hover:underline">{parent}</Link> : parent}</li></>}
+            <li aria-hidden="true"><ChevronRight size={14} /></li>
+            <li aria-current="page" className="font-semibold text-white">{title}</li>
+          </ol>
+        </nav>
+        {eyebrow && <p className="mb-2 inline-flex rounded-full border border-white/30 bg-black/20 px-3 py-1 text-xs font-bold uppercase tracking-[.14em] text-white/90 backdrop-blur-sm">{eyebrow}</p>}
+        <h1 className="max-w-4xl text-3xl font-bold leading-tight text-white drop-shadow-lg md:text-5xl">{title}</h1>
+        {intro && <p className="mt-3 max-w-2xl text-base text-white/90 drop-shadow md:text-lg">{intro}</p>}
+      </div>
+    </AgricultureScenicSection>
   );
 }
 

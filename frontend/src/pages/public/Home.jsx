@@ -1,15 +1,13 @@
 ﻿import { Link } from 'react-router-dom';
-import { ClipboardList, Megaphone, BookOpen, Cpu, FileDown, PhoneCall, ChevronRight, Thermometer, Wifi, Server, LayoutDashboard, Phone, Mail } from 'lucide-react';
+import { ClipboardList, BookOpen, Cpu, PhoneCall, ChevronRight, Thermometer, Wifi, Server, LayoutDashboard, Phone, Mail } from 'lucide-react';
 import useLang from '../../utils/useLang';
 import { AgricultureHero, AgriculturePhotoSections } from '../../components/layout/AgricultureShowcase';
-import { office, officers, notices, usefulLinks } from '../../data/office';
+import { office, officers, usefulLinks } from '../../data/office';
 
 const SERVICES = [
   { to: '/programs', icon: ClipboardList, ne: ['अनुदान तथा कृषि कार्यक्रम', 'चालु कार्यक्रम, अनुदान र तालिमका जानकारी'], en: ['Grants and programs', 'Current programs, grants and training'] },
-  { to: '/notices', icon: Megaphone, ne: ['सूचना तथा समाचार', 'नयाँ सूचना, विज्ञप्ति र म्यादसहितका आह्वान'], en: ['Notices and news', 'New notices, press releases and calls with deadlines'] },
   { to: '/knowledge', icon: BookOpen, ne: ['कृषि प्रविधि सिक्नुहोस्', 'बाली, माटो, सिँचाइ, रोग तथा कीरा व्यवस्थापन'], en: ['Learn farming practice', 'Crops, soil, irrigation, pest and disease management'] },
   { to: '/smart-farming', icon: Cpu, ne: ['स्मार्ट फार्मिङ', 'ग्रीनहाउसमा सेन्सरबाट अनुगमन र स्वचालित सिँचाइ'], en: ['Smart farming', 'Sensor monitoring and automatic irrigation in greenhouses'] },
-  { to: '/format', icon: FileDown, ne: ['फारम तथा प्रकाशन डाउनलोड', 'आवेदन फारम, निर्देशिका र कृषि पुस्तिका'], en: ['Download forms and publications', 'Application forms, guidelines and farming booklets'] },
   { to: '/contact', icon: PhoneCall, ne: ['कार्यालयमा सम्पर्क', 'फोन, इमेल र कार्यालय समय'], en: ['Contact the office', 'Phone, email and office hours'] }
 ];
 
@@ -54,35 +52,22 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4 py-14 grid lg:grid-cols-3 gap-12">
-        <div className="lg:col-span-2">
-          <div className="flex flex-wrap items-end justify-between gap-2 border-b-2 border-gov-red pb-2">
-            <h2 className="text-2xl font-bold text-terrace-900">{t('सूचना', 'Notices')}</h2>
-            <a href={`${office.website}/notice`} target="_blank" rel="noreferrer" className="text-sm text-gov-blue underline">{t('सबै सूचना हेर्नुहोस्', 'View all notices')}</a>
-          </div>
-          <ul>
-            {notices.map((n, i) => (
-              <li key={i} className="py-4 border-b border-terrace-100">
-                <a href={`${office.website}/notice`} target="_blank" rel="noreferrer" className="font-medium text-terrace-900 hover:text-gov-blue hover:underline">{n.title}</a>
-                <p className="text-sm text-gray-600 mt-1">{t('अन्तिम मिति', 'Deadline')}: {n.deadline}</p>
-              </li>
-            ))}
-          </ul>
+      <section className="max-w-7xl mx-auto px-4 py-14">
+        <div className="max-w-2xl">
+          <h2 className="text-2xl md:text-3xl font-bold text-terrace-900">{t('सम्पर्क अधिकारीहरू', 'Contact officers')}</h2>
+          <p className="mt-2 text-gray-600">{t('कार्यालयका सेवा र कार्यक्रमबारे जानकारीका लागि सम्बन्धित अधिकारीसँग सम्पर्क गर्नुहोस्।', 'Contact the relevant officer for information about office services and programs.')}</p>
         </div>
-        <aside>
-          <h2 className="text-2xl font-bold text-terrace-900 border-b-2 border-gov-red pb-2">{t('सम्पर्क अधिकारी', 'Contact officers')}</h2>
-          <ul className="mt-4 space-y-4">
-            {officers.map((o) => (
-              <li key={o.name} className="bg-white border-l-4 border-agri-green p-4 shadow">
-                <p className="text-sm text-gray-600">{L(o.role)}</p>
-                <p className="font-display font-semibold text-terrace-900 text-lg">{o.name}</p>
-                <p className="text-sm text-gray-700">{o.post}</p>
-                <p className="mt-2 text-sm flex items-center gap-2"><Phone size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`tel:+977${ascii(o.phone)}`}>{o.phone}</a></p>
-                <p className="text-sm flex items-center gap-2 break-all"><Mail size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`mailto:${o.email}`}>{o.email}</a></p>
-              </li>
-            ))}
-          </ul>
-        </aside>
+        <ul className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {officers.map((o) => (
+            <li key={o.name} className="rounded-xl border border-terrace-100 border-l-4 border-l-agri-green bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-600">{L(o.role)}</p>
+              <p className="font-display font-semibold text-terrace-900 text-lg">{o.name}</p>
+              <p className="text-sm text-gray-700">{o.post}</p>
+              <p className="mt-2 text-sm flex items-center gap-2"><Phone size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`tel:+977${ascii(o.phone)}`}>{o.phone}</a></p>
+              <p className="text-sm flex items-center gap-2 break-all"><Mail size={14} aria-hidden="true" /><a className="text-gov-blue hover:underline" href={`mailto:${o.email}`}>{o.email}</a></p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="bg-white border-y border-terrace-100">

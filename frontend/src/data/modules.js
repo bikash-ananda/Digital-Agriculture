@@ -1,7 +1,7 @@
 ﻿export const groups = [
   { key: 'main', label: { ne: 'मुख्य', en: 'Main' } },
   { key: 'services', label: { ne: 'सेवा तथा अभिलेख', en: 'Services and records' } },
-  { key: 'learn', label: { ne: 'सिकाइ तथा ज्ञान', en: 'Learning and knowledge' } },
+  { key: 'learn', label: { ne: 'कृषि ज्ञान केन्द्र', en: 'Agriculture Knowledge Center' } },
   { key: 'smart', label: { ne: 'स्मार्ट कृषि तथा तथ्याङ्क', en: 'Smart agriculture and data' } },
   { key: 'office', label: { ne: 'कार्यालय', en: 'Office' } }
 ];
@@ -13,13 +13,11 @@ export const modules = [
   { to: '/app/farms', perm: 'farms.view', group: 'services', icon: 'Wheat', label: { ne: 'फार्म / साइट', en: 'Farms and sites' }, desc: { ne: 'फार्म, ग्रीनहाउस र खेतबारी', en: 'Farms, greenhouses and fields' } },
   { to: '/app/programs', perm: 'programs.view', group: 'services', icon: 'ClipboardList', label: { ne: 'कृषि कार्यक्रम', en: 'Agriculture programs' }, desc: { ne: 'कार्यक्रम, लाभग्राही र प्रगति', en: 'Programs, beneficiaries and progress' } },
   { to: '/app/notices', perm: 'notices.view', group: 'services', icon: 'Megaphone', label: { ne: 'सूचना', en: 'Notices' }, desc: { ne: 'सूचना तथा समाचार व्यवस्थापन', en: 'Manage notices and news' } },
-  { to: '/app/knowledge', perm: 'knowledge.view', group: 'learn', icon: 'BookOpen', label: { ne: 'ज्ञान तथा सिकाइ केन्द्र', en: 'Knowledge & Learning Center' }, desc: { ne: 'अनुसन्धान, पाठ्यक्रम, प्रकाशन र कृषि सन्दर्भ', en: 'Research, courses, publications and field references' } },
+  { to: '/app/knowledge', perm: 'knowledge.view', group: 'learn', icon: 'BookOpen', label: { ne: 'कृषि ज्ञान केन्द्र', en: 'Agriculture Knowledge Center' }, desc: { ne: 'सिकाइ, खेल, डिजिटल पुस्तकालय र अनुसन्धान एउटै ठाउँमा', en: 'Learning, games, the digital library and research in one place' } },
   { to: '/app/console', perm: 'smart_farming.view', group: 'smart', icon: 'Gauge', label: { ne: 'ग्रीनहाउस कन्सोल', en: 'Greenhouse Console' }, desc: { ne: 'अनुगमन, पम्प नियन्त्रण, स्वचालन र एआई विश्लेषण', en: 'Monitoring, pump control, automation and AI analysis' } },
   { to: '/app/smart-farming', perm: 'smart_farming.view', group: 'smart', icon: 'Cpu', label: { ne: 'स्मार्ट फार्मिङ', en: 'Smart farming' }, desc: { ne: 'ग्रीनहाउस अनुगमन र नियन्त्रण', en: 'Greenhouse monitoring and control' } },
   { to: '/app/smart-farming/chat', perm: 'smart_farming.view', group: 'smart', icon: 'MessageCircle', label: { ne: 'टोली च्याट', en: 'Team chat' }, desc: { ne: 'प्रत्यक्ष सन्देश, फाइल र आवाज/भिडियो कल', en: 'Direct messages, files, and voice/video calls' } },
   { to: '/app/data-center', perm: 'datacenter.view', group: 'smart', icon: 'Database', label: { ne: 'डाटा केन्द्र', en: 'Data Center' }, desc: { ne: 'जिल्लाव्यापी तथ्याङ्क र विश्लेषण', en: 'District-wide data and analysis' } },
-  { to: '/app/research', perm: 'research.view', group: 'smart', icon: 'FlaskConical', label: { ne: 'अनुसन्धान प्रयोगशाला', en: 'Research Lab' }, desc: { ne: 'सेन्सर तथ्याङ्कको विश्लेषण र प्रयोग', en: 'Analysis and experiments on sensor data' } },
   { to: '/app/reports', perm: 'reports.view', group: 'smart', icon: 'BarChart3', label: { ne: 'प्रतिवेदन', en: 'Reports' }, desc: { ne: 'आधिकारिक प्रतिवेदन', en: 'Official reports' } },
-  { to: '/app/documents', perm: 'documents.view', group: 'office', icon: 'Folder', label: { ne: 'कागजातहरू', en: 'Documents' }, desc: { ne: 'फारम, निर्देशिका र प्रकाशन', en: 'Forms, guidelines and publications' } },
   { to: '/app/admin', perm: 'users.view', group: 'office', icon: 'Settings', label: { ne: 'प्रशासन', en: 'Administration' }, desc: { ne: 'प्रयोगकर्ता, भूमिका र लग', en: 'Users, roles and logs' } }
 ];

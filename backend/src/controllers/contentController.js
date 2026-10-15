@@ -404,6 +404,71 @@ exports.publicLibrary = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+exports.publicInnovations = async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, title, category, solution, crops, location, expected_impact, reviewed_at
+         FROM agri_innovation_submissions WHERE status = 'showcase'
+        ORDER BY reviewed_at DESC, id DESC LIMIT 100`);
+    res.json(rows);
+  } catch (e) { next(e); }
+};
+
+exports.myInnovations = async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, title, category, problem, solution, crops, location, expected_impact,
+              status, review_note, created_at, updated_at
+         FROM agri_innovation_submissions WHERE submitted_by = ? ORDER BY created_at DESC LIMIT 100`, [req.user.id]);
+    res.json(rows);
+  } catch (e) { next(e); }
+};
+
+exports.manageInnovations = async (req, res, next) => {
+  try {
+    const scope = orgFilter(req, 'i.organization_id');
+    const [rows] = await db.query(
+      `SELECT i.id, i.title, i.category, i.problem, i.solution, i.crops, i.location, i.expected_impact,
+              i.status, i.review_note, i.created_at,
+              COALESCE(u.full_name_en, u.full_name_ne, 'Farmer / technician') AS submitter_name
+         FROM agri_innovation_submissions i LEFT JOIN users u ON u.id = i.submitted_by
+        ${scope.sql}${scope.sql ? ' AND' : ' WHERE'} i.status IN ('submitted', 'reviewing', 'pilot')
+        ORDER BY i.created_at ASC LIMIT 200`, scope.params);
+    res.json(rows);
+  } catch (e) { next(e); }
+};
+
+exports.submitInnovation = async (req, res, next) => {
+  try {
+    const b = req.body;
+    const [result] = await db.query('INSERT INTO agri_innovation_submissions SET ?', [{
+      organization_id: organizationId(req), title: b.title.trim(), category: b.category,
+      problem: b.problem.trim(), solution: b.solution.trim(), crops: b.crops || null,
+      location: b.location || null, expected_impact: b.expected_impact || null,
+      status: 'submitted', submitted_by: req.user.id
+    }]);
+    await logAudit(req.user.id, 'agri_innovation_submit', 'agri_innovation', result.insertId, { title: b.title.trim(), category: b.category }, req);
+    res.status(201).json({ id: result.insertId, status: 'submitted' });
+  } catch (e) { next(e); }
+};
+
+exports.reviewInnovation = async (req, res, next) => {
+  try {
+    const scope = orgFilter(req, 'i.organization_id');
+    const [found] = await db.query(
+      `SELECT i.id FROM agri_innovation_submissions i
+        WHERE i.id = ?${scope.sql ? ' AND i.organization_id = ?' : ''}
+          AND i.status IN ('submitted', 'reviewing', 'pilot') LIMIT 1`,
+      [req.params.id, ...scope.params]);
+    if (!found.length) return res.status(404).json({ message: 'Innovation proposal not found' });
+    await db.query(
+      `UPDATE agri_innovation_submissions SET status = ?, review_note = ?, reviewed_by = ?, reviewed_at = NOW()
+        WHERE id = ?`, [req.body.status, req.body.review_note || null, req.user.id, req.params.id]);
+    await logAudit(req.user.id, `agri_innovation_${req.body.status}`, 'agri_innovation', req.params.id, {}, req);
+    res.json({ message: 'Innovation review saved' });
+  } catch (e) { next(e); }
+};
+
 exports.submitPaper = async (req, res, next) => {
   try {
     const org = organizationId(req);

@@ -10,6 +10,7 @@ import { ICONS } from '../../utils/icons';
 import { roleLabel } from '../../utils/roles';
 import { office } from '../../data/office';
 import AccessibilityTools from '../common/AccessibilityTools';
+import { ThemeControl, UiSoundToggle } from '../common/UiExperience';
 
 export default function DashboardLayout() {
   const { i18n } = useTranslation();
@@ -64,7 +65,7 @@ export default function DashboardLayout() {
     `flex items-center gap-3 pl-3 pr-3 py-2.5 rounded-r-md border-l-[3px] text-[15px] ${isActive ? 'bg-white/10 text-white border-gov-red font-semibold' : 'text-terrace-100/80 border-transparent hover:bg-white/5 hover:text-white'}`;
 
   return (
-    <div className="min-h-[100svh] lg:flex">
+    <div className="agri-app agri-app-dashboard min-h-[100svh] lg:flex">
       <a href="#app-main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[80] focus:rounded focus:bg-white focus:p-3 focus:text-gov-blue">{t('मुख्य सामग्रीमा जानुहोस्', 'Skip to main content')}</a>
       <a href="#accessibility-toggle" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-16 focus:z-[80] focus:rounded focus:bg-white focus:p-3 focus:text-gov-blue">{t('सहज पहुँच सेटिङमा जानुहोस्', 'Skip to accessibility settings')}</a>
       {open && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setOpenPath(null)} aria-hidden="true" />}
@@ -107,6 +108,8 @@ export default function DashboardLayout() {
           <div className="flex items-center gap-3 px-4 md:px-8 h-16">
             <button ref={menuButtonRef} type="button" className="lg:hidden min-h-11 min-w-11 rounded-lg p-2" onClick={() => setOpenPath(pathname)} aria-controls="dashboard-navigation" aria-expanded={open} aria-label={t('मेनु खोल्नुहोस्', 'Open menu')}><Menu aria-hidden="true" /></button>
             <h1 className="flex-1 min-w-0 truncate text-xl font-bold text-terrace-900">{current ? current.label[lang] : t('डिजिटल कृषि', 'Digital Agriculture')}</h1>
+            <ThemeControl />
+            <UiSoundToggle className="text-terrace-800 hover:bg-terrace-50" />
             <button onClick={() => i18n.changeLanguage(lang === 'ne' ? 'en' : 'ne')} className="flex items-center gap-1.5 text-sm font-medium text-terrace-800 hover:text-gov-blue">
               <Globe size={16} aria-hidden="true" /> {lang === 'ne' ? 'English' : 'नेपाली'}
             </button>

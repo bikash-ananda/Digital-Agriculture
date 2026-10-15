@@ -13,7 +13,7 @@ const ACTIONS = [
   { perm: 'farmers.create', to: '/app/farmers/new', icon: UserPlus, ne: 'कृषक दर्ता गर्नुहोस्', en: 'Register a farmer' },
   { perm: 'farmers.view', to: '/app/farmers', icon: Search, ne: 'कृषक खोज्नुहोस्', en: 'Find a farmer' },
   { perm: 'smart_farming.view', to: '/app/smart-farming', icon: Cpu, ne: 'ग्रीनहाउस अनुगमन गर्नुहोस्', en: 'Monitor a greenhouse' },
-  { perm: 'research.view', to: '/app/research', icon: FlaskConical, ne: 'ग्रीनहाउस विज्ञान ड्यासबोर्ड', en: 'Greenhouse science dashboard' },
+  { perm: 'research.view', to: '/app/knowledge?tab=research', icon: FlaskConical, ne: 'अनुसन्धान केन्द्र खोल्नुहोस्', en: 'Open the Research Center' },
   { perm: 'datacenter.view', to: '/app/data-center', icon: Database, ne: 'डाटा केन्द्र हेर्नुहोस्', en: 'Open the Data Center' },
   { perm: 'knowledge.view', to: '/app/knowledge?tab=training', icon: GraduationCap, ne: 'सिक्न थाल्नुहोस्', en: 'Start learning' },
   { perm: 'notices.view', to: '/app/notices', icon: Megaphone, ne: 'सूचना हेर्नुहोस्', en: 'Read notices' }

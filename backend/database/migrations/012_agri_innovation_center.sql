@@ -1,0 +1,25 @@
+-- Field innovation proposals with private review and an approved public showcase.
+CREATE TABLE agri_innovation_submissions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  organization_id INT UNSIGNED NULL,
+  title VARCHAR(255) NOT NULL,
+  category ENUM('climate_smart','water_soil','crop_health','post_harvest','digital','other') NOT NULL DEFAULT 'other',
+  problem TEXT NOT NULL,
+  solution TEXT NOT NULL,
+  crops VARCHAR(300) NULL,
+  location VARCHAR(180) NULL,
+  expected_impact TEXT NULL,
+  status ENUM('submitted','reviewing','pilot','showcase','declined') NOT NULL DEFAULT 'submitted',
+  submitted_by INT UNSIGNED NULL,
+  reviewed_by INT UNSIGNED NULL,
+  review_note TEXT NULL,
+  reviewed_at DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_agri_innovation_org_status (organization_id, status, created_at),
+  KEY idx_agri_innovation_submitter (submitted_by, created_at),
+  KEY idx_agri_innovation_showcase (status, reviewed_at),
+  CONSTRAINT fk_agri_innovation_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE SET NULL,
+  CONSTRAINT fk_agri_innovation_submitter FOREIGN KEY (submitted_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_agri_innovation_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;

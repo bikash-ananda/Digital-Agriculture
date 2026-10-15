@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, BadgeCheck, BookOpen, Check, Clock3, FileText, GraduationCap, MessageCircle, Plus, Search, Send, ShieldCheck, Sprout, X } from 'lucide-react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ArrowUpRight, BadgeCheck, BookOpen, Check, Clock3, FileText, FlaskConical, GraduationCap, Lightbulb, MessageCircle, Plus, Search, Send, ShieldCheck, X } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
 import { useAuth } from '../../context/AuthContext';
+import { AgriculturePageHero } from '../../components/layout/AgricultureShowcase';
+
+const Documents = lazy(() => import('./Documents'));
+const ResearchLab = lazy(() => import('../research/ResearchLab'));
+const AgriInnovationCenter = lazy(() => import('./AgriInnovationCenter'));
+const GamesHub = lazy(() => import('../../games/GamesHub'));
+const MyFarmGame = lazy(() => import('../../games/MyFarmGame'));
 
 const card = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
 const input = 'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100';
@@ -28,10 +35,13 @@ export default function KnowledgeCenter() {
   const { t, lang } = useLang();
   const { user } = useAuth();
   const can = useCallback((permission) => !!user?.permissions?.includes(permission), [user?.permissions]);
+  const location = useLocation();
+  const isInternal = location.pathname.startsWith('/app/');
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab') || 'discover';
-  const tabKeys = ['discover', 'papers', 'training', 'library', ...(can('knowledge.discuss') ? ['forum'] : []), ...(can('knowledge.create') ? ['submit'] : []), ...(can('knowledge.publish') ? ['review'] : [])];
-  const tab = tabKeys.includes(requestedTab) ? requestedTab : 'discover';
+  const tabKeys = ['discover', 'training', 'innovation', 'library', ...(isInternal && can('research.view') ? ['research'] : []), 'papers', ...(can('knowledge.discuss') ? ['forum'] : []), ...(can('knowledge.create') ? ['submit'] : []), ...(can('knowledge.publish') ? ['review'] : [])];
+  const tab = requestedTab === 'games' ? 'training' : tabKeys.includes(requestedTab) ? requestedTab : 'discover';
+  const showFarmGame = searchParams.get('game') === 'my-farm';
   const [articles, setArticles] = useState([]);
   const [papers, setPapers] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -127,7 +137,9 @@ export default function KnowledgeCenter() {
     return () => { current = false; };
   }, [tab, can, lang, t]);
 
-  const setTab = (next) => { setSearchParams((old) => { const updated = new URLSearchParams(old); if (next === 'discover') updated.delete('tab'); else updated.set('tab', next); return updated; }); setError(''); setNotice(''); };
+  const setTab = (next) => { setSearchParams((old) => { const updated = new URLSearchParams(old); if (next === 'discover') updated.delete('tab'); else updated.set('tab', next); updated.delete('game'); return updated; }); setError(''); setNotice(''); };
+  const openFarmGame = () => setSearchParams((old) => { const updated = new URLSearchParams(old); updated.set('tab', 'training'); updated.set('game', 'my-farm'); return updated; });
+  const closeFarmGame = () => setSearchParams((old) => { const updated = new URLSearchParams(old); updated.set('tab', 'training'); updated.delete('game'); return updated; });
   const paperCount = papers.length;
   const courseCount = courses.length;
   const resourceCount = library.documents.length + library.resources.length;
@@ -238,28 +250,26 @@ export default function KnowledgeCenter() {
   const tabNames = {
     discover: [t('खोज तथा स्रोत', 'Explore & sources'), Search],
     papers: [t('अनुसन्धान लेख', 'Research papers'), FileText],
-    training: [t('अनलाइन सिकाइ', 'Online learning'), GraduationCap],
-    library: [t('डिजिटल पुस्तकालय', 'Digital library'), BookOpen],
+    training: [t('सिकाइ केन्द्र', 'Learning Center'), GraduationCap],
+    innovation: [t('कृषि नवप्रवर्तन केन्द्र', 'Agri Innovation Center'), Lightbulb],
+    library: [t('डिजिटल पुस्तकालय', 'Digital Library'), BookOpen],
+    research: [t('अनुसन्धान केन्द्र', 'Research Center'), FlaskConical],
     forum: [t('प्राविधिक छलफल', 'Officer forum'), MessageCircle],
     submit: [t('लेख पठाउनुहोस्', 'Submit a paper'), Plus],
     review: [t('समीक्षा कक्ष', 'Review desk'), ShieldCheck]
   };
 
   return (
-    <main className="mx-auto max-w-7xl space-y-5 pb-10">
-      <header className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-800 px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
-        <div className="pointer-events-none absolute -right-10 -top-20 -z-10 h-72 w-72 rounded-full border-[38px] border-white/5" />
-        <div className="flex flex-wrap items-end justify-between gap-5">
-          <div className="max-w-3xl">
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[.15em] text-emerald-100"><Sprout size={14} />{t('कास्की कृषि ज्ञान सञ्जाल', 'Kaski agriculture knowledge network')}</p>
-            <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">{t('ज्ञान तथा सिकाइ केन्द्र', 'Knowledge & Learning Center')}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-50/90 sm:text-base">{t('स्थानीय अनुसन्धान, किसानमैत्री सिकाइ र आधिकारिक कृषि स्रोत एउटै ठाउँमा। प्रमाण पढ्नुहोस्, प्रश्न राख्नुहोस् र नयाँ अध्ययन साझा गर्नुहोस्।', 'Local research, practical learning and trusted agriculture sources in one place. Explore evidence, ask questions and share new studies.')}</p>
-          </div>
-          <div className="grid min-w-[250px] grid-cols-3 gap-2 text-center">
-            {[[paperCount, t('प्रकाशित लेख', 'papers')], [courseCount, t('पाठ्यक्रम', 'courses')], [resourceCount, t('स्रोत', 'resources')]].map(([n, label]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur"><strong className="block text-xl">{loading ? '—' : n}</strong><span className="text-[11px] text-emerald-100">{label}</span></div>)}
-          </div>
-        </div>
-      </header>
+    <main className="pb-10">
+      <AgriculturePageHero
+        title={t('कृषि ज्ञान केन्द्र', 'Agriculture Knowledge Center')}
+        intro={t('स्थानीय अनुसन्धान, किसानमैत्री सिकाइ र आधिकारिक कृषि स्रोत एउटै ठाउँमा। प्रमाण पढ्नुहोस्, प्रश्न राख्नुहोस् र नयाँ अध्ययन साझा गर्नुहोस्।', 'Local research, practical learning and trusted agriculture sources in one place. Explore evidence, ask questions and share new studies.')}
+        eyebrow={t('कास्की कृषि ज्ञान सञ्जाल', 'Kaski agriculture knowledge network')}
+      />
+      <div className="mx-auto max-w-7xl space-y-5 px-4 pt-5">
+      <section aria-label={t('ज्ञान केन्द्रको तथ्याङ्क', 'Knowledge Center statistics')} className="grid grid-cols-3 gap-3 text-center">
+        {[[paperCount, t('प्रकाशित लेख', 'papers')], [courseCount, t('पाठ्यक्रम', 'courses')], [resourceCount, t('स्रोत', 'resources')]].map(([n, label]) => <div key={label} className="rounded-xl border border-terrace-100 bg-white p-3 shadow-sm"><strong className="block text-xl text-terrace-900">{loading ? '—' : n}</strong><span className="text-xs text-gray-600">{label}</span></div>)}
+      </section>
 
       <nav aria-label={t('ज्ञान केन्द्रका खण्ड', 'Knowledge Center sections')} className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
         {tabKeys.map((key) => { const [label, Icon] = tabNames[key]; return <button key={key} onClick={() => setTab(key)} aria-current={tab === key ? 'page' : undefined} className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition sm:px-4 ${tab === key ? 'bg-emerald-900 text-white shadow' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900'}`}><Icon size={16}/>{label}</button>; })}
@@ -308,17 +318,29 @@ export default function KnowledgeCenter() {
       </section>}
 
       {tab === 'training' && <section className="space-y-4">
-        {!courseDetail && can('learning.create') && <CourseAuthoring canCreate={can('learning.create')} showing={showCourseForm} setShowing={setShowCourseForm} form={courseForm} setForm={setCourseForm} onSubmit={createCourse} busy={busy} t={t}/>}
-        {courseDetail && <div className="grid gap-3 md:grid-cols-2">{(can('learning.update') || can('learning.publish')) && <CourseLessonAuthoring canEdit={can('learning.update')} canPublish={can('learning.publish')} published={courseDetail.course.status === 'published'} showing={showLessonForm} setShowing={setShowLessonForm} form={lessonForm} setForm={setLessonForm} onSubmit={addLesson} onPublish={publishCourse} busy={busy} t={t}/>}</div>}
-        {courseDetail ? <><button onClick={() => { setCourseId(null); setCourseDetail(null); }} className={secondary}><ArrowLeft size={16}/>{t('पाठ्यक्रम सूची', 'Course list')}</button><header className="rounded-3xl bg-gradient-to-br from-sky-950 to-emerald-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-wider text-sky-200">{courseDetail.course.level} · {courseDetail.lessons.length} {t('पाठ', 'lessons')}</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">{titleFor(courseDetail.course)}</h2><p className="mt-3 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-white/85">{courseDetail.course.description}</p>{can('learning.view') && (courseDetail.enrollment ? <div className="mt-4 flex items-center gap-3"><span>{courseDetail.enrollment.progress_percent}% {t('पूरा', 'complete')}</span><div className="h-2 w-40 overflow-hidden rounded bg-white/20"><div className="h-full bg-lime-300" style={{ width: `${courseDetail.enrollment.progress_percent}%` }}/></div></div> : <button onClick={enroll} disabled={busy} className="mt-4 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-950">{t('सिकाइमा दर्ता हुनुहोस्', 'Enroll in course')}</button>)}</header><div className="space-y-3">{courseDetail.lessons.map((lesson, index) => { const done = courseDetail.enrollment && courseDetail.enrollment.progress_percent >= Math.round(((index + 1) / courseDetail.lessons.length) * 100); const href = safeHref(lesson.content_url); return <article key={lesson.id} className={card}><div className="flex flex-wrap items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 font-bold text-emerald-900">{done ? <Check size={18}/> : index + 1}</span><div className="min-w-0 flex-1"><h3 className="font-bold text-slate-950">{labelFor(lesson)}</h3>{lesson.duration_minutes && <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><Clock3 size={13}/>{lesson.duration_minutes} {t('मिनेट', 'min')}</p>}{lesson.body && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">{lesson.body}</p>}{href && <a href={href} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-emerald-900 underline">{t('पाठ सामग्री खोल्नुहोस्', 'Open lesson material')} <ArrowUpRight size={14}/></a>}</div>{courseDetail.enrollment && <button className={secondary} disabled={busy || done} onClick={() => completeLesson(index)}>{done ? t('पूरा भयो', 'Done') : t('पूरा भएको चिन्ह', 'Mark complete')}</button>}</div></article>; })}</div></> : <><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-emerald-800">{t('आफ्नो गतिमा अध्ययन', 'Learn at your own pace')}</p><h2 className="mt-1 text-2xl font-bold text-slate-950">{t('अनलाइन पाठ्यक्रम तथा तालिम', 'Online courses & training')}</h2></div><label className="relative w-full sm:max-w-xs"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input className={`${input} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('पाठ्यक्रम खोज्नुहोस्', 'Search courses')}/></label></div>{filtered(courses, 'title_ne', 'title_en', 'description', 'level').length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered(courses, 'title_ne', 'title_en', 'description', 'level').map((course) => <button key={course.id} onClick={() => openCourse(course)} className={`${card} group text-left transition hover:-translate-y-1 hover:border-emerald-300 hover:shadow-md`}><div className="flex items-center justify-between"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold capitalize text-emerald-900">{course.level}</span><GraduationCap className="text-emerald-800"/></div><h3 className="mt-4 text-lg font-bold text-slate-950 group-hover:text-emerald-900">{titleFor(course)}</h3><p className="mt-2 line-clamp-3 min-h-[4rem] text-sm leading-relaxed text-slate-600">{course.description}</p><span className="mt-4 flex items-center justify-between text-sm font-semibold text-emerald-900"><span>{course.lesson_count} {t('पाठ', 'lessons')}</span><span>{t('सुरु गर्नुहोस्', 'Start learning')} →</span></span></button>)}</div> : <div className={card}><p className="font-semibold text-slate-900">{loading ? t('पाठ्यक्रम खोज्दै…', 'Loading courses…') : t('प्रकाशित पाठ्यक्रम तयारी हुँदैछन्।', 'Published courses are being prepared.')}</p><p className="mt-1 text-sm text-slate-600">{t('नयाँ पाठ्यक्रम प्रकाशित भएपछि यहीँ पढ्न र प्रगति राख्न सकिन्छ।', 'New courses will appear here for study and progress tracking.')}</p></div>}</>}
+        <div className="space-y-4">
+          {showFarmGame
+            ? <Suspense fallback={<p role="status" className={`${card} text-sm text-slate-600`}>{t('खेल लोड हुँदैछ…', 'Loading game…')}</p>}><MyFarmGame onBack={closeFarmGame}/></Suspense>
+            : <Suspense fallback={<p role="status" className={`${card} text-sm text-slate-600`}>{t('खेल सूची लोड हुँदैछ…', 'Loading Game Hub…')}</p>}><GamesHub onPlay={openFarmGame}/></Suspense>}
+        </div>
+        {!showFarmGame && !courseDetail && can('learning.create') && <CourseAuthoring canCreate={can('learning.create')} showing={showCourseForm} setShowing={setShowCourseForm} form={courseForm} setForm={setCourseForm} onSubmit={createCourse} busy={busy} t={t}/>}
+        {!showFarmGame && courseDetail && <div className="grid gap-3 md:grid-cols-2">{(can('learning.update') || can('learning.publish')) && <CourseLessonAuthoring canEdit={can('learning.update')} canPublish={can('learning.publish')} published={courseDetail.course.status === 'published'} showing={showLessonForm} setShowing={setShowLessonForm} form={lessonForm} setForm={setLessonForm} onSubmit={addLesson} onPublish={publishCourse} busy={busy} t={t}/>}</div>}
+        {!showFarmGame && (courseDetail ? <><button onClick={() => { setCourseId(null); setCourseDetail(null); }} className={secondary}><ArrowLeft size={16}/>{t('पाठ्यक्रम सूची', 'Course list')}</button><header className="rounded-3xl bg-gradient-to-br from-sky-950 to-emerald-900 p-6 text-white"><p className="text-xs font-bold uppercase tracking-wider text-sky-200">{courseDetail.course.level} · {courseDetail.lessons.length} {t('पाठ', 'lessons')}</p><h2 className="mt-2 text-2xl font-bold sm:text-3xl">{titleFor(courseDetail.course)}</h2><p className="mt-3 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-white/85">{courseDetail.course.description}</p>{can('learning.view') && (courseDetail.enrollment ? <div className="mt-4 flex items-center gap-3"><span>{courseDetail.enrollment.progress_percent}% {t('पूरा', 'complete')}</span><div className="h-2 w-40 overflow-hidden rounded bg-white/20"><div className="h-full bg-lime-300" style={{ width: `${courseDetail.enrollment.progress_percent}%` }}/></div></div> : <button onClick={enroll} disabled={busy} className="mt-4 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-950">{t('सिकाइमा दर्ता हुनुहोस्', 'Enroll in course')}</button>)}</header><div className="space-y-3">{courseDetail.lessons.map((lesson, index) => { const done = courseDetail.enrollment && courseDetail.enrollment.progress_percent >= Math.round(((index + 1) / courseDetail.lessons.length) * 100); const href = safeHref(lesson.content_url); return <article key={lesson.id} className={card}><div className="flex flex-wrap items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-50 font-bold text-emerald-900">{done ? <Check size={18}/> : index + 1}</span><div className="min-w-0 flex-1"><h3 className="font-bold text-slate-950">{labelFor(lesson)}</h3>{lesson.duration_minutes && <p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><Clock3 size={13}/>{lesson.duration_minutes} {t('मिनेट', 'min')}</p>}{lesson.body && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">{lesson.body}</p>}{href && <a href={href} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-emerald-900 underline">{t('पाठ सामग्री खोल्नुहोस्', 'Open lesson material')} <ArrowUpRight size={14}/></a>}</div>{courseDetail.enrollment && <button className={secondary} disabled={busy || done} onClick={() => completeLesson(index)}>{done ? t('पूरा भयो', 'Done') : t('पूरा भएको चिन्ह', 'Mark complete')}</button>}</div></article>; })}</div></> : <><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-emerald-800">{t('आफ्नो गतिमा अध्ययन', 'Learn at your own pace')}</p><h2 className="mt-1 text-2xl font-bold text-slate-950">{t('अनलाइन पाठ्यक्रम तथा तालिम', 'Online courses & training')}</h2></div><label className="relative w-full sm:max-w-xs"><Search size={16} className="absolute left-3 top-3 text-slate-400"/><input className={`${input} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('पाठ्यक्रम खोज्नुहोस्', 'Search courses')}/></label></div>{filtered(courses, 'title_ne', 'title_en', 'description', 'level').length ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered(courses, 'title_ne', 'title_en', 'description', 'level').map((course) => <button key={course.id} onClick={() => openCourse(course)} className={`${card} group text-left transition hover:-translate-y-1 hover:border-emerald-300 hover:shadow-md`}><div className="flex items-center justify-between"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold capitalize text-emerald-900">{course.level}</span><GraduationCap className="text-emerald-800"/></div><h3 className="mt-4 text-lg font-bold text-slate-950 group-hover:text-emerald-900">{titleFor(course)}</h3><p className="mt-2 line-clamp-3 min-h-[4rem] text-sm leading-relaxed text-slate-600">{course.description}</p><span className="mt-4 flex items-center justify-between text-sm font-semibold text-emerald-900"><span>{course.lesson_count} {t('पाठ', 'lessons')}</span><span>{t('सुरु गर्नुहोस्', 'Start learning')} →</span></span></button>)}</div> : <div className={card}><p className="font-semibold text-slate-900">{loading ? t('पाठ्यक्रम खोज्दै…', 'Loading courses…') : t('प्रकाशित पाठ्यक्रम तयारी हुँदैछन्।', 'Published courses are being prepared.')}</p><p className="mt-1 text-sm text-slate-600">{t('नयाँ पाठ्यक्रम प्रकाशित भएपछि यहीँ पढ्न र प्रगति राख्न सकिन्छ।', 'New courses will appear here for study and progress tracking.')}</p></div>}</>)}
       </section>}
 
+      {tab === 'innovation' && <Suspense fallback={<p role="status" className={`${card} text-sm text-slate-600`}>{t('नवप्रवर्तन केन्द्र लोड हुँदैछ…', 'Loading innovation center…')}</p>}><AgriInnovationCenter/></Suspense>}
+
       {tab === 'library' && <section className="space-y-5">
+        {isInternal && can('documents.view') && <div className="space-y-3"><div><p className="text-xs font-bold uppercase tracking-wider text-emerald-800">{t('कार्यालय अभिलेख', 'Office archive')}</p><h2 className="mt-1 text-xl font-bold text-slate-950">{t('कागजात तथा प्रकाशन', 'Documents and publications')}</h2></div><Suspense fallback={<p role="status" className={`${card} text-sm text-slate-600`}>{t('डिजिटल पुस्तकालय लोड हुँदैछ…', 'Loading digital library…')}</p>}><Documents embedded/></Suspense></div>}
         {can('learning.create') && <ResourceAuthoring showing={showResourceForm} setShowing={setShowResourceForm} form={resourceForm} setForm={setResourceForm} onSubmit={createResource} busy={busy} canPublish={can('learning.publish')} t={t}/>}
         <div><p className="text-xs font-bold uppercase tracking-wider text-emerald-800">{t('सन्दर्भ सामग्री', 'Reference materials')}</p><h2 className="mt-1 text-2xl font-bold text-slate-950">{t('डिजिटल पुस्तकालय', 'Digital library')}</h2><p className="mt-2 max-w-3xl text-sm text-slate-600">{t('ऐन, फारम, कृषि बुलेटिन, पुस्तिका, भिडियो र प्रशिक्षण स्रोतहरू।', 'Acts, forms, agro-weather bulletins, manuals, videos and learning resources.')}</p></div>
         <div className="grid gap-5 lg:grid-cols-2"><section><h3 className="mb-3 flex items-center gap-2 font-bold"><FileText size={18} className="text-emerald-800"/>{t('सरकारी तथा प्राविधिक कागजात', 'Official & technical documents')}</h3><div className="space-y-3">{library.documents.map((doc) => { const href = safeHref(doc.file_path); return <article key={`doc-${doc.id}`} className={card}><div className="flex items-start justify-between gap-3"><div><span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">{doc.category}{doc.fiscal_year ? ` · ${doc.fiscal_year}` : ''}</span><h4 className="mt-1 font-bold text-slate-950">{labelFor(doc)}</h4></div>{href && <a aria-label={t('कागजात खोल्नुहोस्', 'Open document')} href={href} target="_blank" rel="noreferrer" className={secondary}><ArrowUpRight size={15}/></a>}</div></article>; })}{!library.documents.length && <p className={`${card} text-sm text-slate-600`}>{loading ? t('कागजात लोड हुँदैछन्…', 'Loading documents…') : t('सार्वजनिक कागजात थपिँदैछन्।', 'Public documents will appear here.')}</p>}</div></section>
         <section><h3 className="mb-3 flex items-center gap-2 font-bold"><BookOpen size={18} className="text-emerald-800"/>{t('अध्ययन तथा मल्टिमिडिया', 'Study & multimedia')}</h3><div className="space-y-3">{library.resources.map((resource) => { const href = safeHref(resource.url || resource.file_path); return <article key={`res-${resource.id}`} className={card}><span className="text-[11px] font-bold uppercase tracking-wider text-sky-800">{resource.resource_type}</span><h4 className="mt-1 font-bold text-slate-950">{labelFor(resource)}</h4>{resource.description && <p className="mt-2 text-sm leading-relaxed text-slate-600">{resource.description}</p>}{href && <a href={href} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-emerald-900 underline">{t('स्रोत खोल्नुहोस्', 'Open resource')} <ArrowUpRight size={14}/></a>}</article>; })}{!library.resources.length && <p className={`${card} text-sm text-slate-600`}>{loading ? t('सिकाइ स्रोत लोड हुँदैछन्…', 'Loading learning resources…') : t('प्रकाशित अध्ययन स्रोत थपिँदैछन्।', 'Published learning resources will appear here.')}</p>}</div></section></div>
         <aside className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-relaxed text-sky-950"><strong>{t('स्रोतको श्रेय', 'Source credit')}</strong><p className="mt-1">{t('बाह्य सरकारी तथा अनुसन्धान साइटका सामग्री तिनकै मूल पृष्ठमा खुल्छन्। लेखको लेखक र मूल प्रकाशनलाई श्रेय दिनुहोस्।', 'External government and research materials open at their original source. Credit each author and original publication.')}</p></aside>
+      </section>}
+
+      {tab === 'research' && isInternal && can('research.view') && <section className="space-y-4">
+        <Suspense fallback={<p role="status" className={`${card} text-sm text-slate-600`}>{t('अनुसन्धान केन्द्र लोड हुँदैछ…', 'Loading research center…')}</p>}><ResearchLab/></Suspense>
       </section>}
 
       {tab === 'forum' && can('knowledge.discuss') && <section className="space-y-4">
@@ -346,6 +368,7 @@ export default function KnowledgeCenter() {
       </section>}
 
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4 text-xs text-slate-500"><span className="inline-flex items-center gap-1"><ShieldCheck size={14}/>{t('टिप्पणी संयोजन र कर्मचारी पहुँच सुरक्षित', 'Moderated comments · staff-only forum')}</span><span>{t('मूल स्रोत र अध्ययन सीमालाई सधैँ श्रेय दिनुहोस्।', 'Always credit original sources and note study limitations.')}</span></footer>
+      </div>
     </main>
   );
 }

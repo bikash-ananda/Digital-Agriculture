@@ -31,7 +31,8 @@ export default function Login() {
     setBusy(true);
     try {
       const signedIn = await login(email.trim(), password);
-      navigate(signedIn.mustChangePassword ? '/change-password' : (location.state?.from?.pathname || '/app'), { replace: true });
+      const returnTo = location.state?.from;
+      navigate(signedIn.mustChangePassword ? '/change-password' : `${returnTo?.pathname || '/app'}${returnTo?.search || ''}`, { replace: true });
     } catch (err) {
       setError(!err.response || err.code === 'ERR_NETWORK'
         ? t('सर्भरमा जडान हुन सकेन। इन्टरनेट जाँचेर फेरि प्रयास गर्नुहोस्।', 'Could not connect to the server. Check your internet connection and try again.')

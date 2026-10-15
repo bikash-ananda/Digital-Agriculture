@@ -71,14 +71,6 @@ export const staff = [
   { name: 'बैकुण्ठ राना', post: 'कार्यालय सहयोगी', group: 'प्रशासन', phone: '', email: '' }
 ];
 
-export const notices = [
-  { title: 'नर्सरी सूचीकरण र अनुमतिपत्रका लागि सूचना र फारम', deadline: '2083-06-28' },
-  { title: 'अनुदान कार्यक्रमहरुको आवेदन २०८३-८४ (कृषि विकास कार्यालय, कास्की)', deadline: '2083-06-08' },
-  { title: 'उत्कृष्ट कृषक पुरस्कार २०८३-८४ को सूचना (निवेदन र फारम सहित)', deadline: '2083-06-07' },
-  { title: 'कृषि विकास कार्यालय, कास्कीको आ.व. २०८३/८४ को वार्षिक कार्यक्रमहरुको सार्वजनिकीकरण', deadline: '2084-03-24' },
-  { title: 'विषादी बिक्रेताहरूलाई सूचना', deadline: '2083-05-08' }
-];
-
 export const usefulLinks = [
   ['कृषि तथा पशुपन्छी विकास मन्त्रालय', 'https://www.moald.gov.np/'],
   ['कृषि विभाग', 'https://doanepal.gov.np/ne/'],
@@ -91,35 +83,12 @@ export const usefulLinks = [
 
 export const nav = [
   { to: '/', label: { ne: 'गृहपृष्ठ', en: 'Home' } },
-  { label: { ne: 'हाम्रो बारेमा', en: 'About Us' }, children: [
-    ['/about', { ne: 'परिचय', en: 'Introduction' }],
-    ['/objectives', { ne: 'उद्देश्य', en: 'Objectives' }],
-    ['/staff', { ne: 'कर्मचारी विवरण', en: 'Staff' }],
-    ['/citizen-charter', { ne: 'नागरिक वडापत्र', en: 'Citizen Charter' }],
-    ['/organizational-structure', { ne: 'संगठनात्मक संरचना', en: 'Organizational Structure' }]
-  ]},
-  { to: '/notices', label: { ne: 'सूचना', en: 'Notices' } },
   { to: '/programs', label: { ne: 'कृषि कार्यक्रम', en: 'Programs' } },
-  { label: { ne: 'कानुनी दस्तावेज', en: 'Legal Documents' }, children: [
-    ['/act-and-policies', { ne: 'ऐन तथा नियमावली', en: 'Acts & Regulations' }],
-    ['/directory', { ne: 'निर्देशिका', en: 'Directives' }],
-    ['/procedures', { ne: 'कार्यविधि', en: 'Procedures' }],
-    ['/criteria', { ne: 'मापदण्ड', en: 'Criteria' }]
-  ]},
-  { label: { ne: 'प्रकाशन', en: 'Publications' }, children: [
-    ['/book', { ne: 'पुस्तिका', en: 'Books' }],
-    ['/format', { ne: 'फारम', en: 'Forms' }],
-    ['/journal', { ne: 'प्रतिवेदन', en: 'Reports' }],
-    ['/program-and-progress', { ne: 'कार्यक्रम तथा प्रगति', en: 'Program & Progress' }],
-    ['/bulletin', { ne: 'कृषि बुलेटिन', en: 'Agri Bulletin' }]
-  ]},
   { to: '/knowledge', label: { ne: 'कृषि ज्ञान केन्द्र', en: 'Knowledge Center' } },
   { to: '/smart-farming', label: { ne: 'स्मार्ट फार्मिङ', en: 'Smart Farming' } },
-  { to: '/learning', label: { ne: 'सिकाइ केन्द्र', en: 'Learning Center' } },
   { label: { ne: 'मिडिया', en: 'Media' }, children: [
     ['/photo-gallery', { ne: 'फोटो ग्यालरी', en: 'Photo Gallery' }],
     ['/video-gallery', { ne: 'भिडियो ग्यालरी', en: 'Video Gallery' }]
   ]},
-  { to: '/right-to-information', label: { ne: 'सूचनाको हक', en: 'Right to Information' } },
   { to: '/contact', label: { ne: 'सम्पर्क', en: 'Contact' } }
 ];
