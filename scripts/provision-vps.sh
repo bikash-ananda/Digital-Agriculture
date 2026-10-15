@@ -3,7 +3,7 @@ set -Eeuo pipefail
 DOMAIN=kaskikotagro.com.np
 APP_ROOT=/srv/digital-agriculture
 ETC_DIR=/etc/digital-agriculture
-DEPLOY_USER="${DEPLOY_USER:-agri-deploy}"
+DEPLOY_USER="${DEPLOY_USER:-deploy}"
 [[ "$EUID" -eq 0 ]] || { echo "Run as root from the VPS provider console." >&2; exit 1; }
 [[ -r /etc/os-release ]] || { echo "Cannot identify Linux distribution." >&2; exit 1; }
 . /etc/os-release
@@ -105,8 +105,6 @@ CADDY
 caddy validate --config "$CADDYFILE" --adapter caddyfile
 systemctl enable --now caddy
 systemctl reload caddy
-HOST_KEY="$(cat /etc/ssh/ssh_host_ed25519_key.pub 2>/dev/null || true)"
-if [[ -n "$HOST_KEY" ]]; then printf '\nGitHub secret VPS_KNOWN_HOSTS value:\n%s %s\n' "$DOMAIN" "$HOST_KEY"; fi
 printf '\nReady. Deploy user=%s, app=%s, env=%s/production.env\n' "$DEPLOY_USER" "$APP_ROOT" "$ETC_DIR"
-printf 'Allow provider-firewall TCP 22, 80, 443. Configure GitHub secrets VPS_HOST, VPS_USER, VPS_DEPLOY_KEY, VPS_KNOWN_HOSTS.\n'
+printf 'Allow provider-firewall TCP 22, 80, 443. Configure GitHub Actions secrets HOST, PORT, SSH_KEY, USERNAME=%s.\n' "$DEPLOY_USER"
 printf 'Add SMTP and Twilio WhatsApp credentials to %s/production.env before OTP delivery is enabled.\n' "$ETC_DIR"
