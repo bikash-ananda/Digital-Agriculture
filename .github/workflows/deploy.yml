@@ -57,7 +57,10 @@ jobs:
           case "$PORT" in *[!0-9]*|'') echo "PORT must be a number"; exit 1 ;; esac
           install -m 700 -d "$HOME/.ssh"
           printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/id_ed25519"
-          ssh-keyscan -H -p "$PORT" "$HOST" > "$HOME/.ssh/known_hosts" 2>/dev/null
+          if ! ssh-keyscan -T 10 -H -p "$PORT" "$HOST" > "$HOME/.ssh/known_hosts"; then
+            echo "SSH host-key scan failed. Check HOST, PORT, and VPS firewall access from GitHub Actions."
+            exit 1
+          fi
           test -s "$HOME/.ssh/known_hosts" || { echo "Could not retrieve SSH host key"; exit 1; }
           chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
       - name: Upload release
