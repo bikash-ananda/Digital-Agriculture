@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight, BadgeCheck, BookOpen, Check, Clock3, FileText, FlaskConical, GraduationCap, Lightbulb, MessageCircle, Plus, Search, Send, ShieldCheck, X } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { AgriculturePageHero } from '../../components/layout/AgricultureShowcase';
 
 const Documents = lazy(() => import('./Documents'));

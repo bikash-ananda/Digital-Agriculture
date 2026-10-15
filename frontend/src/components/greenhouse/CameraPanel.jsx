@@ -6,7 +6,7 @@ export default function CameraPanel({ unitId, t }) {
   const [camId, setCamId] = useState(null);
   const [snaps, setSnaps] = useState([]);
   const [view, setView] = useState(null);
-  const [tick, setTick] = useState(Date.now());
+  const [tick, setTick] = useState(0);
   const [broken, setBroken] = useState(false);
 
   useEffect(() => {

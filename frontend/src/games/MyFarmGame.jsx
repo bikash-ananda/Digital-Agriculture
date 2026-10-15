@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Award, BookOpen, Check, CircleHelp, Cloud, CloudRain, Coins, Droplets, Leaf, Map, Package, RotateCcw, ShoppingBasket, Sprout, Sun, Volume2, VolumeX, Wheat } from 'lucide-react';
 import useLang from '../utils/useLang';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { BADGES, CROPS, FIELDS, SKILLS, TUTORIAL_STEPS } from './farmContent';
 import { advanceFarmDay, buySeedBag, completeFarmTutorial, FARM_ECONOMY, getCropCondition, getCropStage, performFarmAction, setFarmField, settleHarvest, startNewFarmSeason, WEATHER, weatherForDay } from './myFarmEngine';
 import { gameStorageKey, readMyFarmProgress, saveMyFarmProgress } from './progressStore';

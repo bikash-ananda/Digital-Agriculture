@@ -5,7 +5,7 @@ import { errMsgs } from '../../utils/errors';
 
 const blank = { method: '', reference_instrument: '', point1_measured: '', point1_reference: '', point2_measured: '', point2_reference: '', notes: '' };
 
-export default function DeviceHealthTab({ units, lang, t, can }) {
+export default function DeviceHealthTab({ units, t, can }) {
   const [health, setHealth] = useState(null);
   const [unitId, setUnitId] = useState('');
   const [sensors, setSensors] = useState([]);

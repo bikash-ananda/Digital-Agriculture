@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Building2, Cpu, MapPin, Plus, Search, Sprout, Trees } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { errMsgs } from '../../utils/errors';
 
 const card = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';

@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { LoaderCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import StatusBadge from '../../components/common/StatusBadge';
 import HealthRing from '../../components/greenhouse/HealthRing';
 import ParamCard from '../../components/greenhouse/ParamCard';

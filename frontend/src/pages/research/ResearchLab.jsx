@@ -1,8 +1,8 @@
 ﻿import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
-import { ymd } from '../../components/research/helpers';
+import { useAuth } from '../../context/useAuth';
+import { ymd } from '../../components/research/formatters';
 import ExploreTab from './ExploreTab';
 import AnalyzeTab from './AnalyzeTab';
 import ExperimentsTab from './ExperimentsTab';

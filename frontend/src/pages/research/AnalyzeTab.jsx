@@ -2,7 +2,8 @@
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import api from '../../services/api';
 import UnitPicker from '../../components/research/UnitPicker';
-import { Caveats, f, fmtP, mname } from '../../components/research/helpers';
+import { Caveats } from '../../components/research/helpers';
+import { f, fmtP, mname } from '../../components/research/formatters';
 
 export default function AnalyzeTab({ units, metrics, mm, range, lang, t }) {
   const [sel, setSel] = useState([]);

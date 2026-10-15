@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, CheckCircle2, Clock3, GraduationCap, PlayCircle, Plus, Sprout } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { errMsgs } from '../../utils/errors';
 
 const card = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';

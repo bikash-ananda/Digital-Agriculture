@@ -2,7 +2,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../../services/api';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/useAuth';
 
 const emptyFarm = { name: '', area_sqm: '', ownership_type: 'owned', irrigation_type: 'none', address: '' };
 

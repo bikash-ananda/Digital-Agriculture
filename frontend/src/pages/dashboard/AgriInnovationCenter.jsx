@@ -3,13 +3,11 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Beaker, CheckCircle2, CloudSun, Cpu, Droplets, Leaf, Lightbulb, MapPin, Send, ShieldCheck, Sprout, Tractor } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 
 const card = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
 const field = 'min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100';
 const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50';
-const secondary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50';
-
 const tracks = [
   { id: 'climate_smart', icon: CloudSun, ne: 'जलवायु-स्मार्ट खेती', en: 'Climate-smart farming', bodyNe: 'बदलिँदो मौसममा बालीको जोखिम घटाउने स्थानीय उपाय।', bodyEn: 'Local ways to reduce crop risk as weather patterns shift.' },
   { id: 'water_soil', icon: Droplets, ne: 'माटो र पानी', en: 'Soil and water', bodyNe: 'सिँचाइ, माटोको स्वास्थ्य र पोषक तत्त्वको प्रभावकारी व्यवस्थापन।', bodyEn: 'Better irrigation, soil health and nutrient management.' },

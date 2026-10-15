@@ -40,7 +40,7 @@ export default function CropPanel({ unitId, analysis, can, onChanged, lang, t })
   const sf = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const growth = obs.filter((o) => o.plant_height_cm !== null).slice().reverse().map((o) => ({ d: new Date(o.observed_at).toLocaleDateString(), h: Number(o.plant_height_cm) }));
 
-  const ErrBox = () => (errs.length > 0 ? <ul className="mb-3 p-3 bg-red-50 text-red-700 rounded text-sm list-disc pl-6">{errs.map((x, i) => <li key={i}>{x}</li>)}</ul> : null);
+  const errorMessage = errs.length > 0 && <ul className="mb-3 p-3 bg-red-50 text-red-700 rounded text-sm list-disc pl-6">{errs.map((x, i) => <li key={i}>{x}</li>)}</ul>;
 
   if (!analysis) return <p className="text-gray-500">{t('विश्लेषण उपलब्ध छैन', 'Analysis not available')}</p>;
 
@@ -49,7 +49,7 @@ export default function CropPanel({ unitId, analysis, can, onChanged, lang, t })
       <div className="bg-white rounded-lg shadow p-5 max-w-3xl">
         <h3 className="font-semibold text-gov-blue mb-1">🌱 {t('नयाँ बाली चक्र दर्ता', 'Register a crop cycle')}</h3>
         <p className="text-sm text-gray-600 mb-4">{t('बाली दर्ता गरेपछि बिरुवाको विवरण, चरण र लक्ष्य दायरा स्वतः लागू हुन्छ।', 'Once registered, the plant description, growth stage and target ranges apply automatically.')}</p>
-        <ErrBox />
+        {errorMessage}
         {!can('crop_cycles.create') ? <p className="text-sm text-gray-500">{t('तपाईंलाई अनुमति छैन', 'You do not have permission')}</p> : (
           <form onSubmit={createCycle} className="grid sm:grid-cols-2 gap-3">
             <FormField label={`${t('बाली', 'Crop')} *`}>
@@ -90,7 +90,7 @@ export default function CropPanel({ unitId, analysis, can, onChanged, lang, t })
         {can('observations.create') && (
           <form onSubmit={addObs} className="bg-white rounded-lg shadow p-4 grid grid-cols-2 gap-3">
             <h3 className="col-span-2 font-semibold text-gov-blue">✍️ {t('हातले अवलोकन थप्नुहोस्', 'Add manual observation')}</h3>
-            <div className="col-span-2"><ErrBox />{ok && <p className="mb-2 p-2 bg-green-50 text-green-700 rounded text-sm">{ok}</p>}</div>
+            <div className="col-span-2">{errorMessage}{ok && <p className="mb-2 p-2 bg-green-50 text-green-700 rounded text-sm">{ok}</p>}</div>
             <FormField label={t('प्रकार', 'Type')} className="col-span-2">
               <select value={of.obs_type} onChange={so('obs_type')} className={inputCls}>
                 {Object.entries(OBS_TYPES).map(([k, v]) => <option key={k} value={k}>{lang === 'en' ? v[1] : v[0]}</option>)}

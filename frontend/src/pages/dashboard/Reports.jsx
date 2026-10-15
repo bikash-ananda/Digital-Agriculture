@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Activity, ArrowUpRight, BarChart3, ClipboardCheck, Database, Download, FlaskConical, Gauge, MapPinned, Microscope, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 
 const box = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
 const fmt = (n) => new Intl.NumberFormat().format(Number(n || 0));

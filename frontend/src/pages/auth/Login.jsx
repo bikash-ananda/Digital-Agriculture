@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ArrowLeft, Globe, LoaderCircle, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import HeroLandscape from '../../components/layout/HeroLandscape';
 import PasswordInput from '../../components/auth/PasswordInput';
 

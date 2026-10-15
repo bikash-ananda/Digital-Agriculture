@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { UserPlus, Search, Cpu, FlaskConical, Database, GraduationCap, Megaphone, ChevronRight, Sprout, MapPin, LoaderCircle } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { modules, groups } from '../../data/modules';
 import { ICONS } from '../../utils/icons';
 import { roleLabel } from '../../utils/roles';

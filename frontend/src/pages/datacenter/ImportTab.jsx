@@ -12,7 +12,7 @@ const STATUS_CLS = { ok: 'bg-green-100 text-green-800', duplicate: 'bg-yellow-10
 
 const saveBlob = (blob, name) => { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url); };
 
-export default function ImportTab({ lang, t }) {
+export default function ImportTab({ t }) {
   const [file, setFile] = useState(null);
   const [rows, setRows] = useState([]);
   const [unknown, setUnknown] = useState([]);

@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import api from '../../services/api';
-import { f, mname } from '../../components/research/helpers';
+import { f, mname } from '../../components/research/formatters';
 
 const KEY_MEANS = ['temp_avg', 'rh_avg', 'vpd_avg', 'dli', 'gdd', 'soil_moisture_avg', 'ec_avg', 'irrigation_min', 'tir_temp', 'data_coverage'];
 const TYPES = ['temperature', 'humidity', 'soil_moisture', 'soil_temperature', 'ec', 'light', 'water_level'];

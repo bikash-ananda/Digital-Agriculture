@@ -4,7 +4,7 @@ import FormField, { inputCls } from '../common/FormField';
 import { errMsgs } from '../../utils/errors';
 import { CMP } from '../../utils/greenhouse';
 
-export default function AutomationPanel({ unitId, live, can, lang, t }) {
+export default function AutomationPanel({ unitId, live, can, t }) {
   const [rules, setRules] = useState([]);
   const [sugs, setSugs] = useState([]);
   const [errs, setErrs] = useState([]);

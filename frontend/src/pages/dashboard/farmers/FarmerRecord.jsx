@@ -2,7 +2,7 @@
 import { Link, useParams } from 'react-router-dom';
 import api from '../../../services/api';
 import useLang from '../../../utils/useLang';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/useAuth';
 import DynamicForm from '../../../components/dc/DynamicForm';
 import RecordsPanel from '../../../components/dc/RecordsPanel';
 import FarmsTab from '../../../components/dc/FarmsTab';

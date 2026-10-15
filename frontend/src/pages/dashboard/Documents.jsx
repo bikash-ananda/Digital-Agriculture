@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, ExternalLink, FileText, FolderOpen, Plus } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { errMsgs } from '../../utils/errors';
 
 const categories = ['act', 'directive', 'procedure', 'criteria', 'book', 'form', 'report', 'progress', 'bulletin', 'other'];

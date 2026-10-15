@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bell, CalendarClock, ExternalLink, Megaphone, Plus } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { errMsgs } from '../../utils/errors';
 
 const blank = { category: 'notice', title_en: '', title_ne: '', body: '', file_path: '', deadline_date: '' };

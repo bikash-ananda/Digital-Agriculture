@@ -3,7 +3,7 @@ import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-do
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Menu, X, LogOut, Globe, ChevronDown } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import useLang from '../../utils/useLang';
 import { modules, groups } from '../../data/modules';
 import { ICONS } from '../../utils/icons';

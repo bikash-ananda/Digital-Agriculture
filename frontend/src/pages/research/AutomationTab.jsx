@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { f } from '../../components/research/helpers';
+import { f } from '../../components/research/formatters';
 
 export default function AutomationTab({ units, lang, t }) {
   const [unitId, setUnitId] = useState('');

@@ -1,5 +1,5 @@
 import { Award, BookOpen, CloudSun, Droplets, Gamepad2, Leaf, Sprout, Wheat } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import useLang from '../utils/useLang';
 import { readMyFarmProgress } from './progressStore';
 

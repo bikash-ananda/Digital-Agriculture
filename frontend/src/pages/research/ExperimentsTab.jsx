@@ -2,7 +2,8 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import api from '../../services/api';
 import UnitPicker from '../../components/research/UnitPicker';
-import { Caveats, f, fmtP, mname } from '../../components/research/helpers';
+import { Caveats } from '../../components/research/helpers';
+import { f, fmtP, mname } from '../../components/research/formatters';
 import { errMsgs } from '../../utils/errors';
 
 const COLORS = ['#15803d', '#2563eb', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];

@@ -4,7 +4,7 @@ import {
   Paperclip, Phone, PhoneOff, Send, Trash2, Users, Video, Wifi, X
 } from 'lucide-react';
 import api from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import useLang from '../../utils/useLang';
 import {
   clearLocalConversation, getChatIdentity, getLocalAttachment,

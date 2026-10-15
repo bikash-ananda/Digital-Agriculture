@@ -1,8 +1,8 @@
 ﻿import { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 
-export default function ExportTab({ fy, lang, t }) {
+export default function ExportTab({ fy, t }) {
   const { can } = useAuth();
   const [sum, setSum] = useState(null);
   const [purpose, setPurpose] = useState('');

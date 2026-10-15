@@ -2,7 +2,7 @@
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import useT from '../../utils/useT';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import PasswordInput from '../../components/auth/PasswordInput';
 import { apiMessages } from '../../utils/passwordHints';
 

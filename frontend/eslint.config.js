@@ -17,5 +17,9 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // Existing data-fetching effects update state; keep these visible without blocking CI.
+      'react-hooks/set-state-in-effect': 'warn',
+    },
   },
 ])

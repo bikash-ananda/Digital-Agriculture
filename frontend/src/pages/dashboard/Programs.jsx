@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CalendarDays, ClipboardList, Plus, Users } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { errMsgs } from '../../utils/errors';
 
 const blank = { name_en: '', name_ne: '', description: '', fiscal_year: '', budget: '', start_date: '', end_date: '', eligibility: '', target_beneficiaries: '' };

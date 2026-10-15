@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ClipboardPlus } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { fiscalYearOf } from '../../utils/dc';
 import Overview from './Overview';
 import LocalLevelsTab from './LocalLevelsTab';

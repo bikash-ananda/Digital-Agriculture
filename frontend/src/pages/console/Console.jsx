@@ -2,7 +2,7 @@
 import { Link, useParams } from 'react-router-dom';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth';
 import { ageText } from '../../utils/console';
 import LiveTab from './LiveTab';
 import InsightsTab from './InsightsTab';
