@@ -148,11 +148,20 @@ exports.getDevice = async (req, res, next) => {
     const [actuators] = await db.query(
       'SELECT id, actuator_type, name, control_mode, current_state, max_runtime_seconds, status, last_state_at ' +
       'FROM actuators WHERE device_id = ? ORDER BY id', [device.id]);
-    const [telemetryRows] = await db.query(
-      'SELECT rssi, uptime_s, free_heap, reset_reason, firmware, sensor_errors, wifi_reconnects, http_failures, ' +
-      'recorded_at, TIMESTAMPDIFF(SECOND, recorded_at, NOW()) AS age_seconds ' +
-      'FROM device_telemetry WHERE device_id = ? ORDER BY recorded_at DESC, id DESC LIMIT 1', [device.id]);
-    res.json({ device, sensors, actuators, telemetry: telemetryRows[0] || null });
+    let telemetry = null;
+    try {
+      const [telemetryRows] = await db.query(
+        'SELECT rssi, uptime_s, free_heap, reset_reason, firmware, sensor_errors, wifi_reconnects, http_failures, ' +
+        'recorded_at, TIMESTAMPDIFF(SECOND, recorded_at, NOW()) AS age_seconds ' +
+        'FROM device_telemetry WHERE device_id = ? ORDER BY recorded_at DESC, id DESC LIMIT 1', [device.id]);
+      telemetry = telemetryRows[0] || null;
+    } catch (e) {
+      // Health telemetry is supplementary. An older or partially migrated database
+      // must not make the device's core sensor and actuator page return HTTP 500.
+      if (!['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(e.code)) throw e;
+      console.warn(`Device telemetry unavailable for device ${device.id}: ${e.code}`);
+    }
+    res.json({ device, sensors, actuators, telemetry });
   } catch (e) { next(e); }
 };
 

@@ -55,7 +55,59 @@ export default function DeviceDetail() {
     catch (err) { setErrs(errMsgs(err)); }
   };
 
-  if (error && !data) return <div className="p-4 bg-red-50 text-red-700 rounded">{error}</div>;
+  if (error && !data) return (
+    <div className="max-w-6xl space-y-6">
+      <div>
+        <Link to="/app/smart-farming" className="text-sm text-gov-blue underline">← {t('स्मार्ट फार्मिङ', 'Smart Farming')}</Link>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-gov-blue">{t('ESP32 यन्त्र', 'ESP32 device')} #{id}</h2>
+            <p className="mt-1 text-sm text-gray-600">{t('ड्यासबोर्ड पूर्वावलोकन · सर्भरबाट यन्त्र विवरण आउन सकेन', 'Dashboard preview · device details could not be loaded from the server')}</p>
+          </div>
+          <button onClick={load} className="min-h-10 rounded border px-3 py-2 text-sm">{t('पुनः प्रयास गर्नुहोस्', 'Try again')}</button>
+        </div>
+      </div>
+
+      <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <p className="font-semibold">{t('यन्त्रको लाइभ डाटा अहिले उपलब्ध छैन', 'Live device data is currently unavailable')}</p>
+        <p className="mt-1">{t('यो पूर्वावलोकनले सेन्सरको नमुना मान देखाउँछ। यसले वास्तविक सेन्सर रिडिङ जनाउँदैन।', 'This preview shows sample zero values. They are not real sensor readings.')}</p>
+        <p className="mt-2 text-xs">{t('सर्भरको प्रतिक्रिया', 'Server response')}: {error}</p>
+      </div>
+
+      <section aria-label={t('यन्त्र अवस्था', 'Device status')} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <article className="rounded-xl border bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-500">{t('ड्यासबोर्ड API', 'Dashboard API')}</p>
+          <p className="mt-2 text-lg font-semibold text-red-700">{t('अनुपलब्ध', 'Unavailable')}</p>
+          <p className="mt-1 text-xs text-gray-500">{t('यन्त्र विवरण अनुरोध असफल भयो', 'Device details request failed')}</p>
+        </article>
+        <article className="rounded-xl border bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-500">{t('ESP32 जडान', 'ESP32 connection')}</p>
+          <p className="mt-2 text-lg font-semibold text-slate-700">{t('पुष्टि हुन सकेन', 'Unknown')}</p>
+          <p className="mt-1 text-xs text-gray-500">{t('सर्भरको device status उपलब्ध छैन', 'Server device status is unavailable')}</p>
+        </article>
+        <article className="rounded-xl border bg-white p-4 shadow-sm">
+          <p className="text-xs text-gray-500">{t('अन्तिम डाटा', 'Last data received')}</p>
+          <p className="mt-2 text-lg font-semibold text-slate-700">—</p>
+          <p className="mt-1 text-xs text-gray-500">{t('अहिले पढ्न सकिएन', 'Could not be loaded')}</p>
+        </article>
+      </section>
+
+      <section aria-label={t('नमुना सेन्सर मान', 'Sample sensor values')} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { key: 'temperature', label: t('तापक्रम', 'Temperature'), value: '0 °C' },
+          { key: 'humidity', label: t('आर्द्रता', 'Humidity'), value: '0 %' },
+          { key: 'soil', label: t('माटोको चिस्यान', 'Soil moisture'), value: '0 %' },
+          { key: 'light', label: t('प्रकाश', 'Light'), value: '0 lux' }
+        ].map((item) => (
+          <article key={item.key} className="rounded-xl border bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-600">{item.label}</p>
+            <p className="mt-3 text-3xl font-bold text-gov-blue">{item.value}</p>
+            <p className="mt-2 text-xs text-gray-500">{t('नमुना मान · वास्तविक डाटा छैन', 'Sample value · no live reading')}</p>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
   if (!data) return <p className="text-gray-500">...</p>;
   const { device, sensors, actuators, telemetry } = data;
 
