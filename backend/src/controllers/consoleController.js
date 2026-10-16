@@ -28,7 +28,7 @@ exports.units = async (req, res, next) => {
     const [units] = await db.query(`SELECT gu.id, gu.code, gu.name_en, gu.name_ne, gu.unit_type, ${await simSql()} AS is_simulated, s.name_en AS site_en, s.name_ne AS site_ne FROM growing_units gu JOIN sites s ON s.id = gu.site_id WHERE 1 = 1${sc.sql} ORDER BY gu.id`, sc.params);
     if (!units.length) return res.json([]);
     const ids = units.map((u) => u.id);
-    const [sens] = await db.query("SELECT growing_unit_id AS uid, sensor_type, sensor_value AS last_value, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age FROM sensors WHERE growing_unit_id IN (?) AND status = 'active'", [ids]);
+    const [sens] = await db.query("SELECT growing_unit_id AS uid, sensor_type, sensor_value AS `last_value`, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age FROM sensors WHERE growing_unit_id IN (?) AND status = 'active'", [ids]);
     const [devs] = await db.query(`SELECT d.growing_unit_id AS uid, ${LIVE} AS live FROM iot_devices d WHERE d.growing_unit_id IN (?)`, [ids]);
     const [al] = await db.query("SELECT growing_unit_id AS uid, COUNT(*) AS n FROM alerts WHERE growing_unit_id IN (?) AND status = 'open' GROUP BY growing_unit_id", [ids]);
     res.json(units.map((u) => {
@@ -57,7 +57,7 @@ exports.overview = async (req, res, next) => {
       try { const c = typeof d.config_mirror === 'string' ? JSON.parse(d.config_mirror) : d.config_mirror; if (c && Number(c.min_off_s) >= 0) minOff = Number(c.min_off_s); } catch (e) { /* ignore */ }
       delete d.config_mirror;
     });
-    const [sensors] = await db.query("SELECT id, sensor_type, name, unit, status, sensor_value AS last_value, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_s FROM sensors WHERE growing_unit_id = ? AND status <> 'disabled' ORDER BY id", [unit.id]);
+    const [sensors] = await db.query("SELECT id, sensor_type, name, unit, status, sensor_value AS `last_value`, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_s FROM sensors WHERE growing_unit_id = ? AND status <> 'disabled' ORDER BY id", [unit.id]);
     const [spark] = await db.query(
       `SELECT s.sensor_type AS type, FLOOR(UNIX_TIMESTAMP(r.recorded_at) / 300) * 300 AS ts, AVG(r.value) AS v FROM sensor_readings r JOIN sensors s ON s.id = r.sensor_id
         WHERE s.growing_unit_id = ? AND s.status <> 'disabled' AND r.recorded_at >= NOW() - INTERVAL 6 HOUR GROUP BY type, ts ORDER BY ts`, [unit.id]);
@@ -137,7 +137,7 @@ exports.automationStatus = async (req, res, next) => {
     const unit = await unitOf(req, req.params.id);
     if (!unit) return res.status(404).json({ message: 'Growing unit not found' });
     const [rules] = await db.query(
-      `SELECT r.*, a.name AS actuator_name, a.actuator_type, a.control_mode, a.current_state, a.status AS act_status, s.name AS sensor_name, s.sensor_type, s.sensor_value AS last_value, s.unit AS sensor_unit,
+      `SELECT r.*, a.name AS actuator_name, a.actuator_type, a.control_mode, a.current_state, a.status AS act_status, s.name AS sensor_name, s.sensor_type, s.sensor_value AS \`last_value\`, s.unit AS sensor_unit,
               TIMESTAMPDIFF(SECOND, s.last_sensor_reading_at, NOW()) AS sensor_age, TIMESTAMPDIFF(SECOND, d.last_seen_at, NOW()) AS seen_age,
               (SELECT TIMESTAMPDIFF(SECOND, MAX(e.ended_at), NOW()) FROM actuator_events e WHERE e.actuator_id = a.id AND e.ended_at IS NOT NULL) AS since_off,
               (SELECT COUNT(*) FROM actuator_commands c WHERE c.actuator_id = a.id AND c.status IN ('pending','sent')) AS pending

@@ -200,7 +200,7 @@ exports.deviceStatus = async (req, res, next) => {
          FROM iot_devices d JOIN sites s ON s.id = d.site_id WHERE d.device_code = ?${sc.sql}`, [req.params.code, ...sc.params]);
     const d = rows[0];
     if (!d) return res.status(404).json({ message: 'Device not found' });
-    const [sensors] = await db.query('SELECT id, name, sensor_type, channel_key, unit, status, sensor_value AS last_value, last_sensor_reading_at AS last_reading_at, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_s FROM sensors WHERE device_id = ? ORDER BY id', [d.id]);
+    const [sensors] = await db.query('SELECT id, name, sensor_type, channel_key, unit, status, sensor_value AS `last_value`, last_sensor_reading_at AS last_reading_at, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_s FROM sensors WHERE device_id = ? ORDER BY id', [d.id]);
     const acts = await actuatorsOf(d.id);
     const [[p]] = await db.query("SELECT COUNT(*) AS n FROM actuator_commands c JOIN actuators a ON a.id = c.actuator_id WHERE a.device_id = ? AND c.status IN ('pending','sent')", [d.id]);
     res.json({

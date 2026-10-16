@@ -62,7 +62,7 @@ async function runAutomation() {
     `SELECT r.id, r.name, r.actuator_id, r.comparison, r.start_threshold, r.stop_threshold, r.max_runtime_seconds,
             r.min_interval_seconds, r.schedule_from, r.schedule_to,
             a.control_mode, a.current_state, a.status AS act_status, a.max_runtime_seconds AS act_max,
-            s.sensor_value AS last_value, TIMESTAMPDIFF(SECOND, s.last_sensor_reading_at, NOW()) AS sensor_age,
+            s.sensor_value AS \`last_value\`, TIMESTAMPDIFF(SECOND, s.last_sensor_reading_at, NOW()) AS sensor_age,
             TIMESTAMPDIFF(SECOND, d.last_seen_at, NOW()) AS seen_age
        FROM automation_rules r
        JOIN actuators a ON a.id = r.actuator_id

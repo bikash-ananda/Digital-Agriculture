@@ -38,11 +38,11 @@ exports.storage = async (req, res, next) => {
     const [[dbSize]] = await db.query(
       `SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes, COUNT(*) AS tables
          FROM information_schema.tables WHERE table_schema = DATABASE()`);
-    const [[daily]] = await db.query('SELECT MIN(day) AS first_day, MAX(day) AS last_day, COUNT(*) AS rows FROM unit_daily');
+    const [[daily]] = await db.query('SELECT MIN(day) AS first_day, MAX(day) AS last_day, COUNT(*) AS total_rows FROM unit_daily');
     res.json({
       database_bytes: Number(dbSize.bytes), database_tables: Number(dbSize.tables),
       backup_limit_bytes: 5_000_000_000,
-      daily_rollups: { first_day: daily.first_day, last_day: daily.last_day, rows: Number(daily.rows) },
+      daily_rollups: { first_day: daily.first_day, last_day: daily.last_day, rows: Number(daily.total_rows) },
       retention_plan: { raw_readings_days: 30, hourly_rollups_days: 62, daily_rollups_days: 730, automated_pruning: false },
       note: 'Database footprint is reported separately from compressed backup files. Google Weather API values are not part of the research archive.'
     });

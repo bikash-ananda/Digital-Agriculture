@@ -142,7 +142,7 @@ exports.getDevice = async (req, res, next) => {
     const device = await findDevice(req, req.params.id);
     if (!device) return res.status(404).json({ message: 'Device not found' });
     const [sensors] = await db.query(
-      'SELECT id, sensor_type, name, unit, model, status, sensor_value AS last_value, ' +
+      'SELECT id, sensor_type, name, unit, model, status, sensor_value AS `last_value`, ' +
       'last_sensor_reading_at AS last_reading_at, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_seconds, ' +
       'min_valid, max_valid FROM sensors WHERE device_id = ? ORDER BY id', [device.id]);
     const [actuators] = await db.query(
