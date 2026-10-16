@@ -49,17 +49,17 @@
 // ---- sensors (1 = fitted) ----
 #define I2C_SDA 21
 #define I2C_SCL 22
-#define USE_SHT31 1            // air temperature + humidity
+#define USE_SHT31 0            // not installed; AM2120 is used on the single-wire input below
 #define SHT31_ADDR 0x44
-#define USE_DHT 0              // alternative: DHT22 on DHT_PIN
-#define DHT_PIN 13
-#define DHT_TYPE DHT22
+#define USE_DHT 1              // AM2120 single-bus temperature + humidity
+#define DHT_PIN 4
+#define DHT_TYPE DHT21
 #define USE_BH1750 1           // light (lux)
-#define USE_DS18B20 1          // soil temperature
-#define ONEWIRE_PIN 4
+#define USE_DS18B20 0          // no separate DS18B20 pin was provided; GPIO4 is used by AM2120
+#define ONEWIRE_PIN 4           // unused while USE_DS18B20 is 0
 
-#define SOIL_COUNT 2           // capacitive probes on ADC1 pins
-static const uint8_t SOIL_PINS[SOIL_COUNT] = {34, 35};
+#define SOIL_COUNT 1           // one capacitive probe on ADC1
+static const uint8_t SOIL_PINS[SOIL_COUNT] = {34};
 #define SOIL_RAW_DRY 3200      // reading in dry air  (calibrate)
 #define SOIL_RAW_WET 1400      // reading in water    (calibrate)
 
@@ -75,7 +75,7 @@ static const uint8_t SOIL_PINS[SOIL_COUNT] = {34, 35};
 
 // ---- relays ----
 #define RELAY_ACTIVE_LOW 1
-static const uint8_t RELAY_PINS[] = {25, 26, 27, 23};
+static const uint8_t RELAY_PINS[] = {26, 27}; // IN1 irrigation pump, IN2 sprinkler pump
 #define RELAY_COUNT (sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]))
 
 // ---- local safety (works even if the server is down) ----
