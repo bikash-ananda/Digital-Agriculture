@@ -13,6 +13,7 @@ function ActuatorCard({ a, offline, canControl, canConfigure, onDone, lang, t })
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const isOn = a.current_state === 'on';
+  const unmapped = a.relay_channel == null;
   const label = (s) => (s >= 3600 ? `${s / 3600} ${t('घण्टा', 'h')}` : `${Math.round(s / 60)} ${t('मिनेट', 'min')}`);
 
   const send = async (command) => {
@@ -69,10 +70,11 @@ function ActuatorCard({ a, offline, canControl, canConfigure, onDone, lang, t })
           <select value={dur} onChange={(e) => setDur(Number(e.target.value))} className="border rounded p-1.5 text-sm bg-white" disabled={busy}>
             {options.map((s) => <option key={s} value={s}>{label(s)}</option>)}
           </select>
-          <button disabled={busy || offline || a.status !== 'active'} onClick={() => send('on')} className="bg-agri-green hover:bg-green-800 text-white px-4 py-1.5 rounded text-sm font-semibold disabled:opacity-50">ON</button>
-          <button disabled={busy || offline || a.status !== 'active'} onClick={() => send('off')} className="bg-gov-red hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-semibold disabled:opacity-50">OFF</button>
+          <button disabled={busy || offline || unmapped || a.status !== 'active'} onClick={() => send('on')} className="bg-agri-green hover:bg-green-800 text-white px-4 py-1.5 rounded text-sm font-semibold disabled:opacity-50">ON</button>
+          <button disabled={busy || offline || unmapped || a.status !== 'active'} onClick={() => send('off')} className="bg-gov-red hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-semibold disabled:opacity-50">OFF</button>
         </div>
       )}
+      {unmapped && <p className="mt-2 text-xs text-amber-700">{t('रिले च्यानल तोकिएको छैन — यन्त्र विवरणमा च्यानल १ वा २ म्याप गर्नुहोस्', 'No relay channel assigned — map channel 1 or 2 in device details')}</p>}
       {offline && <p className="mt-2 text-xs text-red-600">{t('यन्त्र अफलाइन छ — आदेश पठाउन मिल्दैन', 'Device offline — commands disabled')}</p>}
       {msg && <p className={`mt-2 text-sm rounded p-2 ${color[msg.kind]}`}>{msg.text}</p>}
       {a.last_state_at && <p className="mt-2 text-xs text-gray-400">{t('अन्तिम परिवर्तन', 'Last change')}: {new Date(a.last_state_at).toLocaleString()}</p>}

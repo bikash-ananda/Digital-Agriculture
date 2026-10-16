@@ -23,6 +23,7 @@ static DHT dht(DHT_PIN, DHT_TYPE);
 #include <BH1750.h>
 static BH1750 lightMeter;
 static bool luxOk = false;
+static uint8_t lightSensorAddress = 0;
 #endif
 #if USE_DS18B20
 #include <OneWire.h>
@@ -213,8 +214,11 @@ static int readRawMedian(uint8_t pin) { int v[15]; for (int i = 0; i < 15; i++) 
 static int readMvMedian(uint8_t pin) { int v[15]; for (int i = 0; i < 15; i++) { v[i] = analogReadMilliVolts(pin); delay(2); } return medianInt(v, 15); }
 
 static float soilPct(int raw) {
+  if (raw < 0 || raw > 4095 || SOIL_RAW_DRY == SOIL_RAW_WET) return NAN;
   float p = (float)(SOIL_RAW_DRY - raw) * 100.0f / (float)(SOIL_RAW_DRY - SOIL_RAW_WET);
-  if (p < -5.0f || p > 105.0f) return NAN;   // probe unplugged or wrong calibration
+  // Do not invent a moisture percentage when the probe is outside its measured
+  // dry/wet calibration. The raw ADC reading is still sent separately.
+  if (p < -5.0f || p > 105.0f) return NAN;
   return constrain(p, 0.0f, 100.0f);
 }
 
@@ -262,7 +266,10 @@ static void buildReadings(JsonObject r) {
   put(r, "humidity", rh);
 #endif
 #if USE_BH1750
-  if (luxOk) { float lx = lightMeter.readLightLevel(); put(r, "light", lx < 0 ? NAN : lx); } else sensorErrors++;
+  if (luxOk) {
+    float lx = lightMeter.readLightLevel();
+    put(r, "light", (lx < 0.0f || lx > 65535.0f) ? NAN : lx);
+  } else sensorErrors++;
 #endif
 #if USE_DS18B20
   ds.requestTemperatures();
@@ -273,10 +280,12 @@ static void buildReadings(JsonObject r) {
   for (uint8_t i = 0; i < SOIL_COUNT; i++) {
     int raw = readRawMedian(SOIL_PINS[i]);
 #if DEBUG_RAW
-    Serial.printf("soil%u raw=%d\n", i + 1, raw);
+    Serial.printf("soil%u raw=%d moisture=%.1f%% (calibration dry=%d wet=%d)\n", i + 1, raw, soilPct(raw), SOIL_RAW_DRY, SOIL_RAW_WET);
 #endif
     String key = i == 0 ? String("soil_moisture") : String("soil_moisture_") + (i + 1);
     put(r, key, soilPct(raw));
+    String rawKey = i == 0 ? String("soil_moisture_raw") : String("soil_moisture_raw_") + (i + 1);
+    put(r, rawKey, raw);
   }
 #if USE_EC
   {
@@ -310,8 +319,10 @@ static void postReadings() {
   Serial.println(body);
   if (apiCall("POST", "/api/device/readings", body, out, code)) {
     JsonDocument res;
-    if (!deserializeJson(res, out))
+    if (!deserializeJson(res, out)) {
+      Serial.printf("server stored %u reading(s), rejected %u\n", (unsigned)(res["stored"] | 0), (unsigned)res["rejected"].size());
       for (JsonObject x : res["rejected"].as<JsonArray>()) Serial.printf("rejected: %s (%s)\n", x["sensor_type"] | "?", x["reason"] | "?");
+    }
   }
 }
 
@@ -405,8 +416,18 @@ void setup() {
   dht.begin();
 #endif
 #if USE_BH1750
-  luxOk = lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
-  if (!luxOk) Serial.println(F("BH1750 not found"));
+  const uint8_t addresses[] = {0x23, 0x5C}; // ADD low/floating or high on GY-30
+  for (uint8_t address : addresses) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() != 0) continue;
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, address, &Wire)) {
+      lightSensorAddress = address;
+      luxOk = true;
+      break;
+    }
+  }
+  if (luxOk) Serial.printf("BH1750 ready at I2C 0x%02X (GPIO%d SDA, GPIO%d SCL)\n", lightSensorAddress, I2C_SDA, I2C_SCL);
+  else Serial.println(F("BH1750 not found at 0x23 or 0x5C; check 3.3V, GND, SDA=GPIO21, SCL=GPIO22 and ADD strap"));
 #endif
 #if USE_DS18B20
   ds.begin();

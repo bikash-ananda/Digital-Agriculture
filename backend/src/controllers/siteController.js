@@ -142,11 +142,11 @@ exports.getDevice = async (req, res, next) => {
     const device = await findDevice(req, req.params.id);
     if (!device) return res.status(404).json({ message: 'Device not found' });
     const [sensors] = await db.query(
-      'SELECT id, sensor_type, name, unit, model, status, sensor_value AS `last_value`, ' +
+      'SELECT id, sensor_type, name, channel_key, unit, model, status, sensor_value AS `last_value`, ' +
       'last_sensor_reading_at AS last_reading_at, TIMESTAMPDIFF(SECOND, last_sensor_reading_at, NOW()) AS age_seconds, ' +
       'min_valid, max_valid FROM sensors WHERE device_id = ? ORDER BY id', [device.id]);
     const [actuators] = await db.query(
-      'SELECT id, actuator_type, name, control_mode, current_state, max_runtime_seconds, status, last_state_at ' +
+      'SELECT id, actuator_type, name, relay_channel, control_mode, current_state, max_runtime_seconds, status, last_state_at ' +
       'FROM actuators WHERE device_id = ? ORDER BY id', [device.id]);
     let telemetry = null;
     try {
@@ -195,12 +195,47 @@ exports.addActuator = async (req, res, next) => {
     const device = await findDevice(req, req.params.id);
     if (!device) return res.status(404).json({ message: 'Device not found' });
     const b = req.body;
+    const relayChannel = b.relay_channel ? Number(b.relay_channel) : null;
+    if (relayChannel !== null) {
+      const [conflicts] = await db.query('SELECT id FROM actuators WHERE device_id = ? AND relay_channel = ? AND status <> \'disabled\' LIMIT 1', [device.id, relayChannel]);
+      if (conflicts.length) return res.status(409).json({ message: `Relay channel ${relayChannel} is already assigned to another active actuator` });
+    }
     const [r] = await db.query('INSERT INTO actuators SET ?', [{
       device_id: device.id, growing_unit_id: device.growing_unit_id, actuator_type: b.actuator_type,
-      name: b.name, relay_channel: clean(b.relay_channel), gpio_pin: clean(b.gpio_pin), max_runtime_seconds: b.max_runtime_seconds || 900
+      name: b.name, relay_channel: relayChannel, gpio_pin: clean(b.gpio_pin), max_runtime_seconds: b.max_runtime_seconds || 900
     }]);
     await logAudit(req.user.id, 'actuator_create', 'actuator', r.insertId, { device_id: device.id, type: b.actuator_type }, req);
     res.status(201).json({ id: r.insertId });
+  } catch (e) { next(e); }
+};
+
+exports.updateActuator = async (req, res, next) => {
+  try {
+    const device = await findDevice(req, req.params.id);
+    if (!device) return res.status(404).json({ message: 'Device not found' });
+    const [actuators] = await db.query('SELECT id, relay_channel, current_state FROM actuators WHERE id = ? AND device_id = ?', [req.params.actuatorId, device.id]);
+    const currentActuator = actuators[0];
+    if (!currentActuator) return res.status(404).json({ message: 'Actuator not found on this device' });
+
+    const b = req.body;
+    const relayChannel = b.relay_channel ? Number(b.relay_channel) : null;
+    const currentRelayChannel = currentActuator.relay_channel == null ? null : Number(currentActuator.relay_channel);
+    if (currentActuator.current_state === 'on' && currentRelayChannel !== relayChannel) {
+      return res.status(409).json({ message: 'Turn the actuator off before changing its relay channel' });
+    }
+    if (relayChannel !== null) {
+      const [conflicts] = await db.query(
+        'SELECT id FROM actuators WHERE device_id = ? AND relay_channel = ? AND id <> ? AND status <> \'disabled\' LIMIT 1',
+        [device.id, relayChannel, req.params.actuatorId]);
+      if (conflicts.length) return res.status(409).json({ message: `Relay channel ${relayChannel} is already assigned to another active actuator` });
+    }
+
+    await db.query('UPDATE actuators SET actuator_type = ?, name = ?, relay_channel = ?, max_runtime_seconds = ? WHERE id = ? AND device_id = ?',
+      [b.actuator_type, b.name, relayChannel, b.max_runtime_seconds, req.params.actuatorId, device.id]);
+    await logAudit(req.user.id, 'actuator_update', 'actuator', Number(req.params.actuatorId), {
+      device_id: device.id, type: b.actuator_type, relay_channel: relayChannel
+    }, req);
+    res.json({ id: Number(req.params.actuatorId), relay_channel: relayChannel });
   } catch (e) { next(e); }
 };
 

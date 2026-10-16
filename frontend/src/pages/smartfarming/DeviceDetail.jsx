@@ -8,8 +8,8 @@ import StatusBadge from '../../components/common/StatusBadge';
 import { errMsgs } from '../../utils/errors';
 import HistoryChart from '../../components/greenhouse/HistoryChart';
 
-const emptySensor = { sensor_type: 'temperature', name: '', unit: '', min_valid: '', max_valid: '' };
-const emptyAct = { actuator_type: 'irrigation', name: '', max_runtime_seconds: '900' };
+const emptySensor = { sensor_type: 'temperature', name: '', channel_key: '', unit: '', min_valid: '', max_valid: '' };
+const emptyAct = { actuator_type: 'irrigation', name: '', relay_channel: '', max_runtime_seconds: '900' };
 
 export default function DeviceDetail() {
   const { i18n } = useTranslation();
@@ -20,6 +20,7 @@ export default function DeviceDetail() {
   const [error, setError] = useState('');
   const [sensor, setSensor] = useState(emptySensor);
   const [act, setAct] = useState(emptyAct);
+  const [editingActuator, setEditingActuator] = useState(null);
   const [errs, setErrs] = useState([]);
   const [newKey, setNewKey] = useState(null);
 
@@ -48,6 +49,22 @@ export default function DeviceDetail() {
     setErrs([]);
     try { await api.post(`/smart/devices/${id}/${path}`, body); reset(); load(); }
     catch (err) { setErrs(errMsgs(err)); }
+  };
+  const saveActuator = async (event) => {
+    event.preventDefault();
+    if (!editingActuator) return;
+    setErrs([]);
+    const body = {
+      actuator_type: editingActuator.actuator_type,
+      name: editingActuator.name,
+      relay_channel: editingActuator.relay_channel ? Number(editingActuator.relay_channel) : null,
+      max_runtime_seconds: Number(editingActuator.max_runtime_seconds)
+    };
+    try {
+      await api.put(`/smart/devices/${id}/actuators/${editingActuator.id}`, body);
+      setEditingActuator(null);
+      await load();
+    } catch (err) { setErrs(errMsgs(err)); }
   };
   const rotate = async () => {
     if (!window.confirm(t('पुरानो कुञ्जी काम गर्न छोड्नेछ। जारी राख्ने?', 'The old key will stop working. Continue?'))) return;
@@ -196,11 +213,11 @@ export default function DeviceDetail() {
         <h3 className="text-lg font-semibold text-gov-blue mb-2">{t('सेन्सरहरू', 'Sensors')} ({sensors.length})</h3>
         <div className="bg-white rounded shadow overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-100 text-left"><tr><th className="p-3">{t('नाम', 'Name')}</th><th className="p-3">{t('प्रकार', 'Type')}</th><th className="p-3">{t('इकाई', 'Unit')}</th>
+            <thead className="bg-gray-100 text-left"><tr><th className="p-3">{t('नाम', 'Name')}</th><th className="p-3">{t('प्रकार', 'Type')}</th><th className="p-3">{t('डाटा कुञ्जी', 'Data key')}</th><th className="p-3">{t('इकाई', 'Unit')}</th>
               <th className="p-3">{t('मान्य दायरा', 'Valid range')}</th><th className="p-3">{t('अन्तिम मान', 'Last value')}</th><th className="p-3">{t('स्थिति', 'Status')}</th></tr></thead>
             <tbody>
               {sensors.map((s) => (
-                <tr key={s.id} className="border-t"><td className="p-3 font-medium">{s.name}</td><td className="p-3">{s.sensor_type}</td><td className="p-3">{s.unit || '-'}</td>
+                <tr key={s.id} className="border-t"><td className="p-3 font-medium">{s.name}</td><td className="p-3">{s.sensor_type}</td><td className="p-3 font-mono text-xs">{s.channel_key || s.sensor_type}</td><td className="p-3">{s.unit || '-'}</td>
                   <td className="p-3">{s.min_valid ?? '-'} … {s.max_valid ?? '-'}</td><td className="p-3">{s.last_value ?? '-'}</td><td className="p-3"><StatusBadge value={s.status} /></td></tr>
               ))}
             </tbody>
@@ -214,10 +231,11 @@ export default function DeviceDetail() {
               </select>
             </FormField>
             <FormField label={`${t('नाम', 'Name')} *`}><input required value={sensor.name} onChange={(e) => setSensor({ ...sensor, name: e.target.value })} className={inputCls} /></FormField>
+            <FormField label={t('डाटा कुञ्जी (वैकल्पिक)', 'Data key (optional)')}><input pattern="[a-z0-9_]{2,30}" value={sensor.channel_key} onChange={(e) => setSensor({ ...sensor, channel_key: e.target.value })} placeholder="soil_moisture_raw" className={inputCls} /></FormField>
             <FormField label={t('इकाई', 'Unit')}><input value={sensor.unit} onChange={(e) => setSensor({ ...sensor, unit: e.target.value })} className={inputCls} /></FormField>
             <FormField label="Min"><input type="number" step="any" value={sensor.min_valid} onChange={(e) => setSensor({ ...sensor, min_valid: e.target.value })} className={inputCls} /></FormField>
             <FormField label="Max"><input type="number" step="any" value={sensor.max_valid} onChange={(e) => setSensor({ ...sensor, max_valid: e.target.value })} className={inputCls} /></FormField>
-            <div className="sm:col-span-5"><button className="bg-agri-green text-white px-4 py-2 rounded text-sm">+ {t('सेन्सर थप्नुहोस्', 'Add Sensor')}</button></div>
+            <div className="sm:col-span-5"><p className="mb-2 text-xs text-gray-500">{t('माटोको प्रतिशत वास्तविक probe बाट सुख्खा र भिजेको अवस्थामा क्यालिब्रेट गर्नुपर्छ। कच्चा ADC हेर्न प्रकार Other, नाम Soil probe raw, कुञ्जी soil_moisture_raw, इकाई ADC राख्नुहोस्।', 'Soil moisture percentage needs dry and wet calibration from the installed probe. To display its raw value, use type Other, name Soil probe raw, key soil_moisture_raw, and unit ADC.')}</p><button className="bg-agri-green text-white px-4 py-2 rounded text-sm">+ {t('सेन्सर थप्नुहोस्', 'Add Sensor')}</button></div>
           </form>
         )}
       </section>
@@ -226,26 +244,38 @@ export default function DeviceDetail() {
         <h3 className="text-lg font-semibold text-gov-blue mb-2">{t('एक्चुएटरहरू', 'Actuators')} ({actuators.length})</h3>
         <div className="bg-white rounded shadow overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-100 text-left"><tr><th className="p-3">{t('नाम', 'Name')}</th><th className="p-3">{t('प्रकार', 'Type')}</th><th className="p-3">{t('मोड', 'Mode')}</th>
-              <th className="p-3">{t('अवस्था', 'State')}</th><th className="p-3">{t('अधिकतम समय (से.)', 'Max runtime (s)')}</th><th className="p-3">{t('स्थिति', 'Status')}</th></tr></thead>
+            <thead className="bg-gray-100 text-left"><tr><th className="p-3">{t('नाम', 'Name')}</th><th className="p-3">{t('प्रकार', 'Type')}</th><th className="p-3">{t('रिले च्यानल', 'Relay channel')}</th><th className="p-3">{t('मोड', 'Mode')}</th>
+              <th className="p-3">{t('अवस्था', 'State')}</th><th className="p-3">{t('अधिकतम समय (से.)', 'Max runtime (s)')}</th><th className="p-3">{t('स्थिति', 'Status')}</th>{can('devices.update') && <th className="p-3">{t('कार्य', 'Action')}</th>}</tr></thead>
             <tbody>
               {actuators.map((a) => (
-                <tr key={a.id} className="border-t"><td className="p-3 font-medium">{a.name}</td><td className="p-3">{a.actuator_type}</td><td className="p-3">{a.control_mode}</td>
-                  <td className="p-3"><StatusBadge value={a.current_state} /></td><td className="p-3">{a.max_runtime_seconds}</td><td className="p-3"><StatusBadge value={a.status} /></td></tr>
+                <tr key={a.id} className="border-t"><td className="p-3 font-medium">{a.name}</td><td className="p-3">{a.actuator_type}</td><td className="p-3">{a.relay_channel ?? t('नतोकिएको', 'Unassigned')}</td><td className="p-3">{a.control_mode}</td>
+                  <td className="p-3"><StatusBadge value={a.current_state} /></td><td className="p-3">{a.max_runtime_seconds}</td><td className="p-3"><StatusBadge value={a.status} /></td>
+                  {can('devices.update') && <td className="p-3"><button type="button" onClick={() => setEditingActuator({ id: a.id, actuator_type: a.actuator_type, name: a.name, relay_channel: a.relay_channel == null ? '' : String(a.relay_channel), max_runtime_seconds: String(a.max_runtime_seconds || 900) })} className="text-sm text-gov-blue underline">{t('Засвар', 'Configure')}</button></td>}</tr>
               ))}
             </tbody>
           </table>
         </div>
+        {editingActuator && can('devices.update') && (
+          <form onSubmit={saveActuator} className="bg-white rounded shadow p-4 mt-3 grid sm:grid-cols-2 xl:grid-cols-5 gap-3 items-end">
+            <div className="sm:col-span-2 xl:col-span-5 flex items-center justify-between"><h4 className="font-semibold">{t('एक्चुएटर रिले म्यापिङ', 'Configure actuator relay mapping')}</h4><button type="button" onClick={() => setEditingActuator(null)} className="text-sm underline">{t('रद्द गर्नुहोस्', 'Cancel')}</button></div>
+            <FormField label={t('प्रकार', 'Type')}><select value={editingActuator.actuator_type} onChange={(e) => setEditingActuator({ ...editingActuator, actuator_type: e.target.value })} className={inputCls}>{['irrigation', 'pump', 'misting', 'fan', 'light', 'other'].map((x) => <option key={x}>{x}</option>)}</select></FormField>
+            <FormField label={`${t('नाम', 'Name')} *`}><input required value={editingActuator.name} onChange={(e) => setEditingActuator({ ...editingActuator, name: e.target.value })} className={inputCls} /></FormField>
+            <FormField label={t('GPIO रिले च्यानल', 'GPIO relay channel')}><select value={editingActuator.relay_channel} onChange={(e) => setEditingActuator({ ...editingActuator, relay_channel: e.target.value })} className={inputCls}><option value="">{t('नतोकिएको', 'Unassigned')}</option>{[1, 2].map((channel) => { const occupied = actuators.some((other) => other.id !== editingActuator.id && other.status === 'active' && Number(other.relay_channel) === channel); const purpose = channel === 1 ? t('सिँचाइ पम्प', 'irrigation pump') : t('स्प्रिंकलर पम्प', 'sprinkler pump'); return <option key={channel} value={channel} disabled={occupied}>{channel} · GPIO{channel === 1 ? 26 : 27} · {purpose}{occupied ? ` (${t('पहिले नै प्रयोगमा', 'already assigned')})` : ''}</option>; })}</select></FormField>
+            <FormField label={t('अधिकतम समय (से.)', 'Max runtime (s)')}><input type="number" min="1" max="86400" required value={editingActuator.max_runtime_seconds} onChange={(e) => setEditingActuator({ ...editingActuator, max_runtime_seconds: e.target.value })} className={inputCls} /></FormField>
+            <div><button className="bg-agri-green text-white px-4 py-2 rounded text-sm">{t('म्यापिङ सुरक्षित गर्नुहोस्', 'Save mapping')}</button></div>
+          </form>
+        )}
         {can('devices.create') && (
-          <form onSubmit={(e) => { e.preventDefault(); post('actuators', act, () => setAct(emptyAct)); }} className="bg-white rounded shadow p-4 mt-3 grid sm:grid-cols-3 gap-3 items-end">
+          <form onSubmit={(e) => { e.preventDefault(); post('actuators', { ...act, relay_channel: act.relay_channel ? Number(act.relay_channel) : null, max_runtime_seconds: Number(act.max_runtime_seconds) }, () => setAct(emptyAct)); }} className="bg-white rounded shadow p-4 mt-3 grid sm:grid-cols-2 xl:grid-cols-4 gap-3 items-end">
             <FormField label={t('प्रकार', 'Type')}>
               <select value={act.actuator_type} onChange={(e) => setAct({ ...act, actuator_type: e.target.value })} className={inputCls}>
-                {['irrigation', 'misting', 'fan', 'light', 'other'].map((x) => <option key={x}>{x}</option>)}
+                {['irrigation', 'pump', 'misting', 'fan', 'light', 'other'].map((x) => <option key={x}>{x}</option>)}
               </select>
             </FormField>
             <FormField label={`${t('नाम', 'Name')} *`}><input required value={act.name} onChange={(e) => setAct({ ...act, name: e.target.value })} className={inputCls} /></FormField>
-            <FormField label={t('अधिकतम समय (से.)', 'Max runtime (s)')}><input type="number" value={act.max_runtime_seconds} onChange={(e) => setAct({ ...act, max_runtime_seconds: e.target.value })} className={inputCls} /></FormField>
-            <div className="sm:col-span-3"><button className="bg-agri-green text-white px-4 py-2 rounded text-sm">+ {t('एक्चुएटर थप्नुहोस्', 'Add Actuator')}</button></div>
+            <FormField label={t('GPIO रिले च्यानल', 'GPIO relay channel')}><select value={act.relay_channel} onChange={(e) => setAct({ ...act, relay_channel: e.target.value })} className={inputCls}><option value="">{t('नतोकिएको', 'Unassigned')}</option>{[1, 2].map((channel) => { const occupied = actuators.some((other) => other.status === 'active' && Number(other.relay_channel) === channel); const purpose = channel === 1 ? t('सिँचाइ पम्प', 'irrigation pump') : t('स्प्रिंकलर पम्प', 'sprinkler pump'); return <option key={channel} value={channel} disabled={occupied}>{channel} · GPIO{channel === 1 ? 26 : 27} · {purpose}{occupied ? ` (${t('पहिले नै प्रयोगमा', 'already assigned')})` : ''}</option>; })}</select></FormField>
+            <FormField label={t('अधिकतम समय (से.)', 'Max runtime (s)')}><input type="number" min="1" max="86400" required value={act.max_runtime_seconds} onChange={(e) => setAct({ ...act, max_runtime_seconds: e.target.value })} className={inputCls} /></FormField>
+            <div className="xl:col-span-4"><button className="bg-agri-green text-white px-4 py-2 rounded text-sm">+ {t('एक्चुएटर थप्नुहोस्', 'Add Actuator')}</button></div>
           </form>
         )}
       </section>

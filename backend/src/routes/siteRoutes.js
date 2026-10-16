@@ -61,6 +61,13 @@ router.post('/devices/:id/actuators', authorize('devices.create'), idRule, [
   opt('max_runtime_seconds').isInt({ min: 1, max: 86400 }).withMessage('Max runtime must be 1-86400 seconds')
 ], validate, ctrl.addActuator);
 
+router.put('/devices/:id/actuators/:actuatorId', authorize('devices.update'), idRule, param('actuatorId').isInt({ min: 1 }), [
+  body('actuator_type').isIn(['irrigation', 'misting', 'fan', 'light', 'other', 'heater', 'vent', 'shade', 'fertigation', 'pump', 'relay']),
+  body('relay_channel').optional({ nullable: true, values: 'falsy' }).isInt({ min: 1, max: 64 }),
+  body('name').trim().notEmpty().isLength({ max: 100 }),
+  body('max_runtime_seconds').isInt({ min: 1, max: 86400 }).withMessage('Max runtime must be 1-86400 seconds')
+], validate, ctrl.updateActuator);
+
 module.exports = router;
 
 

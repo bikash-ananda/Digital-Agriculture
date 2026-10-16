@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-#define FIRMWARE_VERSION "gh-1.0.0"
+#define FIRMWARE_VERSION "gh-1.0.1"
 #define DEVICE_CODE "ESP32-01"
 
 // Production API endpoint and its trusted HTTPS root.
@@ -43,7 +43,7 @@
 #define REPORT_INTERVAL_MS 30000UL
 #define POLL_INTERVAL_MS 10000UL
 #define TELEMETRY_INTERVAL_MS 300000UL
-#define CONFIG_REFRESH_MS 600000UL
+#define CONFIG_REFRESH_MS 60000UL
 #define DEBUG_RAW 1            // print raw ADC / distance values for calibration
 
 // ---- sensors (1 = fitted) ----
@@ -60,8 +60,8 @@
 
 #define SOIL_COUNT 1           // one capacitive probe on ADC1
 static const uint8_t SOIL_PINS[SOIL_COUNT] = {34};
-#define SOIL_RAW_DRY 3200      // reading in dry air  (calibrate)
-#define SOIL_RAW_WET 1400      // reading in water    (calibrate)
+#define SOIL_RAW_DRY 3200      // measure and set using this installed probe/soil
+#define SOIL_RAW_WET 1400      // measure and set using this installed probe/soil
 
 #define USE_EC 1
 #define EC_PIN 36

@@ -24,7 +24,7 @@ exports.live = async (req, res, next) => {
               (SELECT r.value FROM sensor_readings r WHERE r.sensor_id = sensors.id ORDER BY r.recorded_at DESC, r.id DESC LIMIT 1 OFFSET 1) AS previous_value
          FROM sensors WHERE growing_unit_id = ? ORDER BY id`, [unitId]);
     const [actuators] = await db.query(
-      `SELECT id, device_id, actuator_type, name, control_mode, current_state, max_runtime_seconds, status, last_state_at
+      `SELECT id, device_id, actuator_type, name, relay_channel, control_mode, current_state, max_runtime_seconds, status, last_state_at
          FROM actuators WHERE growing_unit_id = ? ORDER BY id`, [unitId]);
     const [devices] = await db.query(
       `SELECT d.id, d.device_code, d.last_seen_at, ${LIVE} AS live_status FROM iot_devices d WHERE d.growing_unit_id = ? ORDER BY d.id`, [unitId]);
