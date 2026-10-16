@@ -48,6 +48,21 @@ router.post('/cycles/:id/observations', authorize('observations.create'), idRule
   opt('notes').trim().isLength({ max: 2000 })
 ], validate, ctrl.addObservation);
 
+router.get('/cycles/:id/tasks', authorize('crop_cycles.view'), idRule, validate, ctrl.listCropTasks);
+router.post('/cycles/:id/tasks', authorize('crop_cycles.update'), idRule, [
+  body('title').trim().notEmpty().isLength({ max: 200 }),
+  opt('notes').trim().isLength({ max: 2000 }),
+  opt('due_on').isISO8601(),
+  opt('priority').isIn(['low', 'normal', 'high'])
+], validate, ctrl.createCropTask);
+router.put('/tasks/:id', authorize('crop_cycles.update'), idRule, [
+  opt('title').trim().notEmpty().isLength({ max: 200 }),
+  opt('notes').trim().isLength({ max: 2000 }),
+  opt('due_on').isISO8601(),
+  opt('priority').isIn(['low', 'normal', 'high']),
+  opt('status').isIn(['open', 'done', 'skipped'])
+], validate, ctrl.updateCropTask);
+
 router.get('/units/:id/rules', authorize('automation.view'), idRule, validate, ctrl.listRules);
 router.get('/units/:id/rules/suggestions', authorize('automation.view'), idRule, validate, ctrl.ruleSuggestions);
 const ruleBody = (create) => [

@@ -13,13 +13,54 @@ export default function CropPanel({ unitId, analysis, can, onChanged, lang, t })
   const [crops, setCrops] = useState([]);
   const [form, setForm] = useState({ crop_id: '', variety: '', planted_on: today(), plant_count: '', expected_harvest_on: '', notes: '' });
   const [obs, setObs] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [taskForm, setTaskForm] = useState({ title: '', due_on: '', priority: 'normal', notes: '' });
+  const [taskLoading, setTaskLoading] = useState(false);
+  const [taskError, setTaskError] = useState('');
+  const [taskOk, setTaskOk] = useState('');
+  const [taskSavingId, setTaskSavingId] = useState(null);
   const [of, setOf] = useState(emptyObs);
   const [errs, setErrs] = useState([]);
   const [ok, setOk] = useState('');
 
   useEffect(() => { api.get('/lookups/crops').then((r) => setCrops(r.data)).catch(() => {}); }, []);
-  const loadObs = () => (cycle ? api.get(`/smart/cycles/${cycle.id}/observations`).then((r) => setObs(r.data)).catch(() => setObs([])) : setObs([]));
-  useEffect(() => { loadObs(); }, [cycle && cycle.id]);
+  const loadObs = async (cycleId = cycle?.id) => {
+    if (!cycleId) return;
+    try { const response = await api.get(`/smart/cycles/${cycleId}/observations`); setObs(response.data); }
+    catch { setObs([]); }
+  };
+  useEffect(() => {
+    const cycleId = cycle?.id;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      if (!cycleId) { setObs([]); return; }
+      api.get(`/smart/cycles/${cycleId}/observations`).then((response) => {
+        if (active) setObs(response.data);
+      }).catch(() => { if (active) setObs([]); });
+    }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [cycle?.id]);
+  const loadTasks = async (cycleId = cycle?.id) => {
+    if (!cycleId) return;
+    try { const response = await api.get(`/smart/cycles/${cycleId}/tasks`); setTasks(response.data); setTaskError(''); }
+    catch (error) { setTaskError(errMsgs(error)[0]); }
+  };
+  useEffect(() => {
+    if (!cycle?.id) {
+      const clear = window.setTimeout(() => setTasks([]), 0);
+      return () => window.clearTimeout(clear);
+    }
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setTaskLoading(true);
+      api.get(`/smart/cycles/${cycle.id}/tasks`).then((response) => {
+        if (active) { setTasks(response.data); setTaskError(''); }
+      }).catch((error) => {
+        if (active) setTaskError(errMsgs(error)[0]);
+      }).finally(() => { if (active) setTaskLoading(false); });
+    }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [cycle?.id]);
 
   const createCycle = async (e) => {
     e.preventDefault(); setErrs([]);
@@ -33,8 +74,23 @@ export default function CropPanel({ unitId, analysis, can, onChanged, lang, t })
   };
   const addObs = async (e) => {
     e.preventDefault(); setErrs([]); setOk('');
-    try { await api.post(`/smart/cycles/${cycle.id}/observations`, of); setOf(emptyObs); setOk(t('अवलोकन सुरक्षित भयो', 'Observation saved')); loadObs(); onChanged(); }
+    try { await api.post(`/smart/cycles/${cycle.id}/observations`, of); setOf(emptyObs); setOk(t('अवलोकन सुरक्षित भयो', 'Observation saved')); await loadObs(cycle.id); onChanged(); }
     catch (err) { setErrs(errMsgs(err)); }
+  };
+  const addTask = async (e) => {
+    e.preventDefault(); setTaskError(''); setTaskOk('');
+    try {
+      await api.post(`/smart/cycles/${cycle.id}/tasks`, taskForm);
+      setTaskForm({ title: '', due_on: '', priority: 'normal', notes: '' });
+      setTaskOk(t('काम थपियो', 'Task added'));
+      await loadTasks(cycle.id);
+    } catch (err) { setTaskError(errMsgs(err)[0]); }
+  };
+  const updateTask = async (task, status) => {
+    setTaskSavingId(task.id); setTaskError('');
+    try { await api.put(`/smart/tasks/${task.id}`, { status }); await loadTasks(cycle.id); }
+    catch (err) { setTaskError(errMsgs(err)[0]); }
+    finally { setTaskSavingId(null); }
   };
   const so = (k) => (e) => setOf({ ...of, [k]: e.target.value });
   const sf = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -85,6 +141,32 @@ export default function CropPanel({ unitId, analysis, can, onChanged, lang, t })
           </div>
         )}
       </div>
+
+      <section aria-labelledby="crop-tasks-title" className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><h3 id="crop-tasks-title" className="font-semibold text-gov-blue">✅ {t('बालीका कामहरू', 'Crop tasks')}</h3><p className="mt-1 text-xs text-slate-600">{t('तपाईंले तय गरेका काम र मितिहरू। स्वचालित सिफारिस होइन।', 'Tasks and dates entered by your team; no automatic schedule is assumed.')}</p></div>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900">{tasks.filter((task) => task.status === 'done').length}/{tasks.length} {t('पूरा', 'done')}</span>
+        </div>
+        {taskError && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{taskError}</p>}
+        {taskOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">{taskOk}</p>}
+        {taskLoading ? <p role="status" className="mt-3 text-sm text-slate-500">{t('कामहरू लोड हुँदैछन्…', 'Loading tasks…')}</p>
+          : tasks.length === 0 ? <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{t('अहिलेसम्म कुनै काम दर्ता छैन।', 'No tasks recorded for this crop cycle yet.')}</p>
+            : <ul className="mt-3 divide-y divide-slate-100">{tasks.map((task) => {
+              const overdue = task.status === 'open' && task.due_on && String(task.due_on).slice(0, 10) < today();
+              const nextStatus = task.status === 'open' ? 'done' : 'open';
+              return <li key={task.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="flex min-w-0 items-start gap-3"><span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${task.status === 'done' ? 'bg-emerald-100 text-emerald-900' : task.status === 'skipped' ? 'bg-slate-100 text-slate-700' : 'bg-amber-100 text-amber-950'}`}>{task.status === 'done' ? '✓' : task.status === 'skipped' ? '–' : '!'}</span><div className="min-w-0"><p className={`font-medium ${task.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>{task.title}</p>{task.notes && <p className="mt-0.5 text-sm text-slate-600">{task.notes}</p>}<p className={`mt-1 text-xs ${overdue ? 'font-semibold text-rose-800' : 'text-slate-500'}`}>{task.due_on ? `${t('Хुने मिति', 'Due')} · ${String(task.due_on).slice(0, 10)}` : t('मिति तोकिएको छैन', 'No due date')}{overdue ? ` · ${t('बाँकी', 'overdue')}` : ''} · {t('प्राथमिकता', 'priority')}: {task.priority}</p></div></div>
+                {can('crop_cycles.update') && <button type="button" disabled={taskSavingId === task.id} onClick={() => updateTask(task, nextStatus)} className="min-h-10 shrink-0 rounded-lg border border-emerald-800 px-3 text-xs font-semibold text-emerald-900 hover:bg-emerald-50 disabled:opacity-50">{task.status === 'done' ? t('फेरि खोल्नुहोस्', 'Reopen') : t('पूरा भयो', 'Mark done')}</button>}
+              </li>;
+            })}</ul>}
+        {can('crop_cycles.update') && <form onSubmit={addTask} className="mt-3 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FormField label={`${t('काम', 'Task')} *`} className="sm:col-span-2"><input required maxLength="200" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} className={inputCls} placeholder={t('जस्तै: ग्रीनहाउस जाँच गर्नुहोस्', 'e.g. Inspect greenhouse')} /></FormField>
+          <FormField label={t('हुनुपर्ने मिति', 'Due date')}><input type="date" value={taskForm.due_on} onChange={(e) => setTaskForm({ ...taskForm, due_on: e.target.value })} className={inputCls} /></FormField>
+          <FormField label={t('प्राथमिकता', 'Priority')}><select value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })} className={inputCls}>{[['low', t('कम', 'Low')], ['normal', t('सामान्य', 'Normal')], ['high', t('उच्च', 'High')]].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></FormField>
+          <FormField label={t('टिप्पणी', 'Notes')} className="sm:col-span-2 lg:col-span-3"><input maxLength="2000" value={taskForm.notes} onChange={(e) => setTaskForm({ ...taskForm, notes: e.target.value })} className={inputCls} /></FormField>
+          <div className="self-end"><button className="min-h-10 rounded-lg bg-agri-green px-4 text-sm font-semibold text-white">+ {t('काम थप्नुहोस्', 'Add task')}</button></div>
+        </form>}
+      </section>
 
       <div className="grid lg:grid-cols-2 gap-5">
         {can('observations.create') && (

@@ -1,17 +1,6 @@
-﻿const db = require('../config/db');
+const db = require('../config/db');
 
-const NAME_MAP = {
-  air_temperature_c: 'temperature', air_humidity_pct: 'humidity', soil_moisture_pct: 'soil_moisture', soil_temperature_c: 'soil_temperature',
-  light_lux: 'light', ec_ms_cm: 'ec', water_level_pct: 'water_level', co2_ppm: 'co2', ph: 'ph', leaf_wetness_pct: 'leaf_wetness',
-  water_temperature_c: 'water_temperature', flow_l_min: 'flow', pressure_kpa: 'pressure', wind_speed_ms: 'wind_speed', rainfall_mm: 'rainfall'
-};
-
-function toKey(name) {
-  if (NAME_MAP[name]) return NAME_MAP[name];
-  const m = /^(.+)_(\d+)_(c|pct|lux|ms_cm|ppm|l_min|kpa|ms|mm)$/.exec(name);
-  if (m && NAME_MAP[`${m[1]}_${m[3]}`]) return `${NAME_MAP[`${m[1]}_${m[3]}`]}_${m[2]}`;
-  return null;
-}
+const { indexSensors, resolveTelemetrySensor, toSensorTypeKey } = require('../utils/sensorMapping');
 
 const UPLOAD_SECONDS = Math.min(Math.max(parseInt(process.env.DEVICE_UPLOAD_SECONDS, 10) || 30, 10), 300);
 const STALE_SECONDS = 180;
@@ -94,8 +83,7 @@ exports.telemetry = async (req, res, next) => {
 
     const [sens] = await db.query(
       "SELECT id, name, sensor_type, channel_key, calibration_offset, calibration_scale, min_valid, max_valid FROM sensors WHERE device_id = ? AND status <> 'disabled' ORDER BY id", [dev.id]);
-    const byKey = {};
-    sens.forEach((s) => { const k = s.channel_key || s.sensor_type; if (!byKey[k]) byKey[k] = s; });
+    const byKey = indexSensors(sens);
     const [openRows] = await db.query("SELECT sensor_id FROM alerts WHERE device_id = ? AND status IN ('open','acknowledged') AND message LIKE 'Sensor fault:%'", [dev.id]);
     const open = new Set(openRows.map((r) => r.sensor_id));
     const raise = async (s) => {
@@ -108,9 +96,9 @@ exports.telemetry = async (req, res, next) => {
     const rejected = [];
     const faults = [];
     for (const [name, raw] of Object.entries(b.sensors || {})) {
-      const key = toKey(name);
-      const s = key ? byKey[key] : null;
-      if (!s) { rejected.push({ name, reason: key ? 'sensor not registered on this device' : 'unknown sensor name' }); continue; }
+      const normalized = toSensorTypeKey(name);
+      const s = resolveTelemetrySensor(name, byKey);
+      if (!s) { rejected.push({ name, reason: normalized ? 'sensor not registered on this device' : 'unknown sensor name' }); continue; }
       if (raw === null) { faults.push(name); await raise(s); continue; }
       const value = Number(raw) * s.calibration_scale + s.calibration_offset;
       const bad = !Number.isFinite(value) || (s.min_valid !== null && value < s.min_valid) || (s.max_valid !== null && value > s.max_valid);

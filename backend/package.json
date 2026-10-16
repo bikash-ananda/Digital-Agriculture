@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "test:smart-farming": "node --test src/utils/sensorMapping.test.js",
     "db:migrate": "node database/migrate.js",
     "db:seed": "node database/seed.js",
     "db:seed:intel": "node database/seed-intelligence.js",

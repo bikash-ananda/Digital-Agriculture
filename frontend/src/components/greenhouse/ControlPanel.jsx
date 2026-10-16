@@ -17,6 +17,10 @@ function ActuatorCard({ a, offline, canControl, canConfigure, onDone, lang, t })
   const label = (s) => (s >= 3600 ? `${s / 3600} ${t('घण्टा', 'h')}` : `${Math.round(s / 60)} ${t('मिनेट', 'min')}`);
 
   const send = async (command) => {
+    if (command === 'on' && !window.confirm(t(
+      `${a.name} लाई ${label(dur)} का लागि चलाउने? यसले वास्तविक रिलेमा आदेश पठाउनेछ।`,
+      `Turn ${a.name} on for ${label(dur)}? This sends a command to a real relay.`
+    ))) return;
     setBusy(true);
     setMsg({ kind: 'info', text: t('यन्त्रको प्रतीक्षा गर्दै…', 'Waiting for the device…') });
     try {
@@ -37,6 +41,10 @@ function ActuatorCard({ a, offline, canControl, canConfigure, onDone, lang, t })
   };
 
   const setMode = async (mode) => {
+    if (mode === 'auto' && !window.confirm(t(
+      `${a.name} लाई स्वचालित मोडमा राख्ने? सक्रिय नियमले वास्तविक उपकरण चलाउन सक्छ।`,
+      `Set ${a.name} to automatic mode? An enabled rule may operate real equipment.`
+    ))) return;
     try { await api.put(`/smart/actuators/${a.id}/mode`, { control_mode: mode }); onDone(); }
     catch (e) { setMsg({ kind: 'err', text: e.response?.data?.message || 'Request failed' }); }
   };

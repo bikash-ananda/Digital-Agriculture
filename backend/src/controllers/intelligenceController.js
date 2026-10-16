@@ -150,6 +150,59 @@ exports.addObservation = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+exports.listCropTasks = async (req, res, next) => {
+  try {
+    const cycle = await cycleOf(req, req.params.id);
+    if (!cycle) return notFound(res, 'Crop cycle');
+    const [rows] = await db.query(
+      `SELECT t.*, u.full_name_en AS creator
+         FROM crop_tasks t LEFT JOIN users u ON u.id = t.created_by
+        WHERE t.cycle_id = ?
+        ORDER BY FIELD(t.status,'open','skipped','done'), t.due_on IS NULL, t.due_on, t.id`, [cycle.id]);
+    res.json(rows);
+  } catch (e) { next(e); }
+};
+
+exports.createCropTask = async (req, res, next) => {
+  try {
+    const cycle = await cycleOf(req, req.params.id);
+    if (!cycle) return notFound(res, 'Crop cycle');
+    const [result] = await db.query('INSERT INTO crop_tasks SET ?', [{
+      cycle_id: cycle.id, title: req.body.title.trim(), notes: clean(req.body.notes),
+      due_on: clean(req.body.due_on), priority: req.body.priority || 'normal', created_by: req.user.id
+    }]);
+    await logAudit(req.user.id, 'crop_task_create', 'crop_task', result.insertId, { cycle_id: cycle.id }, req);
+    res.status(201).json({ id: result.insertId });
+  } catch (e) { next(e); }
+};
+
+exports.updateCropTask = async (req, res, next) => {
+  try {
+    const sc = orgSql(req);
+    const [rows] = await db.query(
+      `SELECT t.id, t.cycle_id, t.status
+         FROM crop_tasks t JOIN crop_cycles cc ON cc.id = t.cycle_id
+         JOIN growing_units gu ON gu.id = cc.growing_unit_id JOIN sites s ON s.id = gu.site_id
+        WHERE t.id = ?${sc.sql}`, [req.params.id, ...sc.params]);
+    const task = rows[0];
+    if (!task) return notFound(res, 'Crop task');
+    const changes = {};
+    if (req.body.title !== undefined) changes.title = req.body.title.trim();
+    if (req.body.notes !== undefined) changes.notes = clean(req.body.notes);
+    if (req.body.due_on !== undefined) changes.due_on = clean(req.body.due_on);
+    if (req.body.priority !== undefined) changes.priority = req.body.priority;
+    if (req.body.status !== undefined) {
+      changes.status = req.body.status;
+      changes.completed_at = req.body.status === 'done' ? new Date() : null;
+      changes.completed_by = req.body.status === 'done' ? req.user.id : null;
+    }
+    if (!Object.keys(changes).length) return res.status(400).json({ message: 'No changes supplied' });
+    await db.query('UPDATE crop_tasks SET ? WHERE id = ?', [changes, task.id]);
+    await logAudit(req.user.id, 'crop_task_update', 'crop_task', task.id, { fields: Object.keys(changes) }, req);
+    res.json({ message: 'Crop task updated' });
+  } catch (e) { next(e); }
+};
+
 async function validateRule(unit, b) {
   const [[a]] = await db.query('SELECT id, growing_unit_id, max_runtime_seconds FROM actuators WHERE id = ?', [b.actuator_id]);
   const [[s]] = await db.query('SELECT id, growing_unit_id FROM sensors WHERE id = ?', [b.sensor_id]);

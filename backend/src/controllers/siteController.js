@@ -44,9 +44,54 @@ exports.listSites = async (req, res, next) => {
       `SELECT s.id, s.code, s.name_ne, s.name_en, s.site_type, s.address, s.latitude, s.longitude, s.status,
               ll.name_ne AS local_level_ne, ll.name_en AS local_level_en,
               (SELECT COUNT(*) FROM growing_units gu WHERE gu.site_id = s.id) AS unit_count,
-              (SELECT COUNT(*) FROM iot_devices d WHERE d.site_id = s.id) AS device_count
+              (SELECT COUNT(*) FROM iot_devices d WHERE d.site_id = s.id) AS device_count,
+              (SELECT COUNT(*) FROM iot_devices d WHERE d.site_id = s.id AND d.status <> 'disabled'
+                 AND d.last_seen_at >= (NOW() - INTERVAL 5 MINUTE)) AS online_device_count,
+              (SELECT COUNT(*) FROM iot_devices d WHERE d.site_id = s.id AND d.status <> 'disabled'
+                 AND d.last_seen_at IS NOT NULL AND d.last_seen_at < (NOW() - INTERVAL 5 MINUTE)) AS offline_device_count,
+              (SELECT COUNT(*) FROM iot_devices d WHERE d.site_id = s.id AND d.status <> 'disabled'
+                 AND d.last_seen_at IS NULL) AS awaiting_device_count,
+              (SELECT COUNT(*) FROM iot_devices d WHERE d.site_id = s.id AND d.status = 'disabled') AS disabled_device_count,
+              (SELECT COUNT(*) FROM sensors se JOIN iot_devices d ON d.id = se.device_id
+                WHERE d.site_id = s.id AND se.status = 'active') AS sensor_count,
+              (SELECT COUNT(*) FROM sensors se JOIN iot_devices d ON d.id = se.device_id
+                WHERE d.site_id = s.id AND se.status = 'faulty') AS faulty_sensor_count,
+              (SELECT MAX(se.last_sensor_reading_at) FROM sensors se JOIN iot_devices d ON d.id = se.device_id
+                WHERE d.site_id = s.id AND se.status <> 'disabled') AS latest_reading_at,
+              (SELECT COUNT(DISTINCT al.id) FROM alerts al
+                 LEFT JOIN iot_devices d ON d.id = al.device_id
+                 LEFT JOIN growing_units gu ON gu.id = al.growing_unit_id
+                WHERE (d.site_id = s.id OR gu.site_id = s.id) AND al.status = 'open') AS open_alert_count
          FROM sites s LEFT JOIN local_levels ll ON ll.id = s.local_level_id
         WHERE 1=1${sc.sql} ORDER BY s.id`, sc.params);
+
+    // Load the newest real reading for each primary metric in one query. The overview
+    // deliberately shows no placeholder/simulated measurements when a sensor is absent.
+    if (rows.length) {
+      const ids = rows.map((site) => Number(site.id));
+      const placeholders = ids.map(() => '?').join(',');
+      const [readings] = await db.query(
+        `SELECT d.site_id, se.sensor_type, se.name, se.unit, se.sensor_value AS value,
+                se.last_sensor_reading_at AS recorded_at,
+                TIMESTAMPDIFF(SECOND, se.last_sensor_reading_at, NOW()) AS age_seconds,
+                d.device_code
+           FROM sensors se JOIN iot_devices d ON d.id = se.device_id
+          WHERE d.site_id IN (${placeholders}) AND se.status = 'active'
+            AND se.sensor_type IN ('temperature','humidity','soil_moisture','light')
+            AND se.sensor_value IS NOT NULL AND se.last_sensor_reading_at IS NOT NULL
+          ORDER BY se.last_sensor_reading_at DESC, se.id DESC`, ids);
+      const newest = new Map();
+      for (const reading of readings) {
+        const key = `${reading.site_id}:${reading.sensor_type}`;
+        if (!newest.has(key)) newest.set(key, reading);
+      }
+      for (const site of rows) {
+        site.latest_metrics = Object.fromEntries(
+          ['temperature', 'humidity', 'soil_moisture', 'light']
+            .map((type) => [type, newest.get(`${site.id}:${type}`) || null])
+        );
+      }
+    }
     res.json(rows);
   } catch (e) { next(e); }
 };
@@ -181,9 +226,14 @@ exports.addSensor = async (req, res, next) => {
     const device = await findDevice(req, req.params.id);
     if (!device) return res.status(404).json({ message: 'Device not found' });
     const b = req.body;
+    const channelKey = clean(b.channel_key);
+    if (channelKey) {
+      const [duplicates] = await db.query('SELECT id FROM sensors WHERE device_id = ? AND channel_key = ? AND status <> \'disabled\' LIMIT 1', [device.id, channelKey]);
+      if (duplicates.length) return res.status(409).json({ message: 'This data key is already assigned to another active sensor on the device' });
+    }
     const [r] = await db.query('INSERT INTO sensors SET ?', [{
       device_id: device.id, growing_unit_id: device.growing_unit_id, sensor_type: b.sensor_type, name: b.name,
-      channel_key: clean(b.channel_key), unit: clean(b.unit), model: clean(b.model), min_valid: clean(b.min_valid), max_valid: clean(b.max_valid)
+      channel_key: channelKey, unit: clean(b.unit), model: clean(b.model), min_valid: clean(b.min_valid), max_valid: clean(b.max_valid)
     }]);
     await logAudit(req.user.id, 'sensor_create', 'sensor', r.insertId, { device_id: device.id, type: b.sensor_type }, req);
     res.status(201).json({ id: r.insertId });

@@ -65,7 +65,6 @@ const CROPS = {
        ON DUPLICATE KEY UPDATE base_temp_c = VALUES(base_temp_c), description_ne = VALUES(description_ne), description_en = VALUES(description_en)`,
       [code, c.ne, c.en, c.cat, c.base, c.ne_d, c.en_d]);
     const [[row]] = await db.query('SELECT id FROM crops WHERE code = ?', [code]);
-    STAGES.forEach(async () => {});
     for (let i = 0; i < STAGES.length; i++) {
       const [sc, nne, nen, dne, den] = STAGES[i];
       await db.query(
@@ -82,18 +81,8 @@ const CROPS = {
     }
   }
 
-  const [[dev]] = await db.query("SELECT id, growing_unit_id FROM iot_devices WHERE device_code = 'ESP32-01'");
-  if (dev) {
-    const one = async (sql) => (await db.query(sql, [dev.id]))[0][0].n;
-    if (!(await one("SELECT COUNT(*) AS n FROM sensors WHERE device_id = ? AND sensor_type = 'soil_temperature'")))
-      await db.query('INSERT INTO sensors SET ?', [{ device_id: dev.id, growing_unit_id: dev.growing_unit_id, sensor_type: 'soil_temperature', name: 'Soil Temperature', unit: '°C', min_valid: -10, max_valid: 60 }]);
-    await db.query("UPDATE actuators SET relay_channel = 1 WHERE device_id = ? AND actuator_type = 'irrigation' AND relay_channel IS NULL", [dev.id]);
-    await db.query("UPDATE actuators SET relay_channel = 2 WHERE device_id = ? AND actuator_type = 'misting' AND relay_channel IS NULL", [dev.id]);
-    if (!(await one("SELECT COUNT(*) AS n FROM actuators WHERE device_id = ? AND actuator_type = 'fan'")))
-      await db.query('INSERT INTO actuators SET ?', [{ device_id: dev.id, growing_unit_id: dev.growing_unit_id, actuator_type: 'fan', name: 'Ventilation Fan', relay_channel: 3, max_runtime_seconds: 3600 }]);
-    if (!(await one('SELECT COUNT(*) AS n FROM cameras WHERE device_id = ?')))
-      await db.query('INSERT INTO cameras SET ?', [{ device_id: dev.id, growing_unit_id: dev.growing_unit_id, name: 'Greenhouse-01 Camera', camera_type: 'esp32cam' }]);
-  }
+  // Physical sensors, relays, and cameras are registered only after an operator
+  // confirms installed hardware. A database seed must never invent hardware state.
 
   for (const t of ['crop_stages', 'crop_stage_targets', 'sensors', 'actuators', 'cameras', 'role_permissions']) {
     const [[c]] = await db.query(`SELECT COUNT(*) AS n FROM ${t}`);

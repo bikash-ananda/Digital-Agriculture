@@ -7,6 +7,7 @@
     "dev": "vite --configLoader native",
     "build": "vite build",
     "lint": "eslint .",
+    "test:smart-farming": "node --test src/utils/siteOverview.test.js",
     "test:games": "node --test --test-isolation=none src/games/myFarmEngine.test.js",
     "preview": "vite preview"
   },

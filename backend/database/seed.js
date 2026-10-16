@@ -1,5 +1,4 @@
-﻿const path = require('path');
-const crypto = require('crypto');
+const path = require('path');
 const mysql = require('mysql2/promise');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
@@ -73,8 +72,6 @@ const match = (code, pat) => pat === '*' || pat === code || (pat.endsWith('.*') 
     ['rural_municipality', 'रुपा गाउँपालिका', 'Rupa Rural Municipality']
   ];
   for (const [t, ne, en] of locals) await ins('local_levels', { district_id: dist.id, level_type: t, name_ne: ne, name_en: en });
-  const [[pokhara]] = await db.query('SELECT id FROM local_levels WHERE district_id = ? AND name_en = ?', [dist.id, 'Pokhara Metropolitan City']);
-
   // Organizations
   await ins('organizations', { org_type: 'ministry', code: 'MOLMAC-GANDAKI', name_ne: 'कृषि, भूमि व्यवस्था तथा सहकारी मन्त्रालय, गण्डकी प्रदेश', name_en: 'Ministry of Agriculture, Land Management and Cooperatives, Gandaki Province' });
   const ministry = await idBy('organizations', 'code', 'MOLMAC-GANDAKI');
@@ -83,29 +80,7 @@ const match = (code, pat) => pat === '*' || pat === code || (pat.endsWith('.*') 
   for (const [ne, en] of [['प्रशासन', 'Administration'], ['लेखा', 'Accounts'], ['बाली विकास', 'Crop Development'], ['बागवानी', 'Horticulture'], ['बाली संरक्षण', 'Plant Protection'], ['कृषि प्रसार', 'Agriculture Extension'], ['स्मार्ट फार्मिङ', 'Smart Farming']])
     await ins('departments', { organization_id: ado, name_ne: ne, name_en: en });
 
-  // Pilot site: Birauta
-  await ins('sites', { organization_id: ado, code: 'BIRAUTA-01', name_ne: 'बिरौटा प्रदर्शन स्थल', name_en: 'Birauta Demonstration Site', site_type: 'demonstration', local_level_id: pokhara.id, address: 'बिरौटा, पोखरा, कास्की', latitude: 28.192978, longitude: 83.970814 });
-  const site = await idBy('sites', 'code', 'BIRAUTA-01');
-  await ins('growing_units', { site_id: site, unit_type: 'greenhouse', code: 'GH-01', name_ne: 'ग्रीनहाउस-०१', name_en: 'Greenhouse-01' });
-  const unit = await idBy('growing_units', 'code', 'GH-01');
-  await ins('iot_devices', { uuid: crypto.randomUUID(), device_code: 'ESP32-01', site_id: site, growing_unit_id: unit, device_type: 'esp32' });
-  const dev = await idBy('iot_devices', 'device_code', 'ESP32-01');
-
-  const [[sc]] = await db.query('SELECT COUNT(*) AS n FROM sensors WHERE device_id = ?', [dev]);
-  if (sc.n === 0) {
-    const sensors = [
-      ['temperature', 'Air Temperature', '°C', -10, 80], ['humidity', 'Relative Humidity', '%', 0, 100],
-      ['soil_moisture', 'Soil Moisture', '%', 0, 100], ['ec', 'Electrical Conductivity', 'mS/cm', 0, 20],
-      ['light', 'Light Intensity', 'lux', 0, 120000], ['water_level', 'Water Tank Level', '%', 0, 100]
-    ];
-    for (const [type, name, unitName, min, max] of sensors)
-      await ins('sensors', { device_id: dev, growing_unit_id: unit, sensor_type: type, name, unit: unitName, min_valid: min, max_valid: max });
-  }
-  const [[ac]] = await db.query('SELECT COUNT(*) AS n FROM actuators WHERE device_id = ?', [dev]);
-  if (ac.n === 0) {
-    await ins('actuators', { device_id: dev, growing_unit_id: unit, actuator_type: 'irrigation', name: 'Irrigation Pump/Valve', max_runtime_seconds: 900 });
-    await ins('actuators', { device_id: dev, growing_unit_id: unit, actuator_type: 'misting', name: 'Misting System', max_runtime_seconds: 600 });
-  }
+  // Farms and installed hardware are registered by an operator, not seeded as sample records.
 
   // Crops
   const crops = [

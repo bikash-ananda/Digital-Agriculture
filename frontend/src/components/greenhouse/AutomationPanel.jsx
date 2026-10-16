@@ -21,6 +21,10 @@ export default function AutomationPanel({ unitId, live, can, t }) {
   useEffect(() => { load(); }, [unitId]);
 
   const post = async (body) => {
+    if (body.is_enabled && !window.confirm(t(
+      'यो नियम तुरुन्तै वास्तविक उपकरण चलाउन सक्छ। सेन्सर, सीमा र रिले म्यापिङ जाँचेर मात्र जारी राख्नुहोस्।',
+      'This rule can operate real equipment immediately. Continue only after checking its sensor, thresholds, and relay mapping.'
+    ))) return;
     setErrs([]); setNote('');
     try {
       const r = await api.post(`/smart/units/${unitId}/rules`, body);
@@ -29,6 +33,10 @@ export default function AutomationPanel({ unitId, live, can, t }) {
     } catch (e) { setErrs(errMsgs(e)); }
   };
   const toggle = async (r) => {
+    if (!r.is_enabled && !window.confirm(t(
+      'यो नियम सक्रिय गर्दा वास्तविक उपकरण चल्न सक्छ। सक्रिय गर्ने?',
+      'Enabling this rule may operate real equipment. Continue?'
+    ))) return;
     setErrs([]);
     try { await api.put(`/smart/rules/${r.id}`, { is_enabled: !r.is_enabled }); load(); } catch (e) { setErrs(errMsgs(e)); }
   };
