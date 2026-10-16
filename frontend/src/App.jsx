@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import RequirePermission from './components/common/RequirePermission';
 import PublicLayout from './components/layout/PublicLayout';
