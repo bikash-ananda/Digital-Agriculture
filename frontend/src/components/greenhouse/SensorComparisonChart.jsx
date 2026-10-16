@@ -15,7 +15,7 @@ const dateString = (value) => `${value.getFullYear()}-${String(value.getMonth() 
 const dayStart = (value) => new Date(`${value}T00:00:00`).toISOString();
 const nextDayStart = (value) => { const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + 1); return date.toISOString(); };
 
-export default function SensorComparisonChart({ sensors, parameters, lang, t }) {
+export default function SensorComparisonChart({ unitId, sensors, parameters, lang, t }) {
   const groups = useMemo(() => {
     const byType = new Map();
     sensors.filter((sensor) => sensor.status !== 'disabled').forEach((sensor) => {
@@ -30,6 +30,7 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
   const week = new Date(); week.setDate(week.getDate() - 6);
   const [groupKey, setGroupKey] = useState('');
   const [rangeMode, setRangeMode] = useState('24h');
+  const [intervalMinutes, setIntervalMinutes] = useState('auto');
   const [draft, setDraft] = useState({ from: dateString(week), to: today });
   const [dates, setDates] = useState({ from: dateString(week), to: today });
   const [customError, setCustomError] = useState('');
@@ -38,6 +39,8 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
   const [historyKey, setHistoryKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const [refresh, setRefresh] = useState(0);
 
   const activeKey = groups.some((item) => item.key === groupKey) ? groupKey : (groups[0]?.key || '');
@@ -50,6 +53,7 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
   const requestKey = `${activeKey}|${rangeMode}|${appliedKey}|${selectedIds.slice().sort().join(',')}|${refresh}`;
   const visible = historyKey === requestKey ? history : [];
   const selectionError = group && selected.length === 0 ? t('कम्तीमा एउटा सेन्सर छान्नुहोस्।', 'Select at least one sensor.') : '';
+  const exportTooMany = selectedIds.length > 24;
 
   useEffect(() => {
     if (!group || !selected.length) return undefined;
@@ -78,6 +82,34 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
     setCustomError(''); setDates({ ...draft }); setRangeMode('custom');
   };
 
+  const downloadReport = async (format) => {
+    if (!unitId || !selectedIds.length) return;
+    setExporting(true); setExportError('');
+    const params = rangeMode === 'custom'
+      ? { from: dayStart(dates.from), to: nextDayStart(dates.to) }
+      : { hours };
+    params.sensor_ids = selectedIds.join(',');
+    params.time_zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    if (intervalMinutes !== 'auto') params.interval_minutes = intervalMinutes;
+    try {
+      const response = await api.get(`/smart/units/${unitId}/report.${format}`, { params, responseType: 'blob' });
+      const mime = format === 'csv' ? 'text/csv;charset=utf-8' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const blob = new Blob([response.data], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `smart-farming-${unitId}-${rangeMode === 'custom' ? dates.from : rangeMode}.${format}`;
+      document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (requestError) {
+      let message = t('प्रतिवेदन डाउनलोड गर्न सकिएन।', 'Could not download the report.');
+      const payload = requestError.response?.data;
+      if (payload instanceof Blob) {
+        try { message = JSON.parse(await payload.text()).message || message; } catch { /* use translated fallback */ }
+      } else if (payload?.message) message = payload.message;
+      setExportError(message);
+    } finally { setExporting(false); }
+  };
+
   const rows = useMemo(() => {
     const buckets = new Map();
     visible.forEach(({ sensor, points }) => points.forEach((point) => {
@@ -102,7 +134,9 @@ export default function SensorComparisonChart({ sensors, parameters, lang, t }) 
   if (!groups.length) return <div className="rounded-xl bg-white p-5 text-sm text-gray-600 shadow-sm">{t('चार्टका लागि सेन्सर डाटा छैन।', 'No sensor data is available for charts yet.')}</div>;
   return <section className="space-y-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-black/5 md:p-5">
     <div className="flex flex-col gap-3 lg:flex-row lg:items-start"><div className="flex-1"><h3 className="text-lg font-bold text-gov-blue">{t('सेन्सर समय शृङ्खला', 'Sensor time series')}</h3><p className="mt-1 text-sm text-gray-600">{t('औसत मापन समयसँगै; हरियो क्षेत्र बालीको लक्ष्य दायरा हो।', 'Average readings over time; the green band shows the configured target range.')}</p></div><label className="sf-no-print flex min-h-11 items-center gap-2 text-sm"><span>{t('मापन', 'Measurement')}</span><select value={activeKey} onChange={(e) => setGroupKey(e.target.value)} aria-label={t('मापन छान्नुहोस्', 'Choose measurement')} className="min-h-11 min-w-0 rounded-lg border bg-white px-3">{groups.map((item) => <option key={item.key} value={item.key}>{labelOf(item.sensor_type, lang)}{item.unit ? ` (${item.unit})` : ''}</option>)}</select></label></div>
-    <div className="sf-no-print flex flex-wrap items-center gap-2">{RANGES.map((range) => <button type="button" key={range.id} onClick={() => { setRangeMode(range.id); setCustomError(''); }} aria-pressed={rangeMode === range.id} className={`min-h-11 rounded-lg border px-4 text-sm font-semibold ${rangeMode === range.id ? 'border-agri-green bg-agri-green text-white' : 'border-gray-300 bg-white text-gray-700'}`}>{range.id}</button>)}<button type="button" onClick={() => setRangeMode('custom')} aria-pressed={rangeMode === 'custom'} className={`min-h-11 rounded-lg border px-4 text-sm font-semibold ${rangeMode === 'custom' ? 'border-agri-green bg-agri-green text-white' : 'border-gray-300 bg-white text-gray-700'}`}>{t('आफ्नो मिति', 'Custom')}</button><button type="button" onClick={() => setRefresh((v) => v + 1)} className="ml-auto min-h-11 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold">↻ {t('ताजा', 'Refresh')}</button></div>
+    <div className="sf-no-print flex flex-wrap items-center gap-2">{RANGES.map((range) => <button type="button" key={range.id} onClick={() => { setRangeMode(range.id); setCustomError(''); }} aria-pressed={rangeMode === range.id} className={`min-h-11 rounded-lg border px-4 text-sm font-semibold ${rangeMode === range.id ? 'border-agri-green bg-agri-green text-white' : 'border-gray-300 bg-white text-gray-700'}`}>{range.id}</button>)}<button type="button" onClick={() => setRangeMode('custom')} aria-pressed={rangeMode === 'custom'} className={`min-h-11 rounded-lg border px-4 text-sm font-semibold ${rangeMode === 'custom' ? 'border-agri-green bg-agri-green text-white' : 'border-gray-300 bg-white text-gray-700'}`}>{t('आफ्नो मिति', 'Custom')}</button><label className="flex min-h-11 items-center gap-2 text-sm"><span>{t('XLSX अन्तराल', 'XLSX interval')}</span><select value={intervalMinutes} onChange={(event) => setIntervalMinutes(event.target.value)} className="min-h-11 rounded-lg border border-gray-300 bg-white px-2"><option value="auto">{t('स्वतः', 'Auto')}</option><option value="15">15 min</option><option value="60">1 h</option><option value="240">4 h</option></select></label><button type="button" onClick={() => setRefresh((v) => v + 1)} className="ml-auto min-h-11 rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold">↻ {t('ताजा', 'Refresh')}</button><button type="button" onClick={() => downloadReport('csv')} disabled={exporting || !selectedIds.length || exportTooMany} className="min-h-11 rounded-lg border border-emerald-800 px-4 text-sm font-semibold text-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">{t('CSV कच्चा डाटा', 'Raw CSV')}</button><button type="button" onClick={() => downloadReport('xlsx')} disabled={exporting || !selectedIds.length || exportTooMany} className="min-h-11 rounded-lg bg-emerald-800 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{exporting ? t('प्रतिवेदन बनाउँदै…', 'Preparing report…') : `⇩ ${t('XLSX डाउनलोड', 'Download XLSX')}`}</button></div>
+    {exportTooMany && <p role="status" className="text-sm text-amber-800">{t('प्रतिवेदनका लागि बढीमा २४ सेन्सर छान्नुहोस्।', 'Select no more than 24 sensors for an export.')}</p>}
+    {exportError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{exportError}</p>}
     {rangeMode === 'custom' && <form onSubmit={applyDates} className="sf-no-print flex flex-col gap-3 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-end"><label className="flex-1 text-sm font-medium">{t('सुरु मिति', 'From')}<input type="date" required max={today} value={draft.from} onChange={(e) => setDraft((v) => ({ ...v, from: e.target.value }))} className="mt-1 min-h-11 w-full rounded-lg border bg-white px-3" /></label><label className="flex-1 text-sm font-medium">{t('अन्तिम मिति', 'To')}<input type="date" required min={draft.from} max={today} value={draft.to} onChange={(e) => setDraft((v) => ({ ...v, to: e.target.value }))} className="mt-1 min-h-11 w-full rounded-lg border bg-white px-3" /></label><button className="min-h-11 rounded-lg bg-terrace-800 px-5 text-sm font-semibold text-white">{t('अवधि लागू गर्नुहोस्', 'Apply range')}</button>{customError && <p role="alert" className="basis-full text-sm text-red-700">{customError}</p>}</form>}
     {group && group.sensors.length > 1 && <fieldset className="sf-no-print flex flex-wrap gap-x-4 gap-y-2 text-sm"><legend className="mb-1 text-xs font-semibold text-gray-600">{t('तुलनाका सेन्सर', 'Sensors to compare')}</legend>{group.sensors.map((sensor, i) => <label key={sensor.id} className="inline-flex min-h-10 items-center gap-2"><input type="checkbox" checked={selectedIds.includes(sensor.id)} onChange={(e) => setSelectedByGroup((prev) => { const cur = prev[group.key] || group.sensors.map((s) => s.id); return { ...prev, [group.key]: e.target.checked ? [...cur, sensor.id] : cur.filter((id) => id !== sensor.id) }; })} /><span style={{ color: COLORS[i % COLORS.length] }}>{sensor.name}</span></label>)}</fieldset>}
     {selectionError && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{selectionError}</p>}{loading && <p role="status" aria-live="polite" className="inline-flex items-center gap-2 py-4 text-sm text-gray-600"><span className="h-4 w-4 animate-spin rounded-full border-2 border-agri-green border-r-transparent" />{t('इतिहास डाटा लोड हुँदैछ…', 'Loading chart data…')}</p>}{!loading && historyKey === requestKey && error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{error}</p>}{!loading && historyKey === requestKey && !error && !rows.length && <p className="rounded-lg bg-gray-50 py-10 text-center text-sm text-gray-600">{t('यस अवधिमा मापन प्राप्त भएको छैन।', 'No readings were received in this period.')}</p>}

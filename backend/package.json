@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test:smart-farming": "node --test src/utils/sensorMapping.test.js",
+    "test:smart-farming": "node --test src/utils/sensorMapping.test.js src/services/greenhouseReport.test.js",
     "db:migrate": "node database/migrate.js",
     "db:seed": "node database/seed.js",
     "db:seed:intel": "node database/seed-intelligence.js",
@@ -27,6 +27,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^18.0.6",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.1",
     "express-validator": "^7.3.2",
@@ -37,9 +38,15 @@
     "mysql2": "^3.24.5",
     "node-cron": "^4.6.0",
     "nodemailer": "^10.1.0",
+    "pngjs": "^7.0.0",
     "uuid": "^14.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }
