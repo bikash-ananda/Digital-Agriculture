@@ -114,12 +114,13 @@ export default function SiteDetail() {
           <table className="w-full text-sm">
             <thead className="bg-gray-100 text-left"><tr>
               <th className="p-3">{t('कोड', 'Code')}</th><th className="p-3">{t('नाम', 'Name')}</th><th className="p-3">{t('प्रकार', 'Type')}</th>
-              <th className="p-3">{t('क्षेत्रफल', 'Area')}</th><th className="p-3">{t('यन्त्र', 'Devices')}</th><th className="p-3">{t('स्थिति', 'Status')}</th></tr></thead>
+              <th className="p-3">{t('क्षेत्रफल', 'Area')}</th><th className="p-3">{t('यन्त्र', 'Devices')}</th><th className="p-3">{t('स्थिति', 'Status')}</th><th className="p-3">{t('अनुगमन', 'Monitor')}</th></tr></thead>
             <tbody>
-              {units.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-500">-</td></tr>}
+              {units.length === 0 && <tr><td colSpan="7" className="p-4 text-center text-gray-500">-</td></tr>}
               {units.map((u) => (
-                <tr key={u.id} className="border-t"><td className="p-3">{u.code}</td><td className="p-3 font-medium"><Link to={`/app/smart-farming/units/${u.id}`} className="text-gov-blue hover:underline">{lang === 'en' ? u.name_en : (u.name_ne || u.name_en)}</Link></td>
-                  <td className="p-3">{u.unit_type}</td><td className="p-3">{u.area_sqm ?? '-'}</td><td className="p-3">{u.device_count}</td><td className="p-3"><StatusBadge value={u.status} /></td></tr>
+                <tr key={u.id} className="border-t"><td className="p-3">{u.code}</td><td className="p-3 font-medium"><Link to={`/app/smart-farming/monitoring/${u.id}?site=${site.id}`} className="text-gov-blue hover:underline">{lang === 'en' ? u.name_en : (u.name_ne || u.name_en)}</Link></td>
+                  <td className="p-3">{u.unit_type}</td><td className="p-3">{u.area_sqm ?? '-'}</td><td className="p-3">{u.device_count}</td><td className="p-3"><StatusBadge value={u.status} /></td>
+                  <td className="p-3"><Link to={`/app/smart-farming/units/${u.id}`} className="inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-lg border border-emerald-800 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-800">{t('नियन्त्रण केन्द्र', 'Control center')}</Link></td></tr>
               ))}
             </tbody>
           </table>

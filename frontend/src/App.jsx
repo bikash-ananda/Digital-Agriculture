@@ -100,6 +100,7 @@ export default function App() {
             <Route path="smart-farming/chat" element={<RequirePermission perm="smart_farming.view"><SmartFarmingChat /></RequirePermission>} />
             <Route path="smart-farming/sites/:id" element={<RequirePermission perm="smart_farming.view"><SiteDetail /></RequirePermission>} />
             <Route path="smart-farming/units/:id" element={<RequirePermission perm="smart_farming.view"><UnitControlCenter /></RequirePermission>} />
+            <Route path="smart-farming/monitoring/:id" element={<RequirePermission perm="smart_farming.view"><Console /></RequirePermission>} />
             <Route path="smart-farming/devices/:id" element={<RequirePermission perm="devices.view"><DeviceDetail /></RequirePermission>} />
             <Route path="data-center/survey" element={<RequirePermission perm="datacenter.collect"><SurveyHome /></RequirePermission>} />
             <Route path="data-center/survey/:id" element={<RequirePermission perm="datacenter.collect"><SurveyForm /></RequirePermission>} />

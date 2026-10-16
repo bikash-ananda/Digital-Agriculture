@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -31,6 +32,8 @@ static DallasTemperature ds(&oneWire);
 #endif
 
 struct Act { int id; uint8_t channel; char type[16]; uint32_t maxRun; };
+static WiFiMulti wifiMulti;
+static uint8_t configuredWifiNetworks = 0;
 static Act acts[8];
 static uint8_t actCount = 0;
 
@@ -342,14 +345,40 @@ static void postTelemetry() {
   apiCall("POST", "/api/device/telemetry", body, out, code);
 }
 
+static void addWifiNetwork(const char* ssid, const char* password) {
+  if (!ssid || !ssid[0]) return;
+  wifiMulti.addAP(ssid, password ? password : "");
+  configuredWifiNetworks++;
+}
+
 static void wifiConnect(unsigned long timeoutMs) {
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  addWifiNetwork(WIFI_SSID, WIFI_PASS);
+#if defined(WIFI_SSID_2) && defined(WIFI_PASS_2)
+  addWifiNetwork(WIFI_SSID_2, WIFI_PASS_2);
+#endif
+#if defined(WIFI_SSID_3) && defined(WIFI_PASS_3)
+  addWifiNetwork(WIFI_SSID_3, WIFI_PASS_3);
+#endif
+#if defined(WIFI_SSID_4) && defined(WIFI_PASS_4)
+  addWifiNetwork(WIFI_SSID_4, WIFI_PASS_4);
+#endif
+#if defined(WIFI_SSID_5) && defined(WIFI_PASS_5)
+  addWifiNetwork(WIFI_SSID_5, WIFI_PASS_5);
+#endif
+#if defined(WIFI_SSID_6) && defined(WIFI_PASS_6)
+  addWifiNetwork(WIFI_SSID_6, WIFI_PASS_6);
+#endif
+  Serial.printf("wifi: trying %u configured network(s)\n", configuredWifiNetworks);
   unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t0 < timeoutMs) { delay(250); esp_task_wdt_reset(); }
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < timeoutMs) {
+    wifiMulti.run();
+    delay(250);
+    esp_task_wdt_reset();
+  }
   if (WiFi.status() == WL_CONNECTED) Serial.printf("wifi: connected, IP %s, RSSI %d\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
-  else Serial.println(F("wifi: not connected yet, will keep trying"));
+  else Serial.println(F("wifi: no configured network connected yet; will keep trying"));
 }
 
 void setup() {
@@ -386,7 +415,7 @@ void setup() {
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 #endif
-  wifiConnect(20000);
+  wifiConnect(60000);
   unsigned long now = millis();
   tReport = now - REPORT_INTERVAL_MS + 3000UL;
   tPoll = now;
@@ -400,9 +429,9 @@ void loop() {
 
   if (WiFi.status() != WL_CONNECTED && now - tWifi > 10000UL) {
     tWifi = now;
-    WiFi.reconnect();
     wifiReconnects++;
-    Serial.println(F("wifi: reconnecting"));
+    if (wifiMulti.run() == WL_CONNECTED) Serial.printf("wifi: reconnected, IP %s, RSSI %d\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    else Serial.printf("wifi: trying %u configured network(s)\n", configuredWifiNetworks);
   }
   safety();
 

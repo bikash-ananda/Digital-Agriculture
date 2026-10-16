@@ -30,5 +30,24 @@ const resources = {
   }}
 };
 
-i18n.use(initReactI18next).init({ resources, lng: 'ne', fallbackLng: 'en', interpolation: { escapeValue: false } });
+const LANGUAGE_PREFERENCE_KEY = 'da.language';
+const SUPPORTED_LANGUAGES = ['ne', 'en'];
+
+function readLanguagePreference() {
+  try {
+    const saved = window.localStorage.getItem(LANGUAGE_PREFERENCE_KEY);
+    return SUPPORTED_LANGUAGES.includes(saved) ? saved : 'ne';
+  } catch {
+    return 'ne';
+  }
+}
+
+function saveLanguagePreference(language) {
+  const selected = String(language || '').toLowerCase().split('-')[0];
+  if (!SUPPORTED_LANGUAGES.includes(selected)) return;
+  try { window.localStorage.setItem(LANGUAGE_PREFERENCE_KEY, selected); } catch { /* Keep the selected language for this session. */ }
+}
+
+i18n.use(initReactI18next).init({ resources, lng: readLanguagePreference(), fallbackLng: 'en', interpolation: { escapeValue: false } });
+i18n.on('languageChanged', saveLanguagePreference);
 export default i18n;

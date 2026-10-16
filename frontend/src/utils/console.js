@@ -8,6 +8,20 @@
   water_level: { ne: 'पानीको तह', en: 'Water level', unit: '%', icon: '🛢️', color: '#0891b2', d: 0 }
 };
 export const meta = (t) => TYPE[t] || { ne: t, en: t, unit: '', icon: '📟', color: '#475569', d: 1 };
+export const ZERO_SENSOR_TILES = [
+  { type: 'temperature', unit: '°C' },
+  { type: 'humidity', unit: '%' },
+  { type: 'soil_moisture', unit: '%' },
+  { type: 'light', unit: 'lux' },
+  { type: 'soil_temperature', unit: '°C' },
+  { type: 'ec', unit: 'mS/cm' },
+  { type: 'water_level', unit: '%' }
+].map((sensor) => ({ ...sensor, value: 0, age_s: null, stale: true, spark: [], placeholder: true }));
+export const offlineOverview = (id) => ({
+  unit: { id: Number(id), code: 'UNIT-' + id, name_en: 'Growing unit ' + id, name_ne: 'उत्पादन इकाई ' + id, unit_type: 'greenhouse', site_en: 'Farm data unavailable', site_ne: 'फार्म डाटा उपलब्ध छैन', is_simulated: false },
+  devices: [], tiles: ZERO_SENSOR_TILES.map((tile) => ({ ...tile, spark: [] })),
+  actuators: [], commands: [], alerts: [], min_off_s: 30, _offlineFallback: true
+});
 export const fv = (v, d = 1) => (v === null || v === undefined || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d));
 export const ageText = (s, t) => (s === null || s === undefined ? '—' : s < 60 ? `${s} ${t('से. अघि', 's ago')}` : s < 3600 ? `${Math.floor(s / 60)} ${t('मि. अघि', 'min ago')}` : `${Math.floor(s / 3600)} ${t('घण्टा अघि', 'h ago')}`);
 export const dur = (s) => (s >= 60 ? `${Math.round(s / 60)} min` : `${s} s`);
