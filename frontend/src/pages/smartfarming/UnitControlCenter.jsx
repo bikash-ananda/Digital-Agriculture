@@ -32,7 +32,6 @@ const when = (value, lang) => value ? new Date(value).toLocaleString(lang === 'e
 function MainReadings({ sensors, devices, analysis, lang, t }) {
   const params = new Map((analysis?.parameters || []).map((p) => [p.key, p]));
   const labels = { live: t('लाइभ', 'Live'), stale: t('पुरानो डाटा', 'Stale data'), offline: t('यन्त्र अफलाइन', 'Device offline'), empty: t('पठन छैन', 'No reading') };
-  const rawSoil = sensors.find((s) => (s.channel_key === 'soil_moisture_raw' || (s.sensor_type === 'other' && s.unit === 'ADC' && /soil.*raw/i.test(s.name || ''))) && s.status !== 'disabled');
   const styles = { live: 'border-emerald-500 bg-emerald-50 text-emerald-800', stale: 'border-amber-500 bg-amber-50 text-amber-900', offline: 'border-slate-400 bg-slate-100 text-slate-700', empty: 'border-gray-300 bg-gray-50 text-gray-600' };
   return <section aria-labelledby="main-readings"><div className="mb-3"><h3 id="main-readings" className="text-lg font-bold text-gov-blue">{t('मुख्य वातावरणीय मापन', 'Key growing conditions')}</h3><p className="text-sm text-gray-600">{t('पछिल्लो पठन, प्रवृत्ति र सेन्सर अवस्था', 'Latest readings, trends, and sensor freshness')}</p></div>
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{MAIN.map((metric) => {
@@ -51,9 +50,7 @@ function MainReadings({ sensors, devices, analysis, lang, t }) {
           <div className="mt-2 flex min-h-5 flex-wrap justify-between gap-1 text-xs"><span className="text-gray-600">{Number.isFinite(Number(trend)) && Math.abs(Number(trend)) >= 0.05 ? `${Number(trend) > 0 ? '↑' : '↓'} ${Math.abs(Number(trend)).toFixed(2)} ${sensor.unit}/${t('घण्टा', 'h')}` : t('प्रवृत्ति उपलब्ध छैन', 'Trend unavailable')}</span>{min != null && max != null && <span className={inRange ? 'font-semibold text-emerald-700' : 'font-semibold text-amber-800'}>{inRange ? t('दायराभित्र', 'In range') : t('दायराबाहिर', 'Out of range')}</span>}</div>
           {min != null && max != null && <p className="mt-1 text-xs text-gray-500">{p?.target ? t('लक्षित दायरा', 'Target range') : t('यन्त्रको सीमा', 'Sensor limits')}: {min}–{max} {sensor.unit}</p>}
           <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">{t('अन्तिम प्राप्त', 'Last received')}: {when(sensor.last_reading_at, lang)} ({ageText(sensor.age_seconds)} {t('अघि', 'ago')})</p><p className="mt-1 truncate text-[11px] text-gray-400">{sensor.name}</p>
-          {metric.key === 'soil_moisture' && <p role="status" className="mt-2 text-xs text-amber-800">{!rawSoil || rawSoil.last_value == null ? t('कच्चा ADC डाटा ड्यासबोर्डमा छैन। AOUT→GPIO34, साझा GND र 3.3V जाँच्नुहोस्। सुक्खा/भिजेको वास्तविक पठनपछि मात्र क्यालिब्रेट गर्नुहोस्।', 'Raw ADC data is not available in the dashboard yet. Check AOUT→GPIO34, common GND, and 3.3V. Calibrate only after real dry and wet readings.') : (Number(rawSoil.last_value) <= 5 || Number(rawSoil.last_value) >= 4090) ? t('ADC सीमामा अड्किएको छ; तार, 3.3V र probe जाँच्नुहोस्।', 'ADC is at a rail; check wiring, 3.3V, and the probe before calibrating.') : t('कच्चा ADC पठन प्राप्त भयो। वास्तविक सुक्खा/भिजेको नमूनाबाट पुष्टि गर्नुहोस्।', 'Raw ADC received. Confirm using actual dry and wet samples.')}</p>}
-          {metric.key === 'light' && <p role="status" className="mt-2 text-xs text-slate-600">{t('GY-30/BH1750 lux सीधै दिन्छ। यन्त्र अफलाइन वा पठन पुरानो भए I²C GPIO21/22, 3.3V, GND र ADD ठेगाना (0x23/0x5C) जाँच्नुहोस्। स्केल सच्याउन reference lux meter चाहिन्छ।', 'GY-30/BH1750 reports lux directly. If offline or stale, check I²C GPIO21/22, 3.3V, GND, and ADD address (0x23/0x5C). A reference lux meter is needed for an empirical scale correction.')}</p>}
-        </> : <><p className="mt-3 min-h-20 text-sm text-gray-500">{t('यो सेन्सर फार्ममा दर्ता गरिएको छैन।', 'This sensor is not registered for this farm.')}</p>{metric.key === 'light' && <p role="status" className="mt-2 text-xs text-slate-600">{t('GY-30/BH1750 बाट पठन प्रतीक्षामा। GPIO21/22, 3.3V, GND र ADD जाँच्नुहोस्।', 'Waiting for a GY-30/BH1750 reading. Check GPIO21/22, 3.3V, GND, and ADD.')}</p>}</>}
+        </> : <p className="mt-3 min-h-20 text-sm text-gray-500">{t('यो सेन्सर फार्ममा दर्ता गरिएको छैन।', 'This sensor is not registered for this farm.')}</p>}
       </article>;
     })}</div>
   </section>;
@@ -61,9 +58,7 @@ function MainReadings({ sensors, devices, analysis, lang, t }) {
 
 function ExtraReadings({ sensors, devices, analysis, lang, t }) {
   const mainTypes = MAIN.map((x) => x.key);
-  const esp32Id = devices.find((d) => d.device_code === 'ESP32-01')?.id;
-  const notInstalledOnEsp32 = new Set(['ec', 'water_level']);
-  const others = sensors.filter((s) => !mainTypes.includes(s.sensor_type) && s.status !== 'disabled' && !(s.device_id === esp32Id && notInstalledOnEsp32.has(s.sensor_type)));
+  const others = sensors.filter((s) => !mainTypes.includes(s.sensor_type) && s.status !== 'disabled');
   if (!others.length) return null;
   const params = new Map((analysis?.parameters || []).map((p) => [p.key, p]));
   return <section><h3 className="mb-2 font-semibold text-gov-blue">{t('अन्य सेन्सर', 'Other sensors')}</h3><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{others.map((s) => {

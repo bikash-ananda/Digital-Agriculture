@@ -50,42 +50,6 @@ static bool configLoaded = false;
 static inline uint8_t offLevel() { return RELAY_ACTIVE_LOW ? HIGH : LOW; }
 static inline uint8_t onLevel() { return RELAY_ACTIVE_LOW ? LOW : HIGH; }
 
-static uint8_t defaultRelayChannel(const char* type) {
-  if (!strcmp(type, "irrigation")) return 1; // IN1, GPIO26
-  if (!strcmp(type, "misting")) return 2;    // IN2, GPIO27
-  return 0;
-}
-
-#if USE_BH1750
-static bool initBh1750() {
-  const uint8_t addresses[] = {0x23, 0x5C}; // ADD low/floating or high on GY-30
-  luxOk = false;
-  lightSensorAddress = 0;
-  for (uint8_t address : addresses) {
-    Wire.beginTransmission(address);
-    if (Wire.endTransmission() != 0) continue;
-    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, address, &Wire)) {
-      lightSensorAddress = address;
-      luxOk = true;
-      break;
-    }
-  }
-  if (luxOk) Serial.printf("BH1750 ready at I2C 0x%02X (GPIO%d SDA, GPIO%d SCL)\n", lightSensorAddress, I2C_SDA, I2C_SCL);
-  else Serial.println(F("BH1750 not found at 0x23 or 0x5C; check 3.3V, GND, SDA=GPIO21, SCL=GPIO22 and ADD strap"));
-  return luxOk;
-}
-
-static float readLightLux() {
-  if (!luxOk && !initBh1750()) return NAN;
-  const float lux = lightMeter.readLightLevel();
-  if (isnan(lux) || isinf(lux) || lux < 0.0f || lux > 65535.0f) {
-    luxOk = false;
-    return NAN;
-  }
-  return lux; // BH1750's built-in 16-bit converter already reports lux
-}
-#endif
-
 static bool isPump(const char* t) {
   return !strcmp(t, "irrigation") || !strcmp(t, "misting") || !strcmp(t, "pump") || !strcmp(t, "fertigation");
 }
@@ -145,14 +109,12 @@ static bool loadConfig() {
   actCount = 0;
   for (JsonObject a : doc["actuators"].as<JsonArray>()) {
     if (actCount >= 8) break;
-    const char* type = a["actuator_type"] | "other";
     int ch = a["relay_channel"] | 0;
-    if (ch == 0) ch = defaultRelayChannel(type); // fallback for this board's fixed IN1/IN2 wiring
     if (ch < 1 || ch > (int)RELAY_COUNT) continue;
     Act& x = acts[actCount++];
     x.id = a["id"] | 0;
     x.channel = (uint8_t)ch;
-    strlcpy(x.type, type, sizeof(x.type));
+    strlcpy(x.type, a["actuator_type"] | "other", sizeof(x.type));
     x.maxRun = a["max_runtime_seconds"] | 900;
   }
   Serial.printf("config: %u actuators mapped to relays\n", actCount);
@@ -304,11 +266,10 @@ static void buildReadings(JsonObject r) {
   put(r, "humidity", rh);
 #endif
 #if USE_BH1750
-  {
-    const float lx = readLightLux(); // scan again during later reports if the sensor wasn't ready at boot
-    if (!isnan(lx) && !isinf(lx)) put(r, "light", lx);
-    else sensorErrors++;
-  }
+  if (luxOk) {
+    float lx = lightMeter.readLightLevel();
+    put(r, "light", (lx < 0.0f || lx > 65535.0f) ? NAN : lx);
+  } else sensorErrors++;
 #endif
 #if USE_DS18B20
   ds.requestTemperatures();
@@ -455,7 +416,18 @@ void setup() {
   dht.begin();
 #endif
 #if USE_BH1750
-  initBh1750();
+  const uint8_t addresses[] = {0x23, 0x5C}; // ADD low/floating or high on GY-30
+  for (uint8_t address : addresses) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() != 0) continue;
+    if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE, address, &Wire)) {
+      lightSensorAddress = address;
+      luxOk = true;
+      break;
+    }
+  }
+  if (luxOk) Serial.printf("BH1750 ready at I2C 0x%02X (GPIO%d SDA, GPIO%d SCL)\n", lightSensorAddress, I2C_SDA, I2C_SCL);
+  else Serial.println(F("BH1750 not found at 0x23 or 0x5C; check 3.3V, GND, SDA=GPIO21, SCL=GPIO22 and ADD strap"));
 #endif
 #if USE_DS18B20
   ds.begin();
