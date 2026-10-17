@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-#define FIRMWARE_VERSION "gh-1.0.1"
+#define FIRMWARE_VERSION "gh-1.0.2"
 #define DEVICE_CODE "ESP32-01"
 
 // Production API endpoint and its trusted HTTPS root.
@@ -54,24 +54,24 @@
 #define USE_DHT 1              // AM2120 single-bus temperature + humidity
 #define DHT_PIN 4
 #define DHT_TYPE DHT21
-#define USE_BH1750 1           // light (lux)
+#define USE_BH1750 1           // fitted GY-30 / BH1750: reports lux directly
 #define USE_DS18B20 0          // no separate DS18B20 pin was provided; GPIO4 is used by AM2120
 #define ONEWIRE_PIN 4           // unused while USE_DS18B20 is 0
 
 #define SOIL_COUNT 1           // one capacitive probe on ADC1
 static const uint8_t SOIL_PINS[SOIL_COUNT] = {34};
-#define SOIL_RAW_DRY 3200      // measure and set using this installed probe/soil
-#define SOIL_RAW_WET 1400      // measure and set using this installed probe/soil
+#define SOIL_RAW_DRY 3200      // provisional until ADC is responsive and measured dry
+#define SOIL_RAW_WET 1400      // provisional until measured in wet soil; do not infer from saturation
 
-#define USE_EC 1
-#define EC_PIN 36
-#define EC_K_FACTOR 1.0f       // rough; use the dashboard calibration for real accuracy
+#define USE_EC 0              // no EC probe installed; an ADC voltage is not EC
+#define EC_PIN 36              // reserved for a future EC interface
+#define EC_K_FACTOR 1.0f
 
-#define USE_WATER_LEVEL 1      // HC-SR04 above the tank. ECHO is 5 V: use a voltage divider!
-#define TRIG_PIN 19
+#define USE_WATER_LEVEL 0      // no tank-level sensor installed
+#define TRIG_PIN 19            // reserved for a future ultrasonic sensor
 #define ECHO_PIN 18
-#define TANK_EMPTY_CM 80.0f    // distance when the tank is empty
-#define TANK_FULL_CM 10.0f     // distance when the tank is full
+#define TANK_EMPTY_CM 80.0f
+#define TANK_FULL_CM 10.0f
 
 // ---- relays ----
 #define RELAY_ACTIVE_LOW 1

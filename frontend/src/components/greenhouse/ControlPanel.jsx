@@ -13,7 +13,8 @@ function ActuatorCard({ a, offline, canControl, canConfigure, onDone, lang, t })
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const isOn = a.current_state === 'on';
-  const unmapped = a.relay_channel == null;
+  const relayChannel = a.relay_channel ?? (a.actuator_type === 'irrigation' ? 1 : a.actuator_type === 'misting' ? 2 : null);
+  const unmapped = relayChannel == null;
   const label = (s) => (s >= 3600 ? `${s / 3600} ${t('घण्टा', 'h')}` : `${Math.round(s / 60)} ${t('मिनेट', 'min')}`);
 
   const send = async (command) => {
@@ -55,7 +56,7 @@ function ActuatorCard({ a, offline, canControl, canConfigure, onDone, lang, t })
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-semibold text-gov-blue">{meta.icon} {a.name}</p>
-          <p className="text-xs text-gray-500">{meta[lang]}{a.relay_channel ? ` · ${t('रिले', 'Relay')} ${a.relay_channel}` : ''} · {t('अधिकतम', 'max')} {label(a.max_runtime_seconds)}</p>
+          <p className="text-xs text-gray-500">{meta[lang]}{relayChannel ? ` · ${t('रिले', 'Relay')} ${relayChannel}${a.relay_channel == null ? ` (${t('पूर्वनिर्धारित', 'board default')})` : ''}` : ''} · {t('अधिकतम', 'max')} {label(a.max_runtime_seconds)}</p>
         </div>
         <StatusBadge value={a.current_state} />
       </div>
@@ -82,7 +83,7 @@ function ActuatorCard({ a, offline, canControl, canConfigure, onDone, lang, t })
           <button disabled={busy || offline || unmapped || a.status !== 'active'} onClick={() => send('off')} className="bg-gov-red hover:bg-red-700 text-white px-4 py-1.5 rounded text-sm font-semibold disabled:opacity-50">OFF</button>
         </div>
       )}
-      {unmapped && <p className="mt-2 text-xs text-amber-700">{t('रिले च्यानल तोकिएको छैन — यन्त्र विवरणमा च्यानल १ वा २ म्याप गर्नुहोस्', 'No relay channel assigned — map channel 1 or 2 in device details')}</p>}
+      {unmapped && <p className="mt-2 text-xs text-amber-700">{t('यो एक्चुएटर प्रकारका लागि बोर्डमा रिले च्यानल म्याप गरिएको छैन।', 'No board relay channel is mapped for this actuator type.')}</p>}
       {offline && <p className="mt-2 text-xs text-red-600">{t('यन्त्र अफलाइन छ — आदेश पठाउन मिल्दैन', 'Device offline — commands disabled')}</p>}
       {msg && <p className={`mt-2 text-sm rounded p-2 ${color[msg.kind]}`}>{msg.text}</p>}
       {a.last_state_at && <p className="mt-2 text-xs text-gray-400">{t('अन्तिम परिवर्तन', 'Last change')}: {new Date(a.last_state_at).toLocaleString()}</p>}
