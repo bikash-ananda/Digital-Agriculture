@@ -192,7 +192,7 @@ export default function DeviceDetail() {
       {error && data && <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded text-sm">{t('सर्भरबाट नयाँ डाटा आउन सकेन। देखाइएको मान अन्तिम प्राप्त डाटा हो।', 'Could not refresh from the server. Values shown are the last received readings.')} {error}</div>}
 
       {(showRotateConfirm || newKey) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="presentation">
           <section role="dialog" aria-modal="true" aria-labelledby="device-key-dialog-title" className="w-full max-w-xl space-y-4 rounded-xl bg-white p-6 shadow-xl">
             {newKey ? (
               <>
