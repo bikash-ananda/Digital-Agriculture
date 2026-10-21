@@ -32,6 +32,12 @@ router.post('/readings', [
 ], validate, ctrl.readings);
 
 router.get('/commands', ctrl.commands);
+router.get('/wifi-commands', ctrl.wifiCommands);
+router.post('/wifi-commands/:id/ack', [
+  param('id').isInt({ min: 1 }),
+  body('status').isIn(['ok', 'error']),
+  body('message').optional().isString().isLength({ max: 255 })
+], validate, ctrl.wifiAck);
 
 router.post('/commands/:id/ack', [
   param('id').isInt({ min: 1 }),

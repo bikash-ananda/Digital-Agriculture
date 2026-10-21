@@ -1,5 +1,7 @@
 ﻿const db = require('../config/db');
 
+const { decryptPassword } = require('../utils/wifiCommandCrypto');
+
 async function touchDevice(req, firmware) {
   await db.query(
     `UPDATE iot_devices SET last_seen_at = NOW(), status = 'online', ip_address = ?,
@@ -74,6 +76,40 @@ exports.commands = async (req, res, next) => {
       await db.query("UPDATE actuator_commands SET status = 'sent', sent_at = NOW() WHERE id IN (?)", [commands.map((c) => c.id)]);
     }
     res.json({ commands, server_time: new Date().toISOString() });
+  } catch (e) { next(e); }
+};
+
+exports.wifiCommands = async (req, res, next) => {
+  try {
+    await touchDevice(req);
+    await db.query(
+      "UPDATE device_wifi_commands SET status = 'expired', password = '' WHERE device_id = ? AND status IN ('queued','sent') AND expires_at < NOW()",
+      [req.device.id]);
+    const [rows] = await db.query(
+      "SELECT id, ssid, password FROM device_wifi_commands WHERE device_id = ? AND status IN ('queued','sent') AND expires_at >= NOW() ORDER BY id LIMIT 5",
+      [req.device.id]);
+    const commands = rows.map((command) => ({ ...command, password: decryptPassword(command.password) }));
+    if (commands.length) {
+      await db.query("UPDATE device_wifi_commands SET status = 'sent', sent_at = NOW() WHERE id IN (?)", [commands.map((command) => command.id)]);
+    }
+    res.json({ commands });
+  } catch (e) { next(e); }
+};
+
+exports.wifiAck = async (req, res, next) => {
+  try {
+    const [[command]] = await db.query(
+      'SELECT id, status FROM device_wifi_commands WHERE id = ? AND device_id = ? LIMIT 1',
+      [req.params.id, req.device.id]);
+    if (!command) return res.status(404).json({ message: 'Wi-Fi command not found' });
+    if (['ok', 'error', 'expired'].includes(command.status)) return res.json({ ok: true, status: command.status });
+
+    const status = req.body.status;
+    const message = (req.body.message || (status === 'ok' ? 'Network saved to device' : 'Device could not save network')).slice(0, 255);
+    await db.query(
+      'UPDATE device_wifi_commands SET status = ?, message = ?, acked_at = NOW(), password = \'\' WHERE id = ? AND device_id = ?',
+      [status, message, command.id, req.device.id]);
+    res.json({ ok: true });
   } catch (e) { next(e); }
 };
 

@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-#define FIRMWARE_VERSION "gh-1.0.4"
+#define FIRMWARE_VERSION "gh-1.0.5"
 #define DEVICE_CODE "ESP32-01"
 
 // Production API endpoint and its trusted HTTPS root.

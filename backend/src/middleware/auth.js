@@ -38,4 +38,12 @@ const authorize = (...codes) => (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, authorize };
+const authorizeRole = (...roles) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Authentication required' });
+  if (!roles.some((role) => (req.user.roles || []).includes(role))) {
+    return res.status(403).json({ message: 'Only a super administrator can rotate device API keys' });
+  }
+  next();
+};
+
+module.exports = { authenticate, authorize, authorizeRole };

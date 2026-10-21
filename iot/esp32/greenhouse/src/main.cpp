@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include <Preferences.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -394,6 +395,88 @@ static void addWifiNetwork(const char* ssid, const char* password) {
   configuredWifiNetworks++;
 }
 
+static bool loadSavedWifiNetworks() {
+  Preferences prefs;
+  if (!prefs.begin("greenhouse", true)) return false;
+  String encoded = prefs.getString("wifi_networks", "[]");
+  prefs.end();
+
+  JsonDocument doc;
+  if (deserializeJson(doc, encoded) || !doc.is<JsonArray>()) return false;
+  for (JsonObject network : doc.as<JsonArray>()) {
+    const char* ssid = network["ssid"] | "";
+    const char* password = network["password"] | "";
+    if (!ssid[0] || strlen(ssid) > 32 || strlen(password) > 64) continue;
+    addWifiNetwork(ssid, password);
+  }
+  return true;
+}
+
+static bool saveWifiNetwork(const char* ssid, const char* password) {
+  if (!ssid || !ssid[0] || strlen(ssid) > 32 || !password || strlen(password) > 64) return false;
+
+  Preferences prefs;
+  if (!prefs.begin("greenhouse", false)) return false;
+  String encoded = prefs.getString("wifi_networks", "[]");
+  prefs.end();
+
+  JsonDocument doc;
+  if (deserializeJson(doc, encoded) || !doc.is<JsonArray>()) doc.to<JsonArray>();
+  JsonArray networks = doc.as<JsonArray>();
+  bool replace = false;
+  for (JsonObject network : networks) {
+    const char* savedSsid = network["ssid"] | "";
+    if (strcmp(savedSsid, ssid) == 0) {
+      network["password"] = password;
+      replace = true;
+      break;
+    }
+  }
+  if (!replace) {
+    if (networks.size() >= 8) return false;
+    JsonObject network = networks.add<JsonObject>();
+    network["ssid"] = ssid;
+    network["password"] = password;
+  }
+
+  encoded = "";
+  serializeJson(doc, encoded);
+  if (!prefs.begin("greenhouse", false)) return false;
+  const size_t saved = prefs.putString("wifi_networks", encoded);
+  prefs.end();
+  if (saved == 0) return false;
+
+  // Make it available to WiFiMulti immediately, and retain it across restarts in NVS.
+  wifiMulti.addAP(ssid, password);
+  configuredWifiNetworks++;
+  return true;
+}
+
+static void pollWifiCommands() {
+  String out;
+  int code;
+  if (!apiCall("GET", "/api/device/wifi-commands", "", out, code)) return;
+  JsonDocument doc;
+  if (deserializeJson(doc, out)) return;
+
+  for (JsonObject command : doc["commands"].as<JsonArray>()) {
+    const int id = command["id"] | 0;
+    const char* ssid = command["ssid"] | "";
+    const char* password = command["password"] | "";
+    const bool saved = id > 0 && saveWifiNetwork(ssid, password);
+    const char* message = saved ? "Network saved on ESP32" : "Could not store network in ESP32 flash";
+
+    JsonDocument ack;
+    ack["status"] = saved ? "ok" : "error";
+    ack["message"] = message;
+    String body, response;
+    int ackCode;
+    serializeJson(ack, body);
+    apiCall("POST", String("/api/device/wifi-commands/") + id + "/ack", body, response, ackCode);
+    Serial.printf("wifi: network command %d for '%s' %s\n", id, ssid, saved ? "saved" : "failed");
+  }
+}
+
 static void wifiConnect(unsigned long timeoutMs) {
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -413,6 +496,7 @@ static void wifiConnect(unsigned long timeoutMs) {
 #if defined(WIFI_SSID_6) && defined(WIFI_PASS_6)
   addWifiNetwork(WIFI_SSID_6, WIFI_PASS_6);
 #endif
+  loadSavedWifiNetworks();
   Serial.printf("wifi: trying %u configured network(s)\n", configuredWifiNetworks);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < timeoutMs) {
@@ -500,7 +584,11 @@ void loop() {
       for (uint8_t i = 0; i < actCount; i++) statePending[acts[i].channel - 1] = true;  // reconcile state with the server
     }
   }
-  if (configLoaded && now - tPoll >= POLL_INTERVAL_MS) { tPoll = now; pollCommands(); }
+  if (now - tPoll >= POLL_INTERVAL_MS) {
+    tPoll = now;
+    if (configLoaded) pollCommands();
+    if (WiFi.status() == WL_CONNECTED) pollWifiCommands();
+  }
   if (now - tState >= 2000UL) { tState = now; sendStates(); }
   if (now - tReport >= REPORT_INTERVAL_MS) { tReport = now; postReadings(); }
   if (now - tTelemetry >= TELEMETRY_INTERVAL_MS) { tTelemetry = now; postTelemetry(); }

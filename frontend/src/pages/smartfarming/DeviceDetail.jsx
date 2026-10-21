@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import { useAuth } from '../../context/useAuth';
@@ -15,7 +16,8 @@ export default function DeviceDetail() {
   const { i18n } = useTranslation();
   const t = (ne, en) => (i18n.language === 'en' ? en : ne);
   const { id } = useParams();
-  const { can, logout } = useAuth();
+  const { can, logout, user } = useAuth();
+  const isSuperAdmin = user?.roles?.includes('super_admin') === true;
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -29,6 +31,12 @@ export default function DeviceDetail() {
   const [rotateError, setRotateError] = useState('');
   const [rotateNeedsLogin, setRotateNeedsLogin] = useState(false);
   const [keyCopyMessage, setKeyCopyMessage] = useState('');
+  const [wifiCommands, setWifiCommands] = useState([]);
+  const [wifiSsid, setWifiSsid] = useState('');
+  const [wifiPassword, setWifiPassword] = useState('');
+  const [wifiBusy, setWifiBusy] = useState(false);
+  const [wifiMessage, setWifiMessage] = useState(null);
+  const [wifiError, setWifiError] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +45,16 @@ export default function DeviceDetail() {
       setError('');
     } catch (loadError) {
       setError(errMsgs(loadError)[0]);
+    }
+  }, [id]);
+
+  const loadWifiCommands = useCallback(async () => {
+    try {
+      const response = await api.get(`/smart/devices/${id}/wifi-commands`);
+      setWifiCommands(response.data.commands || []);
+      setWifiError('');
+    } catch (loadError) {
+      setWifiError(errMsgs(loadError)[0]);
     }
   }, [id]);
 
@@ -50,6 +68,12 @@ export default function DeviceDetail() {
       window.clearInterval(timer);
     };
   }, [load, showRotateConfirm, newKey]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(loadWifiCommands, 0);
+    const timer = window.setInterval(loadWifiCommands, 5000);
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); };
+  }, [loadWifiCommands]);
 
   const post = async (path, body, reset) => {
     setErrs([]);
@@ -96,7 +120,7 @@ export default function DeviceDetail() {
         setRotateNeedsLogin(true);
         setRotateError(t('तपाईंको लगइन सत्र सकिएको छ। फेरि लगइन गरेर यो प्रक्रिया दोहोर्‍याउनुहोस्।', 'Your sign-in session expired. Sign in again, then repeat this action.'));
       }
-      else if (status === 403) setRotateError(t('तपाईंको खातालाई यन्त्र कुञ्जी बदल्ने अनुमति छैन। साइट प्रशासकलाई devices.update अनुमति दिन भन्नुहोस्।', 'Your account cannot rotate device keys. Ask a site administrator for the devices.update permission.'));
+      else if (status === 403) setRotateError(t('यो काम सुपर प्रशासकले मात्र गर्न सक्छ।', 'Only a super administrator can rotate device API keys.'));
       else if (status === 404) setRotateError(t('यो यन्त्र भेटिएन। पृष्ठ ताजा गरेर फेरि प्रयास गर्नुहोस्।', 'This device could not be found. Refresh the page and try again.'));
       else if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') setRotateError(t('सर्भरको जवाफ आउन ढिलो भयो। कुञ्जी बदलिएको हुन सक्छ। फेरि प्रयास गर्दा पछिल्लो देखिएको कुञ्जी मात्र ESP32 मा राख्नुहोस्।', 'The server response timed out. Rotation may have completed. If you retry, save only the latest key returned to the ESP32.'));
       else if (!err.response) setRotateError(t('सर्भरमा जडान हुन सकेन। इन्टरनेट जाँच गरेर फेरि प्रयास गर्नुहोस्।', 'Could not reach the server. Check your connection and try again.'));
@@ -116,6 +140,23 @@ export default function DeviceDetail() {
   const signInAgain = async () => {
     try { await logout(); } catch { /* The expired session may reject logout; local state still clears. */ }
     navigate('/login', { replace: true });
+  };
+  const addWifiNetwork = async (event) => {
+    event.preventDefault();
+    setWifiBusy(true);
+    setWifiMessage(null);
+    setWifiError('');
+    try {
+      const response = await api.post(`/smart/devices/${id}/wifi-commands`, { ssid: wifiSsid, password: wifiPassword });
+      setWifiSsid('');
+      setWifiPassword('');
+      setWifiMessage({ ok: true, text: response.data.message || t('Wi-Fi नेटवर्क यन्त्रमा पठाउन राखियो।', 'Network queued for the ESP32; it must be online to receive it.') });
+      await loadWifiCommands();
+    } catch (requestError) {
+      setWifiMessage({ ok: false, text: errMsgs(requestError).join(' · ') });
+    } finally {
+      setWifiBusy(false);
+    }
   };
 
   if (error && !data) return (
@@ -185,14 +226,14 @@ export default function DeviceDetail() {
         <div className="flex flex-wrap gap-2">
           <button onClick={load} className="border px-3 py-2 rounded text-sm min-h-10">{t('ताजा गर्नुहोस्', 'Refresh')}</button>
           <button onClick={() => window.print()} className="border px-3 py-2 rounded text-sm min-h-10">{t('छाप्नुहोस् / PDF', 'Print / PDF')}</button>
-          {can('devices.update') && <button type="button" onClick={() => { setRotateError(''); setRotateNeedsLogin(false); setShowRotateConfirm(true); }} className="border border-gov-red text-gov-red px-3 py-2 rounded text-sm min-h-10">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
+          {isSuperAdmin && <button type="button" onClick={() => { setRotateError(''); setRotateNeedsLogin(false); setShowRotateConfirm(true); }} className="border border-gov-red text-gov-red px-3 py-2 rounded text-sm min-h-10">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
         </div>
       </div>
 
       {error && data && <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded text-sm">{t('सर्भरबाट नयाँ डाटा आउन सकेन। देखाइएको मान अन्तिम प्राप्त डाटा हो।', 'Could not refresh from the server. Values shown are the last received readings.')} {error}</div>}
 
-      {(showRotateConfirm || newKey) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="presentation">
+      {(showRotateConfirm || newKey) && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4" role="presentation">
           <section role="dialog" aria-modal="true" aria-labelledby="device-key-dialog-title" className="w-full max-w-xl space-y-4 rounded-xl bg-white p-6 shadow-xl">
             {newKey ? (
               <>
@@ -221,7 +262,8 @@ export default function DeviceDetail() {
               </>
             )}
           </section>
-        </div>
+        </div>,
+        document.body
       )}
 
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -245,6 +287,37 @@ export default function DeviceDetail() {
           <p className="mt-2 text-2xl font-bold">{telemetry?.sensor_errors ?? '—'} <span className="text-xs font-normal text-gray-500">{t('सेन्सर', 'sensor')}</span></p>
           <p className="mt-1 text-xs text-gray-500">HTTP: {telemetry?.http_failures ?? '—'} · Wi-Fi {t('पुनःजडान', 'reconnects')}: {telemetry?.wifi_reconnects ?? '—'}</p>
         </article>
+      </section>
+
+      <section className="space-y-4 rounded-xl border bg-white p-4 shadow-sm" aria-labelledby="device-wifi-title">
+        <div>
+          <h3 id="device-wifi-title" className="text-lg font-semibold text-gov-blue">{t('ESP32 मा Wi-Fi नेटवर्क थप्नुहोस्', 'Add Wi-Fi to ESP32')}</h3>
+          <p className="mt-1 text-sm text-gray-600">{t('यन्त्र अनलाइन हुँदा नयाँ नेटवर्क सुरक्षित रूपमा थपिन्छ। हालको नेटवर्क हट्दैन। पासवर्ड यन्त्रले पुष्टि गरेपछि वा १५ मिनेटमा सर्भरबाट मेटिन्छ।', 'The ESP32 must be online to receive the network. Its current network stays saved. The password is removed from the server after device confirmation or after 15 minutes.')}</p>
+        </div>
+        {can('devices.update') && <form onSubmit={addWifiNetwork} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <label className="text-sm font-medium">{t('Wi-Fi नाम (SSID)', 'Wi-Fi name (SSID)')}
+            <input required maxLength={32} value={wifiSsid} onChange={(event) => setWifiSsid(event.target.value)} autoComplete="off" className="mt-1 min-h-11 w-full rounded border px-3 py-2" />
+          </label>
+          <label className="text-sm font-medium">{t('Wi-Fi पासवर्ड', 'Wi-Fi password')}
+            <input type="password" maxLength={64} value={wifiPassword} onChange={(event) => setWifiPassword(event.target.value)} autoComplete="new-password" className="mt-1 min-h-11 w-full rounded border px-3 py-2" aria-describedby="device-wifi-password-help" />
+          </label>
+          <button type="submit" disabled={wifiBusy || !wifiSsid.trim()} className="min-h-11 rounded bg-agri-green px-4 py-2 font-semibold text-white disabled:cursor-wait disabled:opacity-60">{wifiBusy ? t('पठाउँदै…', 'Sending…') : t('नेटवर्क थप्नुहोस्', 'Add network')}</button>
+          <p id="device-wifi-password-help" className="text-xs text-gray-500 sm:col-span-3">{t('खुला Wi-Fi नेटवर्कका लागि पासवर्ड खाली छोड्नुहोस्। WPA पासवर्ड ८–६३ UTF-8 बाइट वा ६४ हेक्स अंक हुन सक्छ।', 'Leave the password empty for an open network. WPA passwords may be 8–63 UTF-8 bytes or 64 hexadecimal characters.')}</p>
+        </form>}
+        {wifiMessage && <p role={wifiMessage.ok ? 'status' : 'alert'} className={`rounded p-3 text-sm ${wifiMessage.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>{wifiMessage.text}</p>}
+        {wifiError && !wifiMessage && <p role="alert" className="rounded bg-amber-50 p-3 text-sm text-amber-900">{wifiError}</p>}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50"><tr><th className="p-2">{t('नेटवर्क', 'Network')}</th><th className="p-2">{t('अवस्था', 'Status')}</th><th className="p-2">{t('विवरण', 'Details')}</th><th className="p-2">{t('समय', 'Time')}</th></tr></thead>
+            <tbody>
+              {wifiCommands.slice(0, 5).map((command) => {
+                const labels = { queued: t('पर्खँदै', 'Waiting for ESP32'), sent: t('यन्त्रमा पठाइयो', 'Sent to ESP32'), ok: t('सुरक्षित भयो', 'Saved on ESP32'), error: t('असफल', 'Failed'), expired: t('समय सकियो', 'Expired') };
+                return <tr key={command.id} className="border-t"><td className="p-2 font-medium">{command.ssid}</td><td className="p-2">{labels[command.status] || command.status}</td><td className="p-2">{command.message || '—'}</td><td className="p-2 whitespace-nowrap">{new Date(command.created_at).toLocaleString()}</td></tr>;
+              })}
+              {!wifiCommands.length && <tr><td colSpan="4" className="p-3 text-center text-gray-500">{t('अहिलेसम्म Wi-Fi आदेश छैन', 'No Wi-Fi commands yet')}</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">

@@ -1,6 +1,7 @@
 ﻿const db = require('../config/db');
 const crypto = require('crypto');
 const { logAudit } = require('../utils/audit');
+const { encryptPassword } = require('../utils/wifiCommandCrypto');
 
 const clean = (v) => (v === '' || v === undefined ? null : v);
 const isSuper = (req) => req.user.roles.includes('super_admin');
@@ -212,12 +213,49 @@ exports.getDevice = async (req, res, next) => {
 
 exports.rotateKey = async (req, res, next) => {
   try {
+    if (!(req.user.roles || []).includes('super_admin')) return res.status(403).json({ message: 'Only a super administrator can rotate device API keys' });
     const device = await findDevice(req, req.params.id);
     if (!device) return res.status(404).json({ message: 'Device not found' });
     const apiKey = crypto.randomBytes(24).toString('hex');
     await db.query('UPDATE iot_devices SET api_key_hash = ? WHERE id = ?', [sha256(apiKey), device.id]);
     await logAudit(req.user.id, 'device_key_rotate', 'iot_device', device.id, { device_code: device.device_code }, req);
     res.json({ device_code: device.device_code, api_key: apiKey });
+  } catch (e) { next(e); }
+};
+
+exports.listWifiCommands = async (req, res, next) => {
+  try {
+    const device = await findDevice(req, req.params.id);
+    if (!device) return res.status(404).json({ message: 'Device not found' });
+    await db.query(
+      "UPDATE device_wifi_commands SET status = 'expired', password = '' WHERE device_id = ? AND status IN ('queued','sent') AND expires_at < NOW()",
+      [device.id]);
+    const [commands] = await db.query(
+      'SELECT id, ssid, status, message, created_at, sent_at, acked_at, expires_at FROM device_wifi_commands WHERE device_id = ? ORDER BY id DESC LIMIT 20',
+      [device.id]);
+    res.json({ commands });
+  } catch (e) { next(e); }
+};
+
+exports.queueWifiCommand = async (req, res, next) => {
+  try {
+    const device = await findDevice(req, req.params.id);
+    if (!device) return res.status(404).json({ message: 'Device not found' });
+    const ssid = req.body.ssid;
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    await db.query(
+      "UPDATE device_wifi_commands SET status = 'expired', password = '' WHERE device_id = ? AND status IN ('queued','sent') AND expires_at < NOW()",
+      [device.id]);
+    const [pending] = await db.query(
+      "SELECT id FROM device_wifi_commands WHERE device_id = ? AND status IN ('queued','sent') AND expires_at >= NOW() LIMIT 1",
+      [device.id]);
+    if (pending.length) return res.status(409).json({ message: 'A Wi-Fi network command is already pending for this device' });
+
+    const [result] = await db.query(
+      "INSERT INTO device_wifi_commands (device_id, ssid, password, status, created_by, expires_at) VALUES (?, ?, ?, 'queued', ?, NOW() + INTERVAL 15 MINUTE)",
+      [device.id, ssid, encryptPassword(password), req.user.id]);
+    await logAudit(req.user.id, 'device_wifi_add', 'iot_device', device.id, { ssid }, req);
+    res.status(201).json({ id: result.insertId, status: 'queued', message: 'Network is queued for the device; it must be online to receive it.' });
   } catch (e) { next(e); }
 };
 

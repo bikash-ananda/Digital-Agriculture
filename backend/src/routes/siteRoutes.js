@@ -1,7 +1,7 @@
 ﻿const express = require('express');
 const { body, param } = require('express-validator');
 const validate = require('../middleware/validate');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, authorizeRole } = require('../middleware/auth');
 const ctrl = require('../controllers/siteController');
 
 const router = express.Router();
@@ -43,7 +43,12 @@ router.post('/sites/:id/devices', authorize('devices.create'), idRule, [
 ], validate, ctrl.createDevice);
 
 router.get('/devices/:id', authorize('devices.view'), idRule, validate, ctrl.getDevice);
-router.post('/devices/:id/rotate-key', authorize('devices.update'), idRule, validate, ctrl.rotateKey);
+router.post('/devices/:id/rotate-key', authorizeRole('super_admin'), idRule, validate, ctrl.rotateKey);
+router.get('/devices/:id/wifi-commands', authorize('devices.view'), idRule, validate, ctrl.listWifiCommands);
+router.post('/devices/:id/wifi-commands', authorize('devices.update'), idRule, [
+  body('ssid').isString().custom((ssid) => typeof ssid === 'string' && Buffer.byteLength(ssid, 'utf8') >= 1 && Buffer.byteLength(ssid, 'utf8') <= 32 && ![...ssid].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)).withMessage('Network name must be 1 to 32 printable UTF-8 bytes'),
+  body('password').optional().isString().custom((password) => password === '' || (Buffer.byteLength(password, 'utf8') >= 8 && Buffer.byteLength(password, 'utf8') <= 63) || /^[A-Fa-f0-9]{64}$/.test(password)).withMessage('Password must be empty for an open network, 8-63 UTF-8 bytes, or 64 hexadecimal characters')
+], validate, ctrl.queueWifiCommand);
 
 router.post('/devices/:id/sensors', authorize('devices.create'), idRule, [
   body('sensor_type').isIn(['temperature', 'humidity', 'soil_moisture', 'ec', 'light', 'water_level', 'ph', 'other', 'soil_temperature', 'co2', 'leaf_wetness', 'water_temperature', 'flow', 'pressure', 'wind_speed', 'rainfall']),
