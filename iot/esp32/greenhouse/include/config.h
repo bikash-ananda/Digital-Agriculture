@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-#define FIRMWARE_VERSION "gh-1.0.1"
+#define FIRMWARE_VERSION "gh-1.0.4"
 #define DEVICE_CODE "ESP32-01"
 
 // Production API endpoint and its trusted HTTPS root.
@@ -49,12 +49,13 @@
 // ---- sensors (1 = fitted) ----
 #define I2C_SDA 21
 #define I2C_SCL 22
+#define I2C_DIAGNOSTICS 0     // enable when an I2C sensor is installed for diagnosis
 #define USE_SHT31 0            // not installed; AM2120 is used on the single-wire input below
 #define SHT31_ADDR 0x44
-#define USE_DHT 1              // AM2120 single-bus temperature + humidity
+#define USE_DHT 1              // AM2302 / DHT22 single-bus temperature + humidity
 #define DHT_PIN 4
-#define DHT_TYPE DHT21
-#define USE_BH1750 1           // light (lux)
+#define DHT_TYPE DHT22
+#define USE_BH1750 0           // disabled until the light sensor is replaced
 #define USE_DS18B20 0          // no separate DS18B20 pin was provided; GPIO4 is used by AM2120
 #define ONEWIRE_PIN 4           // unused while USE_DS18B20 is 0
 
@@ -63,11 +64,14 @@ static const uint8_t SOIL_PINS[SOIL_COUNT] = {34};
 #define SOIL_RAW_DRY 3200      // measure and set using this installed probe/soil
 #define SOIL_RAW_WET 1400      // measure and set using this installed probe/soil
 
-#define USE_EC 1
+// No EC sensor is connected on this controller. Keeping it disabled prevents
+// a floating GPIO36 input from being sent as a false measurement.
+#define USE_EC 0
 #define EC_PIN 36
 #define EC_K_FACTOR 1.0f       // rough; use the dashboard calibration for real accuracy
 
-#define USE_WATER_LEVEL 1      // HC-SR04 above the tank. ECHO is 5 V: use a voltage divider!
+// No water-level sensor is connected on this controller.
+#define USE_WATER_LEVEL 0      // HC-SR04 above the tank. ECHO is 5 V: use a voltage divider!
 #define TRIG_PIN 19
 #define ECHO_PIN 18
 #define TANK_EMPTY_CM 80.0f    // distance when the tank is empty
@@ -75,7 +79,7 @@ static const uint8_t SOIL_PINS[SOIL_COUNT] = {34};
 
 // ---- relays ----
 #define RELAY_ACTIVE_LOW 1
-static const uint8_t RELAY_PINS[] = {26, 27}; // IN1 irrigation pump, IN2 sprinkler pump
+static const uint8_t RELAY_PINS[] = {25, 26}; // IN1 irrigation pump, IN2 sprinkler pump
 #define RELAY_COUNT (sizeof(RELAY_PINS) / sizeof(RELAY_PINS[0]))
 
 // ---- local safety (works even if the server is down) ----

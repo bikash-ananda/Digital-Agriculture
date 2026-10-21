@@ -23,6 +23,10 @@ export default function DeviceDetail() {
   const [editingActuator, setEditingActuator] = useState(null);
   const [errs, setErrs] = useState([]);
   const [newKey, setNewKey] = useState(null);
+  const [showRotateConfirm, setShowRotateConfirm] = useState(false);
+  const [rotatingKey, setRotatingKey] = useState(false);
+  const [rotateError, setRotateError] = useState('');
+  const [keyCopyMessage, setKeyCopyMessage] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -67,9 +71,36 @@ export default function DeviceDetail() {
     } catch (err) { setErrs(errMsgs(err)); }
   };
   const rotate = async () => {
-    if (!window.confirm(t('पुरानो कुञ्जी काम गर्न छोड्नेछ। जारी राख्ने?', 'The old key will stop working. Continue?'))) return;
-    try { const r = await api.post(`/smart/devices/${id}/rotate-key`); setNewKey(r.data.api_key); }
-    catch (err) { setErrs(errMsgs(err)); }
+    setRotatingKey(true);
+    setRotateError('');
+    try {
+      const r = await api.post(`/smart/devices/${id}/rotate-key`);
+      if (!r.data?.api_key) {
+        setRotateError(t('सर्भरले नयाँ कुञ्जी दिएन। पृष्ठ ताजा गरेर फेरि प्रयास गर्नुहोस्।', 'The server did not return a new key. Refresh the page and try again.'));
+        return;
+      }
+      setNewKey(r.data.api_key);
+      setKeyCopyMessage('');
+      setShowRotateConfirm(false);
+    } catch (err) {
+      const status = err.response?.status;
+      const serverMessage = err.response?.data?.message;
+      if (status === 401) setRotateError(t('तपाईंको लगइन सत्र सकिएको छ। फेरि लगइन गरेर प्रयास गर्नुहोस्।', 'Your sign-in session expired. Sign in again, then retry.'));
+      else if (status === 403) setRotateError(t('तपाईंको खातालाई यन्त्र कुञ्जी बदल्ने अनुमति छैन। साइट प्रशासकलाई devices.update अनुमति दिन भन्नुहोस्।', 'Your account cannot rotate device keys. Ask a site administrator for the devices.update permission.'));
+      else if (status === 404) setRotateError(t('यो यन्त्र भेटिएन। पृष्ठ ताजा गरेर फेरि प्रयास गर्नुहोस्।', 'This device could not be found. Refresh the page and try again.'));
+      else if (!err.response) setRotateError(t('सर्भरमा जडान हुन सकेन। इन्टरनेट जाँच गरेर फेरि प्रयास गर्नुहोस्।', 'Could not reach the server. Check your connection and try again.'));
+      else setRotateError(serverMessage || t('कुञ्जी बदल्न सकिएन। केही समयपछि फेरि प्रयास गर्नुहोस्।', 'The key could not be rotated. Please try again.'));
+    } finally {
+      setRotatingKey(false);
+    }
+  };
+  const copyNewKey = async () => {
+    try {
+      await navigator.clipboard.writeText(newKey);
+      setKeyCopyMessage(t('कुञ्जी प्रतिलिपि भयो। यसलाई ESP32 secrets.h मा सुरक्षित गर्नुहोस्।', 'Key copied. Save it in the ESP32 secrets.h file.'));
+    } catch {
+      setKeyCopyMessage(t('स्वचालित प्रतिलिपि हुन सकेन। कुञ्जी चयन गरेर प्रतिलिपि गर्नुहोस्।', 'Could not copy automatically. Select the key and copy it manually.'));
+    }
   };
 
   if (error && !data) return (
@@ -139,11 +170,42 @@ export default function DeviceDetail() {
         <div className="flex flex-wrap gap-2">
           <button onClick={load} className="border px-3 py-2 rounded text-sm min-h-10">{t('ताजा गर्नुहोस्', 'Refresh')}</button>
           <button onClick={() => window.print()} className="border px-3 py-2 rounded text-sm min-h-10">{t('छाप्नुहोस् / PDF', 'Print / PDF')}</button>
-          {can('devices.update') && <button onClick={rotate} className="border border-gov-red text-gov-red px-3 py-2 rounded text-sm min-h-10">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
+          {can('devices.update') && <button type="button" onClick={() => { setRotateError(''); setShowRotateConfirm(true); }} className="border border-gov-red text-gov-red px-3 py-2 rounded text-sm min-h-10">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
         </div>
       </div>
 
       {error && data && <div role="status" className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded text-sm">{t('सर्भरबाट नयाँ डाटा आउन सकेन। देखाइएको मान अन्तिम प्राप्त डाटा हो।', 'Could not refresh from the server. Values shown are the last received readings.')} {error}</div>}
+
+      {(showRotateConfirm || newKey) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+          <section role="dialog" aria-modal="true" aria-labelledby="device-key-dialog-title" className="w-full max-w-xl space-y-4 rounded-xl bg-white p-6 shadow-xl">
+            {newKey ? (
+              <>
+                <h3 id="device-key-dialog-title" className="text-xl font-bold text-gov-blue">{t('नयाँ API कुञ्जी', 'New API key')}</h3>
+                <div role="alert" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                  {t('यो कुञ्जी एक पटक मात्र देखिन्छ। पुरानो कुञ्जी तुरुन्तै निष्क्रिय भयो। बन्द गर्नुअघि नयाँ कुञ्जी ESP32 secrets.h मा राखेर फर्मवेयर अपलोड गर्नुहोस्।', 'This key is shown only once. The old key stopped working immediately. Save this key in the ESP32 secrets.h file and upload the firmware before closing this dialog.')}
+                </div>
+                <code className="block max-h-40 overflow-auto break-all rounded border bg-slate-50 p-3 text-sm select-all">{newKey}</code>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={copyNewKey} className="min-h-10 rounded bg-gov-blue px-4 py-2 text-sm font-medium text-white">{t('कुञ्जी प्रतिलिपि गर्नुहोस्', 'Copy key')}</button>
+                  <button type="button" onClick={() => setNewKey(null)} className="min-h-10 rounded border px-4 py-2 text-sm">{t('मैले सुरक्षित गरेँ', 'I saved it')}</button>
+                </div>
+                {keyCopyMessage && <p role="status" aria-live="polite" className="text-sm text-emerald-800">{keyCopyMessage}</p>}
+              </>
+            ) : (
+              <>
+                <h3 id="device-key-dialog-title" className="text-xl font-bold text-gov-blue">{t('API कुञ्जी बदल्ने?', 'Rotate this device key?')}</h3>
+                <p className="text-sm text-slate-700">{t('यसले हालको कुञ्जी तुरुन्तै बन्द गर्छ। नयाँ कुञ्जी एक पटक मात्र देखिनेछ, त्यसैले अहिले ESP32 secrets.h अद्यावधिक गर्न तयार हुनुहोस्।', 'This immediately disables the current key. The replacement is shown only once, so be ready to update the ESP32 secrets.h file now.')}</p>
+                {rotateError && <div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{rotateError}</div>}
+                <div className="flex flex-wrap justify-end gap-3">
+                  <button type="button" disabled={rotatingKey} onClick={() => { setShowRotateConfirm(false); setRotateError(''); }} className="min-h-10 rounded border px-4 py-2 text-sm disabled:opacity-50">{t('रद्द गर्नुहोस्', 'Cancel')}</button>
+                  <button type="button" disabled={rotatingKey} onClick={rotate} className="min-h-10 rounded bg-gov-red px-4 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-60">{rotatingKey ? t('बदल्दै…', 'Rotating…') : t('कुञ्जी बदल्नुहोस्', 'Rotate key')}</button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
 
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <article className="bg-white rounded-lg shadow p-4">
@@ -201,14 +263,6 @@ export default function DeviceDetail() {
       )}
 
       {errs.length > 0 && <ul className="p-3 bg-red-50 text-red-700 rounded text-sm list-disc pl-6">{errs.map((x, i) => <li key={i}>{x}</li>)}</ul>}
-      {newKey && (
-        <div className="p-4 bg-yellow-50 border border-yellow-300 rounded">
-          <p className="font-semibold">{t('नयाँ API कुञ्जी (एक पटक मात्र देखिन्छ)', 'New API key (shown only once)')}</p>
-          <code className="block mt-2 p-2 bg-white border rounded break-all select-all">{newKey}</code>
-          <button onClick={() => setNewKey(null)} className="mt-2 text-sm underline">{t('बन्द गर्नुहोस्', 'Dismiss')}</button>
-        </div>
-      )}
-
       <section>
         <h3 className="text-lg font-semibold text-gov-blue mb-2">{t('सेन्सरहरू', 'Sensors')} ({sensors.length})</h3>
         <div className="bg-white rounded shadow overflow-x-auto">

@@ -95,7 +95,13 @@ static bool apiCall(const char* method, const String& path, const String& body, 
   client.end();
   bool good = code >= 200 && code < 300;
   if (good) lastServerOk = millis();
-  else { httpFailures++; Serial.printf("HTTP %s %s -> %d\n", method, path.c_str(), code); }
+  else {
+    httpFailures++;
+    // The API response makes credentials and schema failures diagnosable from
+    // the serial monitor without printing the device key.
+    Serial.printf("HTTP %s %s -> %d%s%s\n", method, path.c_str(), code,
+      out.length() ? ": " : "", out.length() ? out.c_str() : "");
+  }
   return good;
 }
 
@@ -213,6 +219,31 @@ static int medianInt(int* v, int n) {
 static int readRawMedian(uint8_t pin) { int v[15]; for (int i = 0; i < 15; i++) { v[i] = analogRead(pin); delay(2); } return medianInt(v, 15); }
 static int readMvMedian(uint8_t pin) { int v[15]; for (int i = 0; i < 15; i++) { v[i] = analogReadMilliVolts(pin); delay(2); } return medianInt(v, 15); }
 
+static void scanI2cBus() {
+#if I2C_DIAGNOSTICS
+  uint8_t found = 0;
+  const int sdaIdle = digitalRead(I2C_SDA);
+  const int sclIdle = digitalRead(I2C_SCL);
+  Serial.printf("I2C scan (SDA=GPIO%d=%d, SCL=GPIO%d=%d):\n", I2C_SDA, sdaIdle, I2C_SCL, sclIdle);
+  if (sdaIdle == LOW || sclIdle == LOW) {
+    Serial.println(F("  I2C bus line held LOW; check power, common GND, and SDA/SCL wiring"));
+    return;
+  }
+  // Scan only valid 7-bit I2C addresses; 0x00-0x07 and 0x78-0x7F are reserved.
+  for (uint8_t address = 0x08; address <= 0x77; address++) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() != 0) continue;
+    Serial.printf("  device at 0x%02X\n", address);
+    found++;
+  }
+  if (!found) {
+    Serial.println(F("  no I2C devices found: verify DY-30 VCC=3V3, GND=GND, SDA=GPIO21, SCL=GPIO22"));
+  } else if (found > 4) {
+    Serial.println(F("  many I2C addresses ACKed; likely bus/wiring noise (only expected sensor here is BH1750 at 0x23 or 0x5C)"));
+  }
+#endif
+}
+
 static float soilPct(int raw) {
   if (raw < 0 || raw > 4095 || SOIL_RAW_DRY == SOIL_RAW_WET) return NAN;
   float p = (float)(SOIL_RAW_DRY - raw) * 100.0f / (float)(SOIL_RAW_DRY - SOIL_RAW_WET);
@@ -279,8 +310,9 @@ static void buildReadings(JsonObject r) {
 #endif
   for (uint8_t i = 0; i < SOIL_COUNT; i++) {
     int raw = readRawMedian(SOIL_PINS[i]);
+    int mv = readMvMedian(SOIL_PINS[i]);
 #if DEBUG_RAW
-    Serial.printf("soil%u raw=%d moisture=%.1f%% (calibration dry=%d wet=%d)\n", i + 1, raw, soilPct(raw), SOIL_RAW_DRY, SOIL_RAW_WET);
+    Serial.printf("soil%u raw=%d voltage=%dmV moisture=%.1f%% (calibration dry=%d wet=%d)\n", i + 1, raw, mv, soilPct(raw), SOIL_RAW_DRY, SOIL_RAW_WET);
 #endif
     String key = i == 0 ? String("soil_moisture") : String("soil_moisture_") + (i + 1);
     put(r, key, soilPct(raw));
@@ -407,7 +439,11 @@ void setup() {
   esp_task_wdt_add(NULL);
   analogSetAttenuation(ADC_11db);
   analogReadResolution(12);
+#if USE_SHT31 || USE_BH1750 || I2C_DIAGNOSTICS
   Wire.begin(I2C_SDA, I2C_SCL);
+  Wire.setClock(100000);
+  scanI2cBus();
+#endif
 #if USE_SHT31
   shtOk = sht31.begin(SHT31_ADDR);
   if (!shtOk) Serial.println(F("SHT31 not found"));
