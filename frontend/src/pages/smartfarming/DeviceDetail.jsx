@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import { useAuth } from '../../context/useAuth';
@@ -15,7 +15,8 @@ export default function DeviceDetail() {
   const { i18n } = useTranslation();
   const t = (ne, en) => (i18n.language === 'en' ? en : ne);
   const { id } = useParams();
-  const { can } = useAuth();
+  const { can, logout } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [sensor, setSensor] = useState(emptySensor);
@@ -26,6 +27,7 @@ export default function DeviceDetail() {
   const [showRotateConfirm, setShowRotateConfirm] = useState(false);
   const [rotatingKey, setRotatingKey] = useState(false);
   const [rotateError, setRotateError] = useState('');
+  const [rotateNeedsLogin, setRotateNeedsLogin] = useState(false);
   const [keyCopyMessage, setKeyCopyMessage] = useState('');
 
   const load = useCallback(async () => {
@@ -39,15 +41,15 @@ export default function DeviceDetail() {
   }, [id]);
 
   useEffect(() => {
-    const initial = window.setTimeout(load, 0);
+    const initial = (!showRotateConfirm && !newKey) ? window.setTimeout(load, 0) : null;
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') load();
+      if (document.visibilityState === 'visible' && !showRotateConfirm && !newKey) load();
     }, 15000);
     return () => {
-      window.clearTimeout(initial);
+      if (initial !== null) window.clearTimeout(initial);
       window.clearInterval(timer);
     };
-  }, [load]);
+  }, [load, showRotateConfirm, newKey]);
 
   const post = async (path, body, reset) => {
     setErrs([]);
@@ -73,10 +75,15 @@ export default function DeviceDetail() {
   const rotate = async () => {
     setRotatingKey(true);
     setRotateError('');
+    setRotateNeedsLogin(false);
     try {
-      const r = await api.post(`/smart/devices/${id}/rotate-key`);
+      // Preserve this page on a 401 so the user can see the sign-in guidance in the dialog.
+      const r = await api.post(`/smart/devices/${id}/rotate-key`, undefined, {
+        timeout: 30000,
+        preserveAuthOnUnauthorized: true
+      });
       if (!r.data?.api_key) {
-        setRotateError(t('सर्भरले नयाँ कुञ्जी दिएन। पृष्ठ ताजा गरेर फेरि प्रयास गर्नुहोस्।', 'The server did not return a new key. Refresh the page and try again.'));
+        setRotateError(t('सर्भरले नयाँ कुञ्जी फर्काएन। कुञ्जी बदलिएको हुन सक्छ। पुनः प्रयास गर्दा पछिल्लो देखिएको कुञ्जी मात्र प्रयोग गर्नुहोस्।', 'The server did not return the new key. Rotation may have completed. If you retry, use only the latest key shown.'));
         return;
       }
       setNewKey(r.data.api_key);
@@ -85,9 +92,13 @@ export default function DeviceDetail() {
     } catch (err) {
       const status = err.response?.status;
       const serverMessage = err.response?.data?.message;
-      if (status === 401) setRotateError(t('तपाईंको लगइन सत्र सकिएको छ। फेरि लगइन गरेर प्रयास गर्नुहोस्।', 'Your sign-in session expired. Sign in again, then retry.'));
+      if (status === 401) {
+        setRotateNeedsLogin(true);
+        setRotateError(t('तपाईंको लगइन सत्र सकिएको छ। फेरि लगइन गरेर यो प्रक्रिया दोहोर्‍याउनुहोस्।', 'Your sign-in session expired. Sign in again, then repeat this action.'));
+      }
       else if (status === 403) setRotateError(t('तपाईंको खातालाई यन्त्र कुञ्जी बदल्ने अनुमति छैन। साइट प्रशासकलाई devices.update अनुमति दिन भन्नुहोस्।', 'Your account cannot rotate device keys. Ask a site administrator for the devices.update permission.'));
       else if (status === 404) setRotateError(t('यो यन्त्र भेटिएन। पृष्ठ ताजा गरेर फेरि प्रयास गर्नुहोस्।', 'This device could not be found. Refresh the page and try again.'));
+      else if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') setRotateError(t('सर्भरको जवाफ आउन ढिलो भयो। कुञ्जी बदलिएको हुन सक्छ। फेरि प्रयास गर्दा पछिल्लो देखिएको कुञ्जी मात्र ESP32 मा राख्नुहोस्।', 'The server response timed out. Rotation may have completed. If you retry, save only the latest key returned to the ESP32.'));
       else if (!err.response) setRotateError(t('सर्भरमा जडान हुन सकेन। इन्टरनेट जाँच गरेर फेरि प्रयास गर्नुहोस्।', 'Could not reach the server. Check your connection and try again.'));
       else setRotateError(serverMessage || t('कुञ्जी बदल्न सकिएन। केही समयपछि फेरि प्रयास गर्नुहोस्।', 'The key could not be rotated. Please try again.'));
     } finally {
@@ -101,6 +112,10 @@ export default function DeviceDetail() {
     } catch {
       setKeyCopyMessage(t('स्वचालित प्रतिलिपि हुन सकेन। कुञ्जी चयन गरेर प्रतिलिपि गर्नुहोस्।', 'Could not copy automatically. Select the key and copy it manually.'));
     }
+  };
+  const signInAgain = async () => {
+    try { await logout(); } catch { /* The expired session may reject logout; local state still clears. */ }
+    navigate('/login', { replace: true });
   };
 
   if (error && !data) return (
@@ -170,7 +185,7 @@ export default function DeviceDetail() {
         <div className="flex flex-wrap gap-2">
           <button onClick={load} className="border px-3 py-2 rounded text-sm min-h-10">{t('ताजा गर्नुहोस्', 'Refresh')}</button>
           <button onClick={() => window.print()} className="border px-3 py-2 rounded text-sm min-h-10">{t('छाप्नुहोस् / PDF', 'Print / PDF')}</button>
-          {can('devices.update') && <button type="button" onClick={() => { setRotateError(''); setShowRotateConfirm(true); }} className="border border-gov-red text-gov-red px-3 py-2 rounded text-sm min-h-10">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
+          {can('devices.update') && <button type="button" onClick={() => { setRotateError(''); setRotateNeedsLogin(false); setShowRotateConfirm(true); }} className="border border-gov-red text-gov-red px-3 py-2 rounded text-sm min-h-10">{t('API कुञ्जी बदल्नुहोस्', 'Rotate API Key')}</button>}
         </div>
       </div>
 
@@ -197,6 +212,8 @@ export default function DeviceDetail() {
                 <h3 id="device-key-dialog-title" className="text-xl font-bold text-gov-blue">{t('API कुञ्जी बदल्ने?', 'Rotate this device key?')}</h3>
                 <p className="text-sm text-slate-700">{t('यसले हालको कुञ्जी तुरुन्तै बन्द गर्छ। नयाँ कुञ्जी एक पटक मात्र देखिनेछ, त्यसैले अहिले ESP32 secrets.h अद्यावधिक गर्न तयार हुनुहोस्।', 'This immediately disables the current key. The replacement is shown only once, so be ready to update the ESP32 secrets.h file now.')}</p>
                 {rotateError && <div role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{rotateError}</div>}
+                {rotateNeedsLogin && <button type="button" onClick={signInAgain} className="inline-block text-sm font-medium text-gov-blue underline">{t('फेरि लगइन गर्नुहोस्', 'Sign in again')}</button>}
+                {rotatingKey && <p role="status" aria-live="polite" className="text-sm text-slate-600">{t('सर्भरसँग जडान गर्दैछ… यो संवाद खुला राख्नुहोस्।', 'Contacting the server… Keep this dialog open.')}</p>}
                 <div className="flex flex-wrap justify-end gap-3">
                   <button type="button" disabled={rotatingKey} onClick={() => { setShowRotateConfirm(false); setRotateError(''); }} className="min-h-10 rounded border px-4 py-2 text-sm disabled:opacity-50">{t('रद्द गर्नुहोस्', 'Cancel')}</button>
                   <button type="button" disabled={rotatingKey} onClick={rotate} className="min-h-10 rounded bg-gov-red px-4 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-60">{rotatingKey ? t('बदल्दै…', 'Rotating…') : t('कुञ्जी बदल्नुहोस्', 'Rotate key')}</button>
