@@ -231,7 +231,7 @@ exports.listWifiCommands = async (req, res, next) => {
       "UPDATE device_wifi_commands SET status = 'expired', password = '' WHERE device_id = ? AND status IN ('queued','sent') AND expires_at < NOW()",
       [device.id]);
     const [commands] = await db.query(
-      'SELECT id, ssid, status, message, created_at, sent_at, acked_at, expires_at FROM device_wifi_commands WHERE device_id = ? ORDER BY id DESC LIMIT 20',
+      'SELECT id, command_type, ssid, status, message, created_at, sent_at, acked_at, expires_at FROM device_wifi_commands WHERE device_id = ? ORDER BY id DESC LIMIT 20',
       [device.id]);
     res.json({ commands });
   } catch (e) { next(e); }
@@ -241,7 +241,8 @@ exports.queueWifiCommand = async (req, res, next) => {
   try {
     const device = await findDevice(req, req.params.id);
     if (!device) return res.status(404).json({ message: 'Device not found' });
-    const ssid = req.body.ssid;
+    const commandType = req.body.command_type || 'wifi';
+    const ssid = commandType === 'enable_ble' ? '' : req.body.ssid;
     const password = typeof req.body.password === 'string' ? req.body.password : '';
     await db.query(
       "UPDATE device_wifi_commands SET status = 'expired', password = '' WHERE device_id = ? AND status IN ('queued','sent') AND expires_at < NOW()",
@@ -252,10 +253,13 @@ exports.queueWifiCommand = async (req, res, next) => {
     if (pending.length) return res.status(409).json({ message: 'A Wi-Fi network command is already pending for this device' });
 
     const [result] = await db.query(
-      "INSERT INTO device_wifi_commands (device_id, ssid, password, status, created_by, expires_at) VALUES (?, ?, ?, 'queued', ?, NOW() + INTERVAL 15 MINUTE)",
-      [device.id, ssid, encryptPassword(password), req.user.id]);
-    await logAudit(req.user.id, 'device_wifi_add', 'iot_device', device.id, { ssid }, req);
-    res.status(201).json({ id: result.insertId, status: 'queued', message: 'Network is queued for the device; it must be online to receive it.' });
+      "INSERT INTO device_wifi_commands (device_id, command_type, ssid, password, status, created_by, expires_at) VALUES (?, ?, ?, ?, 'queued', ?, NOW() + INTERVAL 15 MINUTE)",
+      [device.id, commandType, ssid, encryptPassword(password), req.user.id]);
+    await logAudit(req.user.id, commandType === 'enable_ble' ? 'device_ble_enable' : 'device_wifi_add', 'iot_device', device.id, commandType === 'enable_ble' ? {} : { ssid }, req);
+    const message = commandType === 'enable_ble'
+      ? 'Bluetooth setup is queued. The ESP32 must be online and will advertise for 10 minutes.'
+      : 'Network is queued for the device; it must be online to receive it.';
+    res.status(201).json({ id: result.insertId, status: 'queued', message });
   } catch (e) { next(e); }
 };
 

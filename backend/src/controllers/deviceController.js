@@ -86,9 +86,12 @@ exports.wifiCommands = async (req, res, next) => {
       "UPDATE device_wifi_commands SET status = 'expired', password = '' WHERE device_id = ? AND status IN ('queued','sent') AND expires_at < NOW()",
       [req.device.id]);
     const [rows] = await db.query(
-      "SELECT id, ssid, password FROM device_wifi_commands WHERE device_id = ? AND status IN ('queued','sent') AND expires_at >= NOW() ORDER BY id LIMIT 5",
+      "SELECT id, command_type, ssid, password FROM device_wifi_commands WHERE device_id = ? AND status IN ('queued','sent') AND expires_at >= NOW() ORDER BY id LIMIT 5",
       [req.device.id]);
-    const commands = rows.map((command) => ({ ...command, password: decryptPassword(command.password) }));
+    const commands = rows.map((command) => ({
+      ...command,
+      password: command.command_type === 'enable_ble' ? '' : decryptPassword(command.password)
+    }));
     if (commands.length) {
       await db.query("UPDATE device_wifi_commands SET status = 'sent', sent_at = NOW() WHERE id IN (?)", [commands.map((command) => command.id)]);
     }

@@ -8,6 +8,7 @@ import FormField, { inputCls } from '../../components/common/FormField';
 import StatusBadge from '../../components/common/StatusBadge';
 import { errMsgs } from '../../utils/errors';
 import HistoryChart from '../../components/greenhouse/HistoryChart';
+import { bluetoothUnavailableMessage, connectEsp32Bluetooth, wifiProfileConstraints } from '../../services/esp32Bluetooth';
 
 const emptySensor = { sensor_type: 'temperature', name: '', channel_key: '', unit: '', min_valid: '', max_valid: '' };
 const emptyAct = { actuator_type: 'irrigation', name: '', relay_channel: '', max_runtime_seconds: '900' };
@@ -37,6 +38,13 @@ export default function DeviceDetail() {
   const [wifiBusy, setWifiBusy] = useState(false);
   const [wifiMessage, setWifiMessage] = useState(null);
   const [wifiError, setWifiError] = useState('');
+  const [bleConnection, setBleConnection] = useState(null);
+  const [bleProfiles, setBleProfiles] = useState([]);
+  const [bleNearby, setBleNearby] = useState([]);
+  const [bleForm, setBleForm] = useState({ ssid: '', password: '', oldSsid: '' });
+  const [bleBusy, setBleBusy] = useState(false);
+  const [bleEnableBusy, setBleEnableBusy] = useState(false);
+  const [bleMessage, setBleMessage] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -74,6 +82,8 @@ export default function DeviceDetail() {
     const timer = window.setInterval(loadWifiCommands, 5000);
     return () => { window.clearTimeout(initial); window.clearInterval(timer); };
   }, [loadWifiCommands]);
+
+  useEffect(() => () => bleConnection?.disconnect(), [bleConnection]);
 
   const post = async (path, body, reset) => {
     setErrs([]);
@@ -156,6 +166,109 @@ export default function DeviceDetail() {
       setWifiMessage({ ok: false, text: errMsgs(requestError).join(' · ') });
     } finally {
       setWifiBusy(false);
+    }
+  };
+  const runBleRequest = async (action, details = {}) => {
+    if (!bleConnection) throw new Error(t('ESP32 ब्लुटुथमा जोडिएको छैन।', 'Connect to the ESP32 over Bluetooth first.'));
+    const response = await bleConnection.request(action, details);
+    if (!response.ok) throw new Error(response.message || t('ESP32 ले अनुरोध पूरा गर्न सकेन।', 'The ESP32 could not complete the request.'));
+    return response;
+  };
+  const connectBluetooth = async () => {
+    setBleBusy(true);
+    setBleMessage(null);
+    try {
+      const connection = await connectEsp32Bluetooth();
+      connection.device.addEventListener('gattserverdisconnected', () => {
+        setBleConnection((current) => current?.device === connection.device ? null : current);
+        setBleMessage({ ok: true, text: t('ESP32 ब्लुटुथबाट छुट्टियो। Wi-Fi परिवर्तनपछि पुनः सुरु भएको हुन सक्छ।', 'ESP32 disconnected. It may be restarting to apply the Wi-Fi change.') });
+      });
+      setBleConnection(connection);
+      const response = await connection.request('list');
+      if (!response.ok) throw new Error(response.message || t('सुरक्षित नेटवर्क पढ्न सकिएन।', 'Could not read saved networks.'));
+      setBleProfiles(Array.isArray(response.saved) ? response.saved : []);
+      setBleNearby([]);
+      setBleMessage({ ok: true, text: t('ESP32 सँग ब्लुटुथ जडान भयो।', 'Bluetooth connected to the ESP32.') });
+    } catch (connectionError) {
+      setBleMessage({ ok: false, text: connectionError.message || t('ब्लुटुथ जडान हुन सकेन।', 'Could not connect over Bluetooth.') });
+    } finally {
+      setBleBusy(false);
+    }
+  };
+  const enableBluetooth = async () => {
+    setBleEnableBusy(true);
+    setBleMessage(null);
+    try {
+      const response = await api.post(`/smart/devices/${id}/wifi-commands`, { command_type: 'enable_ble' });
+      setBleMessage({ ok: true, text: response.data.message || t('ब्लुटुथ सेटअप आदेश यन्त्रमा पठाइयो।', 'Bluetooth setup was queued for the ESP32.') });
+      await loadWifiCommands();
+    } catch (enableError) {
+      setBleMessage({ ok: false, text: errMsgs(enableError).join(' · ') });
+    } finally {
+      setBleEnableBusy(false);
+    }
+  };
+  const scanBluetoothWifi = async () => {
+    setBleBusy(true);
+    setBleMessage(null);
+    try {
+      const response = await runBleRequest('scan');
+      setBleProfiles(Array.isArray(response.saved) ? response.saved : bleProfiles);
+      setBleNearby(Array.isArray(response.nearby) ? response.nearby : []);
+      setBleMessage({ ok: true, text: t(`${response.nearby?.length || 0} नेटवर्क भेटिए।`, `${response.nearby?.length || 0} nearby network(s) found.`) });
+    } catch (scanError) {
+      setBleMessage({ ok: false, text: scanError.message || t('Wi-Fi नेटवर्क खोज्न सकिएन।', 'Could not scan for Wi-Fi networks.') });
+    } finally {
+      setBleBusy(false);
+    }
+  };
+  const saveBleWifi = async (event) => {
+    event.preventDefault();
+    const ssid = bleForm.ssid.trim();
+    const ssidBytes = new TextEncoder().encode(ssid).length;
+    if (!ssid || ssidBytes > wifiProfileConstraints.maxSsidBytes) {
+      setBleMessage({ ok: false, text: t('Wi-Fi नाम १–३२ UTF-8 बाइट हुनुपर्छ।', 'Wi-Fi name must be 1–32 UTF-8 bytes.') });
+      return;
+    }
+    const isRenaming = bleForm.oldSsid && bleForm.oldSsid !== ssid;
+    if (!wifiProfileConstraints.validPassword(bleForm.password)) {
+      setBleMessage({ ok: false, text: t('खाली पासवर्ड राख्न सकिन्छ, नत्र WPA पासवर्ड ८–६३ बाइट वा ६४ हेक्स अंक हुनुपर्छ।', 'Use an empty password for an open network, or 8–63 bytes / 64 hexadecimal characters for WPA.') });
+      return;
+    }
+    if (isRenaming && !bleForm.password && !window.confirm(t('नयाँ नेटवर्कको पासवर्ड खाली छ। यसलाई खुला Wi-Fi नेटवर्कका रूपमा सुरक्षित गर्ने?', 'The new network password is blank. Save it as an open Wi-Fi network?'))) return;
+    setBleBusy(true);
+    setBleMessage(null);
+    try {
+      const details = { ssid, old_ssid: bleForm.oldSsid || undefined };
+      if (bleForm.password || !bleForm.oldSsid) details.password = bleForm.password;
+      const response = await runBleRequest('save', details);
+      setBleForm({ ssid: '', password: '', oldSsid: '' });
+      setBleMessage({ ok: true, text: response.message || t('Wi-Fi नेटवर्क यन्त्रमा सुरक्षित भयो।', 'Network saved on the ESP32.') });
+      window.setTimeout(async () => {
+        if (!bleConnection?.device.gatt?.connected) return;
+        try {
+          const list = await bleConnection.request('list');
+          if (list.ok) setBleProfiles(Array.isArray(list.saved) ? list.saved : []);
+        } catch { /* The ESP32 may already be restarting. */ }
+      }, 900);
+    } catch (saveError) {
+      setBleMessage({ ok: false, text: saveError.message || t('Wi-Fi नेटवर्क सुरक्षित गर्न सकिएन।', 'Could not save the Wi-Fi network.') });
+    } finally {
+      setBleBusy(false);
+    }
+  };
+  const deleteBleWifi = async (ssid) => {
+    if (!window.confirm(t(`“${ssid}” यन्त्रबाट हटाउने?`, `Delete “${ssid}” from the ESP32?`))) return;
+    setBleBusy(true);
+    setBleMessage(null);
+    try {
+      const response = await runBleRequest('delete', { ssid });
+      setBleProfiles((profiles) => profiles.filter((profile) => profile !== ssid));
+      setBleMessage({ ok: true, text: response.message || t('नेटवर्क हटाइयो।', 'Network deleted.') });
+    } catch (deleteError) {
+      setBleMessage({ ok: false, text: deleteError.message || t('नेटवर्क हटाउन सकिएन।', 'Could not delete the network.') });
+    } finally {
+      setBleBusy(false);
     }
   };
 
@@ -294,6 +407,50 @@ export default function DeviceDetail() {
           <h3 id="device-wifi-title" className="text-lg font-semibold text-gov-blue">{t('ESP32 मा Wi-Fi नेटवर्क थप्नुहोस्', 'Add Wi-Fi to ESP32')}</h3>
           <p className="mt-1 text-sm text-gray-600">{t('यन्त्र अनलाइन हुँदा नयाँ नेटवर्क सुरक्षित रूपमा थपिन्छ। हालको नेटवर्क हट्दैन। पासवर्ड यन्त्रले पुष्टि गरेपछि वा १५ मिनेटमा सर्भरबाट मेटिन्छ।', 'The ESP32 must be online to receive the network. Its current network stays saved. The password is removed from the server after device confirmation or after 15 minutes.')}</p>
         </div>
+        <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 space-y-3">
+          <div>
+            <h4 className="font-semibold text-sky-950">{t('ब्लुटुथबाट यन्त्र Wi-Fi सेटअप', 'Set up ESP32 Wi-Fi over Bluetooth')}</h4>
+            <p className="mt-1 text-sm text-sky-900">{t('Wi-Fi नभएमा ESP32 आफैँ ब्लुटुथ सेटअप खोल्छ। अनलाइन यन्त्रका लागि पहिले १० मिनेटको ब्लुटुथ समय खोल्नुहोस्। ब्लुटुथ पेयरिङ मागेमा यन्त्रको USB Serial Monitor मा देखिएको PIN राख्नुहोस्। Wi-Fi पासवर्ड ब्लुटुथबाट सिधै ESP32 मा जान्छ।', 'The ESP32 opens Bluetooth automatically when it cannot join Wi-Fi. For an online device, enable a 10-minute Bluetooth window first. If Bluetooth pairing asks for a PIN, enter the code shown in the ESP32 USB Serial Monitor. The Wi-Fi password goes directly over Bluetooth to the ESP32.')}</p>
+          </div>
+          {can('devices.update') && <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={enableBluetooth} disabled={bleEnableBusy} className="min-h-10 rounded border border-sky-700 bg-white px-3 py-2 text-sm font-medium text-sky-900 disabled:opacity-60">{bleEnableBusy ? t('आदेश पठाउँदै…', 'Enabling…') : t('अनलाइन ESP32 मा ब्लुटुथ खोल्नुहोस्', 'Enable Bluetooth on online ESP32')}</button>
+            {bleConnection ? <button type="button" onClick={() => { bleConnection.disconnect(); setBleConnection(null); setBleProfiles([]); setBleNearby([]); }} className="min-h-10 rounded border border-slate-400 bg-white px-3 py-2 text-sm">{t('ब्लुटुथ छुटाउनुहोस्', 'Disconnect Bluetooth')}</button> : <button type="button" onClick={connectBluetooth} disabled={bleBusy} className="min-h-10 rounded bg-sky-800 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">{bleBusy ? t('जोडिँदै…', 'Connecting…') : t('ESP32 सँग ब्लुटुथ जोड्नुहोस्', 'Connect to ESP32 over Bluetooth')}</button>}
+          </div>}
+          {bleConnection && <p className="text-xs text-sky-950">{t('जोडिएको यन्त्र', 'Connected device')}: {bleConnection.device.name || 'ESP32-01-Setup'}</p>}
+          {!bleConnection && bluetoothUnavailableMessage() && <p className="text-sm text-amber-900">{bluetoothUnavailableMessage()}</p>}
+          {bleMessage && <p role={bleMessage.ok ? 'status' : 'alert'} aria-live="polite" className={`rounded p-3 text-sm ${bleMessage.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>{bleMessage.text}</p>}
+
+          {bleConnection && <div className="space-y-3 border-t border-sky-200 pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h5 className="font-medium text-sky-950">{t('ESP32 मा सुरक्षित Wi-Fi नेटवर्क', 'Wi-Fi networks saved on ESP32')}</h5>
+              <button type="button" onClick={scanBluetoothWifi} disabled={bleBusy} className="min-h-9 rounded border border-sky-700 bg-white px-3 py-1.5 text-sm disabled:opacity-60">{bleBusy ? t('पर्खनुहोस्…', 'Please wait…') : t('नजिकका नेटवर्क खोज्नुहोस्', 'Scan nearby Wi-Fi')}</button>
+            </div>
+            <ul className="divide-y rounded border bg-white">
+              {bleProfiles.map((ssid) => <li key={ssid} className="flex flex-wrap items-center justify-between gap-2 p-2 text-sm">
+                <span className="font-medium">{ssid}<span className="ml-2 text-xs text-slate-500">{t('पासवर्ड यन्त्रमा सुरक्षित', 'password stored on device')}</span></span>
+                <span className="flex gap-3"><button type="button" disabled={bleBusy} onClick={() => setBleForm({ ssid, password: '', oldSsid: ssid })} className="text-sky-800 underline disabled:opacity-50">{t('सम्पादन', 'Edit')}</button><button type="button" disabled={bleBusy} onClick={() => deleteBleWifi(ssid)} className="text-red-700 underline disabled:opacity-50">{t('हटाउनुहोस्', 'Delete')}</button></span>
+              </li>)}
+              {!bleProfiles.length && <li className="p-3 text-sm text-slate-600">{t('ESP32 मा सुरक्षित नेटवर्क भेटिएन। एउटा नेटवर्क थप्नुहोस्।', 'No saved Wi-Fi networks found. Add one below.')}</li>}
+            </ul>
+            {bleNearby.length > 0 && <label className="block text-sm font-medium">{t('नजिकै भेटिएका नेटवर्क', 'Nearby networks')}
+              <select defaultValue="" onChange={(event) => { if (event.target.value) setBleForm((form) => ({ ...form, ssid: event.target.value, oldSsid: '' })); }} className="mt-1 min-h-10 w-full rounded border bg-white px-3 py-2">
+                <option value="">{t('नेटवर्क छान्नुहोस्', 'Choose a network')}</option>
+                {bleNearby.map((ssid, index) => <option key={`${ssid}-${index}`} value={ssid}>{ssid}</option>)}
+              </select>
+            </label>}
+            <form onSubmit={saveBleWifi} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <label className="text-sm font-medium">{t('Wi-Fi नाम (SSID)', 'Wi-Fi name (SSID)')}
+                <input required maxLength={32} value={bleForm.ssid} onChange={(event) => setBleForm((form) => ({ ...form, ssid: event.target.value }))} autoComplete="off" className="mt-1 min-h-10 w-full rounded border px-3 py-2" />
+              </label>
+              <label className="text-sm font-medium">{t('पासवर्ड', 'Password')}
+                <input type="password" maxLength={64} value={bleForm.password} onChange={(event) => setBleForm((form) => ({ ...form, password: event.target.value }))} autoComplete="new-password" className="mt-1 min-h-10 w-full rounded border px-3 py-2" />
+              </label>
+              <button type="submit" disabled={bleBusy || !bleForm.ssid.trim() || (bleProfiles.length >= 8 && !bleForm.oldSsid)} className="min-h-10 rounded bg-agri-green px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{bleBusy ? t('ESP32 मा सुरक्षित गर्दै…', 'Saving to ESP32…') : bleForm.oldSsid ? t('Wi-Fi шинэ पार्नुहोस्', 'Update Wi-Fi') : t('Wi-Fi थप्नुहोस्', 'Add Wi-Fi')}</button>
+              <p className="text-xs text-slate-600 sm:col-span-3">{bleForm.oldSsid ? (bleForm.ssid === bleForm.oldSsid ? t('सम्पादनमा पासवर्ड खाली छोड्दा पुरानो पासवर्ड यन्त्रमै रहन्छ। नाम परिवर्तन गर्दा नयाँ पासवर्ड दिनुहोस्; खुला नेटवर्कका लागि खाली राख्न सकिन्छ। सुरक्षित गरेपछि ESP32 पुनः सुरु हुन्छ।', 'When editing, leave the password blank to keep the current one. For a renamed network, enter its new password or leave blank if it is open. The ESP32 restarts after saving.') : t('नाम परिवर्तन गर्दा नयाँ पासवर्ड दिनुहोस्; खुला नेटवर्कका लागि खाली राख्न सकिन्छ।', 'Enter the new password when renaming the network, or leave blank for an open network.')) : t('खुला नेटवर्कका लागि पासवर्ड खाली राख्नुहोस्। अधिकतम ८ नेटवर्क; सुरक्षित भएपछि ESP32 पुनः सुरु भएर जडान प्रयास गर्छ।', 'Leave the password empty for an open network. Up to 8 profiles; after saving, the ESP32 restarts and tries to connect.')}</p>
+              {bleForm.oldSsid && <button type="button" onClick={() => setBleForm({ ssid: '', password: '', oldSsid: '' })} className="text-left text-sm text-slate-700 underline sm:col-span-3">{t('सम्पादन रद्द गर्नुहोस्', 'Cancel edit')}</button>}
+            </form>
+          </div>}
+        </div>
         {can('devices.update') && <form onSubmit={addWifiNetwork} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="text-sm font-medium">{t('Wi-Fi नाम (SSID)', 'Wi-Fi name (SSID)')}
             <input required maxLength={32} value={wifiSsid} onChange={(event) => setWifiSsid(event.target.value)} autoComplete="off" className="mt-1 min-h-11 w-full rounded border px-3 py-2" />
@@ -312,7 +469,7 @@ export default function DeviceDetail() {
             <tbody>
               {wifiCommands.slice(0, 5).map((command) => {
                 const labels = { queued: t('पर्खँदै', 'Waiting for ESP32'), sent: t('यन्त्रमा पठाइयो', 'Sent to ESP32'), ok: t('सुरक्षित भयो', 'Saved on ESP32'), error: t('असफल', 'Failed'), expired: t('समय सकियो', 'Expired') };
-                return <tr key={command.id} className="border-t"><td className="p-2 font-medium">{command.ssid}</td><td className="p-2">{labels[command.status] || command.status}</td><td className="p-2">{command.message || '—'}</td><td className="p-2 whitespace-nowrap">{new Date(command.created_at).toLocaleString()}</td></tr>;
+                return <tr key={command.id} className="border-t"><td className="p-2 font-medium">{command.command_type === 'enable_ble' ? t('Bluetooth setup window', 'Bluetooth setup window') : command.ssid}</td><td className="p-2">{labels[command.status] || command.status}</td><td className="p-2">{command.message || '—'}</td><td className="p-2 whitespace-nowrap">{new Date(command.created_at).toLocaleString()}</td></tr>;
               })}
               {!wifiCommands.length && <tr><td colSpan="4" className="p-3 text-center text-gray-500">{t('अहिलेसम्म Wi-Fi आदेश छैन', 'No Wi-Fi commands yet')}</td></tr>}
             </tbody>

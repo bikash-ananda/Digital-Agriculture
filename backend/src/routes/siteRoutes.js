@@ -46,8 +46,16 @@ router.get('/devices/:id', authorize('devices.view'), idRule, validate, ctrl.get
 router.post('/devices/:id/rotate-key', authorizeRole('super_admin'), idRule, validate, ctrl.rotateKey);
 router.get('/devices/:id/wifi-commands', authorize('devices.view'), idRule, validate, ctrl.listWifiCommands);
 router.post('/devices/:id/wifi-commands', authorize('devices.update'), idRule, [
-  body('ssid').isString().custom((ssid) => typeof ssid === 'string' && Buffer.byteLength(ssid, 'utf8') >= 1 && Buffer.byteLength(ssid, 'utf8') <= 32 && ![...ssid].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)).withMessage('Network name must be 1 to 32 printable UTF-8 bytes'),
-  body('password').optional().isString().custom((password) => password === '' || (Buffer.byteLength(password, 'utf8') >= 8 && Buffer.byteLength(password, 'utf8') <= 63) || /^[A-Fa-f0-9]{64}$/.test(password)).withMessage('Password must be empty for an open network, 8-63 UTF-8 bytes, or 64 hexadecimal characters')
+  body('command_type').optional().isIn(['wifi', 'enable_ble']),
+  body('ssid').custom((ssid, { req }) => {
+    if (req.body.command_type === 'enable_ble') return ssid === undefined || ssid === '';
+    return typeof ssid === 'string' && Buffer.byteLength(ssid, 'utf8') >= 1 && Buffer.byteLength(ssid, 'utf8') <= 32 && ![...ssid].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+  }).withMessage('Network name must be 1 to 32 printable UTF-8 bytes'),
+  body('password').custom((password, { req }) => {
+    if (req.body.command_type === 'enable_ble') return password === undefined || password === '';
+    if (password === undefined) return true;
+    return typeof password === 'string' && (password === '' || (Buffer.byteLength(password, 'utf8') >= 8 && Buffer.byteLength(password, 'utf8') <= 63) || /^[A-Fa-f0-9]{64}$/.test(password));
+  }).withMessage('Password must be empty for an open network, 8-63 UTF-8 bytes, or 64 hexadecimal characters')
 ], validate, ctrl.queueWifiCommand);
 
 router.post('/devices/:id/sensors', authorize('devices.create'), idRule, [

@@ -33,7 +33,7 @@ const PRESENT = new Set([1050, 1060, 1061, 1068, 1091, 1826, 3822]);
 
   const col = async (table, name) => (await db.query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [name]))[0][0];
   const problems = [];
-  const need = [['sensors', 'channel_key'], ['actuators', 'relay_channel'], ['crops', 'base_temp_c'], ['growing_units', 'is_simulated'], ['iot_devices', 'farm_id'], ['iot_devices', 'ownership'], ['farmers', 'verification_status'], ['farms', 'soil_type']];
+  const need = [['sensors', 'channel_key'], ['actuators', 'relay_channel'], ['crops', 'base_temp_c'], ['growing_units', 'is_simulated'], ['iot_devices', 'farm_id'], ['iot_devices', 'ownership'], ['farmers', 'verification_status'], ['farms', 'soil_type'], ['device_wifi_commands', 'command_type']];
   for (const [t, c] of need) if (!(await col(t, c))) problems.push(`${t}.${c} is missing`);
   const st = await col('sensors', 'sensor_type');
   if (st && !String(st.Type).includes('soil_temperature')) problems.push("sensors.sensor_type does not allow 'soil_temperature'");

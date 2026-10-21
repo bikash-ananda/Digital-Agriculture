@@ -6,8 +6,15 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+#include <BLESecurity.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include "config.h"
 #include "secrets.h"
 
@@ -38,6 +45,25 @@ static WiFiMulti wifiMulti;
 static uint8_t configuredWifiNetworks = 0;
 static Act acts[8];
 static uint8_t actCount = 0;
+
+// A small, local GATT service used only while provisioning Wi-Fi.
+static constexpr char BLE_SERVICE_UUID[] = "f14a0001-4c89-4f5f-a4de-6b1e0f4a0001";
+static constexpr char BLE_RX_UUID[]      = "f14a0002-4c89-4f5f-a4de-6b1e0f4a0002";
+static constexpr char BLE_TX_UUID[]      = "f14a0003-4c89-4f5f-a4de-6b1e0f4a0003";
+struct BleWriteFrame { uint16_t length; char data[384]; };
+static QueueHandle_t bleWriteQueue = nullptr;
+static BLECharacteristic* bleTx = nullptr;
+static BLEServer* bleServer = nullptr;
+static BLESecurity* bleSecurity = nullptr;
+static volatile bool bleClientConnected = false;
+static volatile bool bleNeedsAdvertise = false;
+static bool bleInitialized = false;
+static bool blePortalActive = false;
+static unsigned long blePortalExpires = 0;
+static unsigned long bleRestartAt = 0;
+static unsigned long wifiOfflineSince = 0;
+static uint32_t bleRequestId = 0;
+static uint32_t blePairingPin = 0;
 
 static bool relayState[RELAY_COUNT];
 static unsigned long relayOffAt[RELAY_COUNT];
@@ -395,61 +421,306 @@ static void addWifiNetwork(const char* ssid, const char* password) {
   configuredWifiNetworks++;
 }
 
-static bool loadSavedWifiNetworks() {
+static bool readWifiProfiles(JsonDocument& doc) {
   Preferences prefs;
   if (!prefs.begin("greenhouse", true)) return false;
   String encoded = prefs.getString("wifi_networks", "[]");
   prefs.end();
-
-  JsonDocument doc;
-  if (deserializeJson(doc, encoded) || !doc.is<JsonArray>()) return false;
-  for (JsonObject network : doc.as<JsonArray>()) {
-    const char* ssid = network["ssid"] | "";
-    const char* password = network["password"] | "";
-    if (!ssid[0] || strlen(ssid) > 32 || strlen(password) > 64) continue;
-    addWifiNetwork(ssid, password);
+  if (deserializeJson(doc, encoded) || !doc.is<JsonArray>()) {
+    doc.clear();
+    doc.to<JsonArray>();
   }
   return true;
 }
 
-static bool saveWifiNetwork(const char* ssid, const char* password) {
-  if (!ssid || !ssid[0] || strlen(ssid) > 32 || !password || strlen(password) > 64) return false;
-
+static bool writeWifiProfiles(JsonDocument& doc) {
+  String encoded;
+  serializeJson(doc, encoded);
   Preferences prefs;
   if (!prefs.begin("greenhouse", false)) return false;
-  String encoded = prefs.getString("wifi_networks", "[]");
+  const size_t saved = prefs.putString("wifi_networks", encoded);
+  prefs.putBool("wifi_ready", true);
   prefs.end();
+  return saved > 0;
+}
 
+static void addCompileWifiProfile(JsonArray profiles, const char* ssid, const char* password) {
+  if (!ssid || !ssid[0]) return;
+  for (JsonObject profile : profiles) {
+    if (!strcmp(profile["ssid"] | "", ssid)) return;
+  }
+  JsonObject profile = profiles.add<JsonObject>();
+  profile["ssid"] = ssid;
+  profile["password"] = password ? password : "";
+}
+
+// On first boot, move networks from secrets.h into NVS. The marker means a
+// user can later delete every profile without old build-time credentials
+// silently returning on reboot.
+static bool initializeWifiProfiles() {
+  Preferences prefs;
+  if (!prefs.begin("greenhouse", false)) return false;
+  const bool initialized = prefs.getBool("wifi_ready", false);
+  const bool hasStoredProfiles = prefs.isKey("wifi_networks");
+  if (initialized || hasStoredProfiles) {
+    prefs.putBool("wifi_ready", true);
+    prefs.end();
+  } else {
+    prefs.end();
+    JsonDocument profiles;
+    JsonArray list = profiles.to<JsonArray>();
+    addCompileWifiProfile(list, WIFI_SSID, WIFI_PASS);
+#if defined(WIFI_SSID_2) && defined(WIFI_PASS_2)
+    addCompileWifiProfile(list, WIFI_SSID_2, WIFI_PASS_2);
+#endif
+#if defined(WIFI_SSID_3) && defined(WIFI_PASS_3)
+    addCompileWifiProfile(list, WIFI_SSID_3, WIFI_PASS_3);
+#endif
+#if defined(WIFI_SSID_4) && defined(WIFI_PASS_4)
+    addCompileWifiProfile(list, WIFI_SSID_4, WIFI_PASS_4);
+#endif
+#if defined(WIFI_SSID_5) && defined(WIFI_PASS_5)
+    addCompileWifiProfile(list, WIFI_SSID_5, WIFI_PASS_5);
+#endif
+#if defined(WIFI_SSID_6) && defined(WIFI_PASS_6)
+    addCompileWifiProfile(list, WIFI_SSID_6, WIFI_PASS_6);
+#endif
+    if (!writeWifiProfiles(profiles)) return false;
+  }
+
+  JsonDocument profiles;
+  if (!readWifiProfiles(profiles)) return false;
+  for (JsonObject profile : profiles.as<JsonArray>()) {
+    const char* ssid = profile["ssid"] | "";
+    const char* password = profile["password"] | "";
+    if (ssid[0] && strlen(ssid) <= 32 && strlen(password) <= 64) addWifiNetwork(ssid, password);
+  }
+  return true;
+}
+
+static bool saveWifiNetwork(const char* ssid, const char* password, const char* oldSsid = "", bool preserveExistingPassword = false) {
+  if (!ssid || !ssid[0] || strlen(ssid) > 32 || !password || strlen(password) > 64) return false;
   JsonDocument doc;
-  if (deserializeJson(doc, encoded) || !doc.is<JsonArray>()) doc.to<JsonArray>();
-  JsonArray networks = doc.as<JsonArray>();
-  bool replace = false;
-  for (JsonObject network : networks) {
-    const char* savedSsid = network["ssid"] | "";
-    if (strcmp(savedSsid, ssid) == 0) {
-      network["password"] = password;
-      replace = true;
+  if (!readWifiProfiles(doc)) return false;
+  JsonArray profiles = doc.as<JsonArray>();
+  bool oldFound = !oldSsid || !oldSsid[0];
+  if (oldSsid && oldSsid[0] && strcmp(oldSsid, ssid)) {
+    for (size_t i = 0; i < profiles.size(); i++) {
+      if (!strcmp(profiles[i]["ssid"] | "", oldSsid)) {
+        profiles.remove(i);
+        oldFound = true;
+        break;
+      }
+    }
+    if (!oldFound) return false;
+  }
+  bool found = false;
+  for (JsonObject profile : profiles) {
+    if (!strcmp(profile["ssid"] | "", ssid)) {
+      if (!preserveExistingPassword) profile["password"] = password;
+      found = true;
       break;
     }
   }
-  if (!replace) {
-    if (networks.size() >= 8) return false;
-    JsonObject network = networks.add<JsonObject>();
-    network["ssid"] = ssid;
-    network["password"] = password;
+  if (!found) {
+    if (profiles.size() >= 8) return false;
+    JsonObject profile = profiles.add<JsonObject>();
+    profile["ssid"] = ssid;
+    profile["password"] = password;
   }
-
-  encoded = "";
-  serializeJson(doc, encoded);
-  if (!prefs.begin("greenhouse", false)) return false;
-  const size_t saved = prefs.putString("wifi_networks", encoded);
-  prefs.end();
-  if (saved == 0) return false;
-
-  // Make it available to WiFiMulti immediately, and retain it across restarts in NVS.
+  if (!writeWifiProfiles(doc)) return false;
+  // Remote queued additions become immediately eligible for WiFiMulti.
+  // BLE edits reboot after notifying the browser to flush removed credentials.
   wifiMulti.addAP(ssid, password);
   configuredWifiNetworks++;
   return true;
+}
+
+static bool deleteWifiNetwork(const char* ssid) {
+  if (!ssid || !ssid[0]) return false;
+  JsonDocument doc;
+  if (!readWifiProfiles(doc)) return false;
+  JsonArray profiles = doc.as<JsonArray>();
+  bool removed = false;
+  for (size_t i = 0; i < profiles.size(); i++) {
+    if (!strcmp(profiles[i]["ssid"] | "", ssid)) {
+      profiles.remove(i);
+      removed = true;
+      break;
+    }
+  }
+  return removed && writeWifiProfiles(doc);
+}
+
+static void listWifiProfileNames(JsonArray destination) {
+  JsonDocument profiles;
+  if (!readWifiProfiles(profiles)) return;
+  for (JsonObject profile : profiles.as<JsonArray>()) {
+    const char* ssid = profile["ssid"] | "";
+    if (ssid[0]) destination.add(ssid); // Never return stored passwords over BLE.
+  }
+}
+
+static bool validWifiPassword(const char* password) {
+  if (!password) return false;
+  const size_t length = strlen(password);
+  if (length == 0 || (length >= 8 && length <= 63)) return true;
+  if (length != 64) return false;
+  for (size_t i = 0; i < length; i++) if (!isHexadecimalDigit(password[i])) return false;
+  return true;
+}
+
+static void sendBleJson(const String& message) {
+  if (!bleTx || !bleClientConnected || message.isEmpty()) return;
+  const uint16_t total = (message.length() + 17) / 18;
+  if (total > 255) return;
+  for (uint16_t index = 0; index < total; index++) {
+    uint8_t packet[20];
+    packet[0] = (uint8_t)index;
+    packet[1] = (uint8_t)total;
+    const size_t offset = index * 18;
+    const size_t count = min((size_t)18, message.length() - offset);
+    memcpy(packet + 2, message.c_str() + offset, count);
+    bleTx->setValue(packet, count + 2);
+    bleTx->notify();
+    delay(12); // keep the default 23-byte BLE MTU reliable on desktop browsers
+    esp_task_wdt_reset();
+  }
+}
+
+class WifiBleWriteCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* characteristic) override {
+    if (!bleWriteQueue) return;
+    const std::string value = characteristic->getValue();
+    if (value.empty() || value.length() >= sizeof(BleWriteFrame)) return;
+    BleWriteFrame frame{};
+    frame.length = value.length();
+    memcpy(frame.data, value.data(), frame.length);
+    xQueueSend(bleWriteQueue, &frame, 0);
+  }
+};
+
+class WifiBleServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer*) override { bleClientConnected = true; }
+  void onDisconnect(BLEServer*) override {
+    bleClientConnected = false;
+    bleNeedsAdvertise = true;
+  }
+};
+
+static void startBlePortal(unsigned long durationMs) {
+  if (!bleWriteQueue) bleWriteQueue = xQueueCreate(4, sizeof(BleWriteFrame));
+  if (!bleInitialized) {
+    BLEDevice::init("ESP32-01-Setup");
+    BLEDevice::setMTU(517);
+    bleServer = BLEDevice::createServer();
+    bleServer->setCallbacks(new WifiBleServerCallbacks());
+    BLEService* service = bleServer->createService(BLE_SERVICE_UUID);
+    BLECharacteristic* rx = service->createCharacteristic(BLE_RX_UUID, BLECharacteristic::PROPERTY_WRITE);
+    rx->setAccessPermissions(ESP_GATT_PERM_WRITE_ENCRYPTED);
+    rx->setCallbacks(new WifiBleWriteCallbacks());
+    bleTx = service->createCharacteristic(BLE_TX_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+    bleTx->setAccessPermissions(ESP_GATT_PERM_READ_ENCRYPTED);
+    bleTx->addDescriptor(new BLE2902());
+    service->start();
+    BLEAdvertising* advertising = BLEDevice::getAdvertising();
+    advertising->addServiceUUID(BLE_SERVICE_UUID);
+    advertising->setScanResponse(true);
+    advertising->setMinPreferred(0x06);
+    bleInitialized = true;
+  }
+  blePairingPin = 100000UL + (esp_random() % 900000UL);
+  if (!bleSecurity) bleSecurity = new BLESecurity();
+  bleSecurity->setStaticPIN(blePairingPin);
+  bleSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_MITM_BOND);
+  blePortalActive = true;
+  blePortalExpires = durationMs ? millis() + durationMs : 0;
+  BLEDevice::startAdvertising();
+  Serial.println(F("bluetooth: Wi-Fi setup is available as ESP32-01-Setup"));
+  Serial.printf("bluetooth: pairing PIN %06lu (enter it in the system prompt if requested)\n", (unsigned long)blePairingPin);
+}
+
+static void stopBlePortal() {
+  BLEDevice::stopAdvertising();
+  blePortalActive = false;
+  blePortalExpires = 0;
+  Serial.println(F("bluetooth: setup window closed"));
+}
+
+static void processBleRequest(const BleWriteFrame& frame) {
+  JsonDocument request;
+  JsonDocument response;
+  DeserializationError parseError = deserializeJson(request, frame.data, frame.length);
+  uint32_t requestId = request["request_id"] | 0;
+  const char* action = request["action"] | "";
+  response["request_id"] = requestId;
+  response["action"] = action;
+  bool ok = false;
+  const char* message = "Unsupported request";
+
+  if (parseError) {
+    message = "Invalid request format";
+  } else if (!strcmp(action, "list")) {
+    JsonArray names = response["saved"].to<JsonArray>();
+    listWifiProfileNames(names);
+    ok = true;
+    message = "Saved networks loaded";
+  } else if (!strcmp(action, "scan")) {
+    JsonArray nearby = response["nearby"].to<JsonArray>();
+    const int count = WiFi.scanNetworks(false, true, false, 160);
+    for (int i = 0; i < count && nearby.size() < 10; i++) {
+      String name = WiFi.SSID(i);
+      if (!name.isEmpty()) nearby.add(name);
+    }
+    WiFi.scanDelete();
+    JsonArray names = response["saved"].to<JsonArray>();
+    listWifiProfileNames(names);
+    ok = count >= 0;
+    message = ok ? "Wi-Fi scan complete" : "Wi-Fi scan failed";
+  } else if (!strcmp(action, "save")) {
+    const char* ssid = request["ssid"] | "";
+    const char* password = request["password"] | "";
+    const char* oldSsid = request["old_ssid"] | "";
+    const bool keepPassword = oldSsid[0] && !strcmp(oldSsid, ssid) && !request["password"].is<const char*>();
+    if (!ssid[0] || strlen(ssid) > 32) message = "Wi-Fi name must contain 1 to 32 bytes";
+    else if (!keepPassword && !validWifiPassword(password)) message = "Wi-Fi password must be empty, 8 to 63 bytes, or 64 hex digits";
+    else {
+      ok = saveWifiNetwork(ssid, password, oldSsid, keepPassword);
+      message = ok ? "Network saved. ESP32 will restart and connect." : "Could not save network; profile limit is 8 or the old network was not found";
+      if (ok) bleRestartAt = millis() + 2500UL;
+    }
+  } else if (!strcmp(action, "delete")) {
+    const char* ssid = request["ssid"] | "";
+    ok = deleteWifiNetwork(ssid);
+    message = ok ? "Network deleted. ESP32 will restart." : "Saved network was not found";
+    if (ok) bleRestartAt = millis() + 2500UL;
+  }
+
+  response["ok"] = ok;
+  response["message"] = message;
+  String output;
+  serializeJson(response, output);
+  sendBleJson(output);
+}
+
+static void serviceBlePortal() {
+  if (bleNeedsAdvertise) {
+    bleNeedsAdvertise = false;
+    if (blePortalActive) BLEDevice::startAdvertising();
+  }
+  if (bleWriteQueue) {
+    BleWriteFrame frame;
+    if (xQueueReceive(bleWriteQueue, &frame, 0) == pdTRUE) processBleRequest(frame);
+  }
+  const unsigned long now = millis();
+  if (blePortalActive && blePortalExpires && (int32_t)(now - blePortalExpires) >= 0 && !bleClientConnected && WiFi.status() == WL_CONNECTED) {
+    stopBlePortal();
+  }
+  if (bleRestartAt && (int32_t)(now - bleRestartAt) >= 0) {
+    Serial.println(F("wifi: applying saved profile change by restarting"));
+    delay(250);
+    ESP.restart();
+  }
 }
 
 static void pollWifiCommands() {
@@ -461,42 +732,30 @@ static void pollWifiCommands() {
 
   for (JsonObject command : doc["commands"].as<JsonArray>()) {
     const int id = command["id"] | 0;
+    const char* type = command["command_type"] | "wifi";
     const char* ssid = command["ssid"] | "";
     const char* password = command["password"] | "";
-    const bool saved = id > 0 && saveWifiNetwork(ssid, password);
-    const char* message = saved ? "Network saved on ESP32" : "Could not store network in ESP32 flash";
+    const bool saved = id > 0 && !strcmp(type, "enable_ble");
+    if (saved) startBlePortal(10UL * 60UL * 1000UL);
+    const bool wifiSaved = id > 0 && !strcmp(type, "wifi") && saveWifiNetwork(ssid, password);
+    const char* message = saved ? "Bluetooth setup enabled for 10 minutes" :
+      wifiSaved ? "Network saved on ESP32" : "Could not store network in ESP32 flash";
 
     JsonDocument ack;
-    ack["status"] = saved ? "ok" : "error";
+    ack["status"] = (saved || wifiSaved) ? "ok" : "error";
     ack["message"] = message;
     String body, response;
     int ackCode;
     serializeJson(ack, body);
     apiCall("POST", String("/api/device/wifi-commands/") + id + "/ack", body, response, ackCode);
-    Serial.printf("wifi: network command %d for '%s' %s\n", id, ssid, saved ? "saved" : "failed");
+    Serial.printf("wifi: command %d (%s) %s\n", id, type, (saved || wifiSaved) ? "completed" : "failed");
   }
 }
 
 static void wifiConnect(unsigned long timeoutMs) {
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
-  addWifiNetwork(WIFI_SSID, WIFI_PASS);
-#if defined(WIFI_SSID_2) && defined(WIFI_PASS_2)
-  addWifiNetwork(WIFI_SSID_2, WIFI_PASS_2);
-#endif
-#if defined(WIFI_SSID_3) && defined(WIFI_PASS_3)
-  addWifiNetwork(WIFI_SSID_3, WIFI_PASS_3);
-#endif
-#if defined(WIFI_SSID_4) && defined(WIFI_PASS_4)
-  addWifiNetwork(WIFI_SSID_4, WIFI_PASS_4);
-#endif
-#if defined(WIFI_SSID_5) && defined(WIFI_PASS_5)
-  addWifiNetwork(WIFI_SSID_5, WIFI_PASS_5);
-#endif
-#if defined(WIFI_SSID_6) && defined(WIFI_PASS_6)
-  addWifiNetwork(WIFI_SSID_6, WIFI_PASS_6);
-#endif
-  loadSavedWifiNetworks();
+  if (!initializeWifiProfiles()) Serial.println(F("wifi: could not initialize saved profiles"));
   Serial.printf("wifi: trying %u configured network(s)\n", configuredWifiNetworks);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < timeoutMs) {
@@ -505,7 +764,11 @@ static void wifiConnect(unsigned long timeoutMs) {
     esp_task_wdt_reset();
   }
   if (WiFi.status() == WL_CONNECTED) Serial.printf("wifi: connected, IP %s, RSSI %d\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
-  else Serial.println(F("wifi: no configured network connected yet; will keep trying"));
+  else {
+    Serial.println(F("wifi: no configured network connected yet; opening Bluetooth setup"));
+    wifiOfflineSince = millis() - 30000UL;
+    startBlePortal(0);
+  }
 }
 
 void setup() {
@@ -567,6 +830,16 @@ void setup() {
 void loop() {
   esp_task_wdt_reset();
   unsigned long now = millis();
+
+  serviceBlePortal();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    if (!wifiOfflineSince) wifiOfflineSince = now;
+    if (now - wifiOfflineSince >= 30000UL && !blePortalActive) startBlePortal(0);
+  } else {
+    if (wifiOfflineSince && blePortalActive && !blePortalExpires) blePortalExpires = now + 5UL * 60UL * 1000UL;
+    wifiOfflineSince = 0;
+  }
 
   if (WiFi.status() != WL_CONNECTED && now - tWifi > 10000UL) {
     tWifi = now;

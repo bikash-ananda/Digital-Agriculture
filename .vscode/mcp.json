@@ -3,6 +3,12 @@
     "openaiDeveloperDocs": {
       "type": "http",
       "url": "https://developers.openai.com/mcp"
+    },
+    "digitalAgricultureEsp32": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/tools/esp32-mcp/server.mjs"],
+      "cwd": "${workspaceFolder}"
     }
   }
 }
