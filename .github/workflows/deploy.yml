@@ -32,6 +32,9 @@ jobs:
 
   deploy:
     needs: validate
+    # Main pushes validate only. Deploy to the shared VPS only when explicitly started
+    # from the Actions tab, so publishing source does not change the live server.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
