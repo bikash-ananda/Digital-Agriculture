@@ -2,6 +2,8 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const { query } = require('express-validator');
+const crypto = require('node:crypto');
+const db = require('../config/db');
 const validate = require('../middleware/validate');
 const { getWeather } = require('../services/weatherService');
 const farmingAi = require('../services/publicFarmingAi');
@@ -10,6 +12,7 @@ const router = express.Router();
 const weatherLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 const assistantLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false, message: { message: 'Please wait before sending another assistant question.' } });
 const diagnosisLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { message: 'Please wait before submitting another crop case.' } });
+const cropFeedbackLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 12, standardHeaders: true, legacyHeaders: false, message: { message: 'Please wait before sending more crop feedback.' } });
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 10, fieldSize: 2500 },
@@ -49,8 +52,8 @@ router.post('/assistant', assistantLimit, async (req, res, next) => {
     if (total > 10000 || safeMessages[safeMessages.length - 1].role !== 'user') {
       return res.status(400).json({ message: 'Conversation is too long or the latest message is missing.' });
     }
-    const answer = await farmingAi.ask(safeMessages, lang);
-    res.json({ answer });
+    const result = await farmingAi.askWithSources(safeMessages, lang);
+    res.json(result);
   } catch (error) { next(error); }
 });
 
@@ -74,8 +77,21 @@ router.post('/crop-doctor', diagnosisLimit, (req, res, next) => {
       : req.file.mimetype === 'image/png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
         : req.file.mimetype === 'image/webp' ? bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP' : false;
     if (!validSignature) return res.status(400).json({ message: 'The image content does not match a supported image type.' });
-    const analysis = await farmingAi.diagnose({ crop, symptoms: String(symptoms).trim(), plantPart, cropStage, location, duration, recentWeather, irrigation }, req.file, lang);
-    res.json({ analysis, preliminary: true });
+    const result = await farmingAi.diagnose({ crop, symptoms: String(symptoms).trim(), plantPart, cropStage, location, duration, recentWeather, irrigation }, req.file, lang);
+    res.json({ case_id: crypto.randomUUID(), ...result });
+  } catch (error) { next(error); }
+});
+
+router.post('/crop-doctor/feedback', cropFeedbackLimit, async (req, res, next) => {
+  try {
+    const { case_id: caseId, crop, feedback } = req.body || {};
+    if (!/^[0-9a-f-]{36}$/i.test(String(caseId || '')) || typeof crop !== 'string' || !crop.trim() || crop.length > 80 || !['helpful', 'not_helpful', 'needs_expert'].includes(feedback)) {
+      return res.status(400).json({ message: 'Send a valid case, crop, and feedback choice.' });
+    }
+    await db.query(
+      'INSERT INTO crop_ai_feedback (case_id, crop, feedback) VALUES (?, ?, ?)',
+      [caseId, crop.trim(), feedback]);
+    res.status(201).json({ message: 'Feedback saved for quality review.' });
   } catch (error) { next(error); }
 });
 

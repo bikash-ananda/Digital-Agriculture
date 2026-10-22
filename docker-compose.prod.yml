@@ -22,6 +22,8 @@ services:
     image: digital-agriculture-api:production
     build: ./backend
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment: &api_environment
       NODE_ENV: production
       PORT: "5000"
@@ -67,9 +69,24 @@ services:
       start_period: 45s
     networks: [app]
 
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [local-ai]
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    mem_limit: ${OLLAMA_MEM_LIMIT:-6g}
+    cpus: ${OLLAMA_CPUS:-2.0}
+    networks: [app]
+
   web:
     image: digital-agriculture-web:production
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:80"
@@ -117,6 +134,7 @@ services:
 
 volumes:
   db_data:
+  ollama_data:
 networks:
   app:
     driver: bridge

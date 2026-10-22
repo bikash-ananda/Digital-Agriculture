@@ -65,7 +65,7 @@ export const PRODUCTION_FIELDS = [
   { k: 'production_kg', ne: 'कुल उत्पादन (के.जी.)', en: 'Total production (kg)', type: 'number', min: 0, step: '0.01' },
   { k: 'sold_kg', ne: 'बिक्री (के.जी.)', en: 'Sold (kg)', type: 'number', min: 0, step: '0.01' },
   { k: 'loss_kg', ne: 'क्षति (के.जी.)', en: 'Loss (kg)', type: 'number', min: 0, step: '0.01' },
-  { k: 'loss_cause', ne: 'क्षतिको कारण', en: 'Loss cause', type: 'select', options: ['none', 'disease', 'pest', 'drought', 'flood', 'hail', 'wild_animals', 'post_harvest', 'other'] },
+  { k: 'loss_cause', ne: 'क्षतिको कारण', en: 'Loss cause', type: 'select', options: ['none', 'disease', 'pest', 'drought', 'flood', 'hail', 'landslide', 'soil_erosion', 'frost', 'storm', 'wild_animals', 'post_harvest', 'other'] },
   { k: 'avg_price_npr_per_kg', ne: 'औसत मूल्य (रु./के.जी.)', en: 'Average price (NPR/kg)', type: 'number', min: 0, step: '0.01' },
   { k: 'market_channel', ne: 'बजार माध्यम', en: 'Market channel', type: 'select', options: ['local_market', 'wholesaler', 'cooperative', 'direct_consumer', 'export', 'processing', 'self_consumed'] },
   { k: 'organic_status', ne: 'खेती विधि', en: 'Farming method', type: 'select', options: ['conventional', 'organic', 'transitioning', 'ipm'], def: 'conventional' },

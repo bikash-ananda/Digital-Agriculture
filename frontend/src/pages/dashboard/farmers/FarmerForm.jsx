@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../../services/api';
 
-const empty = { full_name_en: '', full_name_ne: '', gender: '', date_of_birth: '', phone: '', email: '', local_level_id: '', ward_no: '', address: '', group_name: '' };
+const empty = { full_name_en: '', full_name_ne: '', gender: '', date_of_birth: '', phone: '', email: '', local_level_id: '', ward_no: '', address: '', group_name: '', farmer_type: 'individual', farmer_category: '', main_occupation: '', education_level: '', household_members: '', agri_workers: '' };
 
 export default function FarmerForm() {
   const { i18n } = useTranslation();
@@ -30,6 +30,9 @@ export default function FarmerForm() {
   }, [id]);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const selectedLevel = levels.find((level) => String(level.id) === String(form.local_level_id));
+  const wardCount = Number(selectedLevel?.total_wards) || 35;
+  const wards = Array.from({ length: wardCount }, (_, index) => index + 1);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -44,10 +47,10 @@ export default function FarmerForm() {
     } finally { setBusy(false); }
   };
 
-  const Field = ({ label, k, type = 'text', required }) => (
+  const Field = ({ label, k, type = 'text', required, min, max }) => (
     <label className="block">
       <span className="text-sm font-medium">{label}{required && ' *'}</span>
-      <input type={type} value={form[k]} onChange={set(k)} required={required} className="mt-1 w-full border rounded p-2" />
+      <input type={type} value={form[k]} onChange={set(k)} required={required} min={min} max={max} className="mt-1 w-full border rounded p-2" />
     </label>
   );
 
@@ -72,14 +75,25 @@ export default function FarmerForm() {
         {Field({ label: t('इमेल', 'Email'), k: 'email', type: 'email' })}
         <label className="block">
           <span className="text-sm font-medium">{t('स्थानीय तह', 'Local Level')}</span>
-          <select value={form.local_level_id} onChange={set('local_level_id')} className="mt-1 w-full border rounded p-2 bg-white">
+          <select value={form.local_level_id} onChange={(event) => setForm({ ...form, local_level_id: event.target.value, ward_no: '' })} className="mt-1 w-full border rounded p-2 bg-white">
             <option value="">-</option>
             {levels.map((l) => <option key={l.id} value={l.id}>{i18n.language === 'en' ? l.name_en : l.name_ne}</option>)}
           </select>
         </label>
-        {Field({ label: t('वडा नं.', 'Ward No.'), k: 'ward_no', type: 'number' })}
+        <label className="block">
+          <span className="text-sm font-medium">{t('वडा नं.', 'Ward No.')}</span>
+          <select value={form.ward_no} onChange={set('ward_no')} disabled={!selectedLevel} className="mt-1 w-full border rounded p-2 bg-white disabled:bg-gray-100">
+            <option value="">-</option>{wards.map((ward) => <option key={ward} value={ward}>{ward}</option>)}
+          </select>
+        </label>
         {Field({ label: t('ठेगाना', 'Address'), k: 'address' })}
         {Field({ label: t('समूह / सहकारी', 'Group / Cooperative'), k: 'group_name' })}
+        <label className="block"><span className="text-sm font-medium">{t('कृषकको प्रकार', 'Farmer type')}</span><select value={form.farmer_type} onChange={set('farmer_type')} className="mt-1 w-full border rounded p-2 bg-white">{[['individual', 'व्यक्तिगत', 'Individual'], ['group', 'समूह', 'Group'], ['cooperative', 'सहकारी', 'Cooperative'], ['company', 'कम्पनी', 'Company'], ['private_farm', 'निजी फार्म', 'Private farm']].map(([value, ne, en]) => <option key={value} value={value}>{t(ne, en)}</option>)}</select></label>
+        <label className="block"><span className="text-sm font-medium">{t('कृषकको वर्ग', 'Farmer category')}</span><select value={form.farmer_category} onChange={set('farmer_category')} className="mt-1 w-full border rounded p-2 bg-white"><option value="">-</option>{[['subsistence', 'जीविकोपार्जन', 'Subsistence'], ['small', 'साना', 'Small'], ['medium', 'मध्यम', 'Medium'], ['large', 'ठूला', 'Large']].map(([value, ne, en]) => <option key={value} value={value}>{t(ne, en)}</option>)}</select></label>
+        <label className="block"><span className="text-sm font-medium">{t('मुख्य पेशा', 'Main occupation')}</span><select value={form.main_occupation} onChange={set('main_occupation')} className="mt-1 w-full border rounded p-2 bg-white"><option value="">-</option>{[['agriculture', 'कृषि', 'Agriculture'], ['livestock', 'पशुपालन', 'Livestock'], ['agri_business', 'कृषि व्यवसाय', 'Agri-business'], ['service', 'जागिर', 'Service'], ['foreign_employment', 'वैदेशिक रोजगार', 'Foreign employment'], ['business', 'व्यापार', 'Business'], ['other', 'अन्य', 'Other']].map(([value, ne, en]) => <option key={value} value={value}>{t(ne, en)}</option>)}</select></label>
+        <label className="block"><span className="text-sm font-medium">{t('शिक्षा स्तर', 'Education level')}</span><select value={form.education_level} onChange={set('education_level')} className="mt-1 w-full border rounded p-2 bg-white"><option value="">-</option>{[['no_formal', 'औपचारिक शिक्षा नभएको', 'No formal education'], ['basic', 'आधारभूत', 'Basic'], ['secondary', 'माध्यमिक', 'Secondary'], ['higher_secondary', 'उच्च माध्यमिक', 'Higher secondary'], ['bachelor', 'स्नातक', 'Bachelor'], ['master_plus', 'स्नातकोत्तर वा माथि', 'Master or above']].map(([value, ne, en]) => <option key={value} value={value}>{t(ne, en)}</option>)}</select></label>
+        {Field({ label: t('परिवार सदस्य संख्या', 'Household members'), k: 'household_members', type: 'number', min: 1, max: 60 })}
+        {Field({ label: t('कृषि कामदार संख्या', 'Agricultural workers'), k: 'agri_workers', type: 'number', min: 0, max: 60 })}
       </div>
       <div className="mt-6 flex gap-3">
         <button disabled={busy} className="bg-agri-green hover:bg-green-800 text-white px-5 py-2 rounded font-semibold disabled:opacity-60">{t('सुरक्षित गर्नुहोस्', 'Save')}</button>

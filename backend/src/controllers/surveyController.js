@@ -5,8 +5,6 @@ const R = require('../services/farmerRowService');
 const S = require('../services/dataCenterService');
 
 const pad = (n, w) => String(n).padStart(w, '0');
-const SOIL = ['sandy', 'loam', 'clay', 'silty', 'gravelly', 'other'];
-const WATER = ['rain_only', 'spring_water', 'river_canal', 'tube_well', 'tank', 'municipal', 'lake_pond', 'other'];
 const SYSTEM = ['open_field', 'greenhouse', 'tunnel', 'nursery', 'orchard', 'terrace', 'hydroponic', 'other'];
 const SEASON = ['spring', 'summer', 'winter', 'perennial', 'year_round'];
 const ANIMAL = ['cattle', 'buffalo', 'goat', 'sheep', 'pig', 'poultry_layer', 'poultry_broiler', 'duck', 'fish_pond', 'beehive', 'other'];
@@ -27,7 +25,13 @@ exports.submit = async (req, res, next) => {
     const fm = b.farm || {};
     const fr = b.farmer || {};
     const p = R.prepareRow({
-      ...fr, farm_name: fm.name || 'Main farm', farm_area_sqm: fm.area_sqm, ownership_type: fm.ownership_type, irrigation_type: fm.irrigation_type, latitude: fm.latitude, longitude: fm.longitude
+      ...fr, farm_name: fm.name || 'Main farm', farm_address: fm.address,
+      farm_area_sqm: fm.area_sqm, ownership_type: fm.ownership_type, irrigation_type: fm.irrigation_type,
+      land_use: fm.land_use, soil_type: fm.soil_type, water_source: fm.water_source,
+      irrigated_area_sqm: fm.irrigated_area_sqm, altitude_m: fm.altitude_m,
+      terrace_farming: fm.terrace_farming, road_access: fm.road_access,
+      distance_to_market_km: fm.distance_to_market_km,
+      latitude: fm.latitude, longitude: fm.longitude, gps_accuracy_m: fm.gps_accuracy_m ?? fm.accuracy, location_source: fm.location_source
     }, levels);
     if (!p.farmer.local_level_id) p.errors.push('Local level is required');
     if (!p.farmer.ward_no) p.errors.push('Ward is required');
@@ -66,7 +70,6 @@ exports.submit = async (req, res, next) => {
     await conn.query('UPDATE farmers SET farmer_code = ? WHERE id = ?', [code, fres.insertId]);
     const [farm] = await conn.query('INSERT INTO farms SET ?', [{
       ...p.farm, farmer_id: fres.insertId, local_level_id: p.farmer.local_level_id, ward_no: p.farmer.ward_no,
-      soil_type: SOIL.includes(fm.soil_type) ? fm.soil_type : null, water_source: WATER.includes(fm.water_source) ? fm.water_source : null
     }]);
     for (const c of crops) {
       await conn.query('INSERT INTO crop_production SET ?', [{

@@ -13,8 +13,8 @@ export function uuid() {
 }
 
 export const emptyData = () => ({
-  farmer: { full_name_ne: '', full_name_en: '', gender: '', date_of_birth: '', phone: '', local_level_id: '', ward_no: '', address: '', group_name: '', farmer_type: 'individual', household_members: '', main_occupation: '' },
-  farm: { name: '', area_sqm: '', ownership_type: 'owned', irrigation_type: 'none', soil_type: '', water_source: '', latitude: '', longitude: '', accuracy: '' },
+  farmer: { full_name_ne: '', full_name_en: '', gender: '', date_of_birth: '', phone: '', local_level_id: '', ward_no: '', address: '', group_name: '', farmer_type: 'individual', farmer_category: '', household_members: '', agri_workers: '', main_occupation: '', education_level: '' },
+  farm: { name: '', address: '', area_sqm: '', ownership_type: 'owned', irrigation_type: 'none', land_use: 'cultivated', soil_type: '', water_source: '', irrigated_area_sqm: '', altitude_m: '', terrace_farming: false, road_access: '', distance_to_market_km: '', latitude: '', longitude: '', gps_accuracy_m: '', location_source: '' },
   crops: [], livestock: [], consent: { data_use: false, research: false }
 });
 

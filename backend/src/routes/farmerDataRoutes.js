@@ -26,7 +26,7 @@ const E = {
   water: ['rain_only', 'spring_water', 'river_canal', 'tube_well', 'tank', 'municipal', 'lake_pond', 'other'], road: ['none', 'trail', 'seasonal', 'all_weather'],
   season: ['spring', 'summer', 'winter', 'perennial', 'year_round'], system: ['open_field', 'greenhouse', 'tunnel', 'nursery', 'orchard', 'terrace', 'hydroponic', 'other'],
   seed: ['own_saved', 'local_market', 'agro_vet', 'government', 'cooperative', 'imported', 'other'],
-  loss: ['none', 'disease', 'pest', 'drought', 'flood', 'hail', 'wild_animals', 'post_harvest', 'other'],
+  loss: ['none', 'disease', 'pest', 'drought', 'flood', 'hail', 'landslide', 'soil_erosion', 'frost', 'storm', 'wild_animals', 'post_harvest', 'other'],
   market: ['local_market', 'wholesaler', 'cooperative', 'direct_consumer', 'export', 'processing', 'self_consumed'],
   organic: ['conventional', 'organic', 'transitioning', 'ipm'], cstatus: ['planned', 'growing', 'harvested', 'failed'],
   animal: ['cattle', 'buffalo', 'goat', 'sheep', 'pig', 'poultry_layer', 'poultry_broiler', 'duck', 'fish_pond', 'beehive', 'other'],

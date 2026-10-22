@@ -25,7 +25,8 @@ export default function CropDoctor() {
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [error, setError] = useState('');
-  const [result, setResult] = useState('');
+  const [result, setResult] = useState(null);
+  const [feedback, setFeedback] = useState('');
   useEffect(() => {
     let active = true;
     api.get('/public-farming/status').then(({ data }) => { if (active) setStatus(data); }).catch(() => { if (active) setStatus({ crop_doctor_configured: false }); });
@@ -48,22 +49,33 @@ export default function CropDoctor() {
   const submit = async (event) => {
     event.preventDefault();
     if (!file || symptoms.trim().length < 8 || !status?.crop_doctor_configured || busy) return;
-    setBusy(true); setError(''); setResult(''); setUploadProgress(0);
+    setBusy(true); setError(''); setResult(null); setFeedback(''); setUploadProgress(0);
     const form = new FormData();
     form.append('image', file); form.append('crop', crop); form.append('plant_part', part); form.append('crop_stage', stage); form.append('location', location); form.append('duration', duration); form.append('recent_weather', recentWeather); form.append('irrigation', irrigation); form.append('symptoms', symptoms.trim()); form.append('lang', lang);
     try {
       const { data } = await api.post('/public-farming/crop-doctor', form, { onUploadProgress: (event) => { if (event.total) setUploadProgress(Math.min(100, Math.round((event.loaded / event.total) * 100))); } });
-      setResult(data.analysis);
+      setResult(data);
     } catch (cause) {
       setError(cause.response?.data?.message || copy(lang, 'The image could not be analyzed. Check your connection and try again.', 'तस्बिर विश्लेषण हुन सकेन। जडान जाँचेर फेरि प्रयास गर्नुहोस्।'));
       if (cause.response?.status === 503) setStatus((old) => ({ ...old, crop_doctor_configured: false }));
     } finally { setBusy(false); setUploadProgress(null); }
   };
+  const sendFeedback = async (choice) => {
+    if (!result?.case_id || feedback) return;
+    setFeedback('saving');
+    try {
+      await api.post('/public-farming/crop-doctor/feedback', { case_id: result.case_id, crop, feedback: choice });
+      setFeedback(choice);
+    } catch (cause) {
+      setFeedback('');
+      setError(cause.response?.data?.message || copy(lang, 'Feedback could not be saved. Please try again.', 'प्रतिक्रिया सुरक्षित भएन। फेरि प्रयास गर्नुहोस्।'));
+    }
+  };
   const configured = status?.crop_doctor_configured;
   return <PublicPage eyebrow={copy(lang, 'CROP PROBLEM TRIAGE', 'बाली समस्या प्रारम्भिक जाँच')} title={copy(lang, 'Crop Doctor', 'बाली समस्या सहायक')} intro={copy(lang, 'Describe what you see and attach a clear photo. Image analysis is preliminary and requires an image-capable AI endpoint on the server.', 'देखिएको समस्या लेख्नुहोस् र स्पष्ट तस्बिर राख्नुहोस्। तस्बिर विश्लेषण प्रारम्भिक हुन्छ र सर्भरमा तस्बिर बुझ्ने एआई सेवा चाहिन्छ।')}>
     <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,.8fr)]">
       <form onSubmit={submit} className={`${surface} p-5 sm:p-6`}>
-        {!configured && <div className="mb-5"><Callout title={copy(lang, 'Image analysis is not connected', 'तस्बिर विश्लेषण जडान छैन')} tone="amber">{copy(lang, 'This form is ready, but no image-capable provider is enabled. Configure FARMING_AI_URL, FARMING_AI_MODEL and FARMING_CROP_DOCTOR_ENABLED=true on the server. The site will not invent a diagnosis.', 'यो फारम तयार छ, तर तस्बिर बुझ्ने सेवा सक्षम छैन। सर्भरमा FARMING_AI_URL, FARMING_AI_MODEL र FARMING_CROP_DOCTOR_ENABLED=true राख्नुहोस्। वेबसाइटले बनावटी रोग निदान देखाउँदैन।')}</Callout></div>}
+        {!configured && <div className="mb-5"><Callout title={copy(lang, 'Image analysis is not connected', 'तस्बिर विश्लेषण जडान छैन')} tone="amber">{copy(lang, 'This form is ready, but no image-capable model is enabled. Configure a vision-capable FARMING_AI_MODEL and set FARMING_CROP_DOCTOR_ENABLED=true on the server. With local inference, use the server Ollama profile; the site will not invent a diagnosis.', 'यो फारम तयार छ, तर तस्बिर बुझ्ने मोडेल सक्षम छैन। सर्भरमा vision-capable FARMING_AI_MODEL राखेर FARMING_CROP_DOCTOR_ENABLED=true गर्नुहोस्। स्थानीय inference का लागि सर्भरको Ollama profile प्रयोग गर्नुहोस्; वेबसाइटले बनावटी निदान देखाउँदैन।')}</Callout></div>}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-slate-800">{copy(lang, 'Crop', 'बाली')}<select className={`${field} mt-1`} value={crop} onChange={(event) => setCrop(event.target.value)}>{crops.map(([id, en, ne]) => <option key={id} value={id}>{lang === 'en' ? en : ne}</option>)}</select></label>
           <label className="text-sm font-semibold text-slate-800">{copy(lang, 'Affected plant part', 'प्रभावित भाग')}<select className={`${field} mt-1`} value={part} onChange={(event) => setPart(event.target.value)}>{parts.map(([id, en, ne]) => <option key={id} value={id}>{lang === 'en' ? en : ne}</option>)}</select></label>
@@ -81,6 +93,6 @@ export default function CropDoctor() {
       </form>
       <div className="space-y-4"><Callout title={copy(lang, 'Preliminary only', 'प्रारम्भिक जानकारी मात्र')} tone="amber"><span className="inline-flex gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />{copy(lang, 'An image cannot confirm a plant disease. Similar symptoms can have different causes. Do not apply pesticide based only on this result.', 'तस्बिरबाट रोग पुष्टि गर्न सकिँदैन। उस्तै लक्षणका कारण फरक हुन सक्छन्। यस नतिजाको आधारमा मात्रै विषादी प्रयोग नगर्नुहोस्।')}</span></Callout><aside className={`${surface} p-5`}><h2 className="font-bold text-slate-950">{copy(lang, 'Prepare a useful case', 'उपयोगी विवरण तयार गर्नुहोस्')}</h2><ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">{(lang === 'en' ? ['Photograph the whole plant and a close-up in daylight.', 'Include crop, stage, affected area and how long it has been changing.', 'Keep the original photo clear; avoid filters and screenshots.'] : ['दिनको उज्यालोमा बोट र प्रभावित भागको नजिकबाट तस्बिर लिनुहोस्।', 'बाली, अवस्था, प्रभावित भाग र कति समयदेखि परिवर्तन भयो लेख्नुहोस्।', 'फिल्टर वा स्क्रिनसट नगरी स्पष्ट मूल तस्बिर प्रयोग गर्नुहोस्।']).map((item) => <li className="flex gap-2" key={item}><span className="font-bold text-emerald-700">•</span>{item}</li>)}</ul></aside><a href="/contact" className="block rounded-2xl border border-emerald-200 bg-white p-5 text-sm font-semibold text-emerald-950 hover:bg-emerald-50">{copy(lang, 'Need local inspection? Contact the Agriculture Development Office, Kaski →', 'स्थानीय निरीक्षण चाहिन्छ? कृषि विकास कार्यालय, कास्कीलाई सम्पर्क गर्नुहोस् →')}</a></div>
     </div>
-    {result && <section className={`${surface} mx-auto mt-6 max-w-6xl p-5 sm:p-6`} aria-live="polite"><p className="text-xs font-bold uppercase tracking-wider text-amber-800">{copy(lang, 'PRELIMINARY AI RESPONSE', 'प्रारम्भिक एआई उत्तर')}</p><h2 className="mt-1 text-xl font-bold text-slate-950">{copy(lang, 'Possible observations and next steps', 'सम्भावित अवलोकन र अर्को कदम')}</h2><p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-800">{result}</p><p className="mt-4 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-600">{copy(lang, 'This is not a confirmed diagnosis. Get local expert advice for severe, spreading or uncertain symptoms.', 'यो पुष्टि भएको रोग निदान होइन। गम्भीर, फैलिँदो वा अन्योलको लक्षणमा स्थानीय प्राविधिकको सल्लाह लिनुहोस्।')}</p></section>}
+    {result && <section className={`${surface} mx-auto mt-6 max-w-6xl p-5 sm:p-6`} aria-live="polite"><p className="text-xs font-bold uppercase tracking-wider text-amber-800">{copy(lang, 'PRELIMINARY AI RESPONSE', 'प्रारम्भिक एआई उत्तर')}</p><h2 className="mt-1 text-xl font-bold text-slate-950">{copy(lang, 'Possible observations and next steps', 'सम्भावित अवलोकन र अर्को कदम')}</h2><p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-800">{result.analysis}</p>{result.sources?.length > 0 ? <div className="mt-5 border-t border-slate-200 pt-4"><h3 className="text-sm font-bold text-slate-800">{copy(lang, 'Published evidence used', 'प्रयोग गरिएका प्रकाशित स्रोत')}</h3><ul className="mt-2 space-y-1">{result.sources.map((source) => <li key={`${source.kind}-${source.id}`} className="text-sm"><a href={source.url || '/knowledge?tab=library'} target={source.url ? '_blank' : undefined} rel={source.url ? 'noreferrer' : undefined} className="text-emerald-900 underline underline-offset-2">{source.title}{source.crop ? ` · ${source.crop}` : ''}</a></li>)}</ul></div> : <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-slate-600">{copy(lang, 'No published local source matched this case. Treat the suggestions as general guidance.', 'यो केससँग मिल्ने प्रकाशित स्थानीय स्रोत भेटिएन। सुझावलाई सामान्य मार्गदर्शनका रूपमा लिनुहोस्।')}</p>}<div className="mt-5 border-t border-slate-200 pt-4"><p className="text-sm font-semibold text-slate-800">{feedback && feedback !== 'saving' ? copy(lang, 'Thank you. Feedback saved for quality review.', 'धन्यवाद। गुणस्तर समीक्षाका लागि प्रतिक्रिया सुरक्षित भयो।') : copy(lang, 'Was this useful?', 'यो उपयोगी भयो?')}</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={Boolean(feedback)} onClick={() => sendFeedback('helpful')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-60">{copy(lang, 'Helpful', 'उपयोगी')}</button><button type="button" disabled={Boolean(feedback)} onClick={() => sendFeedback('not_helpful')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-60">{copy(lang, 'Not useful', 'उपयोगी भएन')}</button><button type="button" disabled={Boolean(feedback)} onClick={() => sendFeedback('needs_expert')} className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900 disabled:opacity-60">{copy(lang, 'Needs local expert', 'स्थानीय प्राविधिक चाहिन्छ')}</button>{feedback === 'saving' && <span role="status" className="self-center text-xs text-slate-600">{copy(lang, 'Saving…', 'सुरक्षित गर्दै…')}</span>}</div></div><p className="mt-4 border-t border-slate-200 pt-4 text-xs leading-5 text-slate-600">{copy(lang, 'This is not a confirmed diagnosis. Get local expert advice for severe, spreading or uncertain symptoms.', 'यो पुष्टि भएको रोग निदान होइन। गम्भीर, फैलिँदो वा अन्योलको लक्षणमा स्थानीय प्राविधिकको सल्लाह लिनुहोस्।')}</p></section>}
   </PublicPage>;
 }

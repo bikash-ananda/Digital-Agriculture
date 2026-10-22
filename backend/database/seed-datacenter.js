@@ -9,7 +9,7 @@ const GRANTS = {
   agriculture_technician: ['view', 'collect'],
   iot_operator: ['view']
 };
-// Pokhara 33 and Annapurna 11 are confirmed; Madi 12, Machhapuchchhre 9 and Rupa 7 are inferred - VERIFY with official data.
+// Ward totals are taken from Kaski local-government / PMAMP project information; Madi includes Ward 12.
 const WARDS = {
   'Pokhara Metropolitan City': 33, 'Annapurna Rural Municipality': 11, 'Machhapuchchhre Rural Municipality': 9,
   'Madi Rural Municipality': 12, 'Rupa Rural Municipality': 7

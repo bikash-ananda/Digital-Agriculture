@@ -7,6 +7,7 @@ import { lbl } from '../../utils/enumLabels';
 import { formatLand } from '../../utils/dc';
 import { errMsgs } from '../../utils/errors';
 import { getSurvey, saveSurvey, removeSurvey, cacheLookups, readLookups } from '../../utils/surveyStore';
+import GoogleFarmLocationPicker from '../../components/maps/GoogleFarmLocationPicker';
 
 const inp = 'mt-1 w-full border border-gray-300 rounded-md px-3 py-3 bg-white text-base';
 const SYSTEMS = ['open_field', 'greenhouse', 'tunnel', 'nursery', 'orchard', 'terrace', 'hydroponic', 'other'];
@@ -30,7 +31,6 @@ export default function SurveyForm() {
   const [dup, setDup] = useState(null);
   const [done, setDone] = useState(null);
   const [queued, setQueued] = useState(false);
-  const [gps, setGps] = useState('');
 
   useEffect(() => {
     Promise.all([api.get('/lookups/crops'), api.get('/lookups/local-levels')])
@@ -47,18 +47,15 @@ export default function SurveyForm() {
   const delRow = (key, i) => change((d) => ({ ...d, [key]: d[key].filter((_, j) => j !== i) }));
 
   const d = s ? s.data : null;
-  const capture = () => {
-    if (!navigator.geolocation) { setGps(t('यो यन्त्रमा GPS उपलब्ध छैन', 'GPS is not available on this device')); return; }
-    setGps(t('स्थान खोज्दै…', 'Getting location…'));
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        change((x) => ({ ...x, farm: { ...x.farm, latitude: pos.coords.latitude.toFixed(6), longitude: pos.coords.longitude.toFixed(6), accuracy: Math.round(pos.coords.accuracy) } }));
-        setGps(t(`स्थान प्राप्त भयो (±${Math.round(pos.coords.accuracy)} मि.)`, `Location captured (±${Math.round(pos.coords.accuracy)} m)`));
-      },
-      () => setGps(t('स्थान प्राप्त भएन। खुला ठाउँमा जानुहोस् वा अनुमति दिनुहोस्।', 'Could not get the location. Move to open sky or allow location access.')),
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-  };
-
+  const selectedLevel = lookups.levels.find((level) => String(level.id) === String(d.farmer.local_level_id));
+  const wardCount = Number(selectedLevel?.total_wards) || 35;
+  const wards = Array.from({ length: wardCount }, (_, index) => index + 1);
+  const setFarmLocation = (location) => change((data) => ({
+    ...data,
+    farmer: { ...data.farmer, local_level_id: location.local_level_id ?? data.farmer.local_level_id, ward_no: location.ward_no ?? data.farmer.ward_no },
+    farm: { ...data.farm, latitude: location.latitude, longitude: location.longitude, gps_accuracy_m: location.gps_accuracy_m, location_source: location.location_source, address: location.address ?? data.farm.address }
+  }));
+  const setCoordinate = (key) => (event) => change((data) => ({ ...data, farm: { ...data.farm, [key]: event.target.value, location_source: 'manual', gps_accuracy_m: '' } }));
   const stepOk = [
     () => (d.farmer.full_name_ne || d.farmer.full_name_en) && d.farmer.local_level_id && d.farmer.ward_no,
     () => (!d.farm.latitude && !d.farm.longitude) || (d.farm.latitude && d.farm.longitude),
@@ -68,7 +65,7 @@ export default function SurveyForm() {
 
   const submit = async (confirm = false) => {
     setBusy(true); setErrs([]); setDup(null);
-    const payload = { client_uuid: s.id, farmer: d.farmer, farm: d.farm, crops: d.crops.filter((c) => c.crop_id), livestock: d.livestock.filter((l) => l.animal_type), consent: d.consent, confirm_duplicate: confirm };
+    const payload = { client_uuid: s.id, farmer: d.farmer, farm: { ...d.farm, gps_accuracy_m: d.farm.gps_accuracy_m ?? d.farm.accuracy ?? '' }, crops: d.crops.filter((c) => c.crop_id), livestock: d.livestock.filter((l) => l.animal_type), consent: d.consent, confirm_duplicate: confirm };
     try {
       const r = await api.post('/datacenter/survey', payload);
       removeSurvey(s.id); setDone(r.data);
@@ -127,14 +124,18 @@ export default function SurveyForm() {
           <Field label={t('मोबाइल नम्बर', 'Mobile number')}><input type="tel" inputMode="tel" value={d.farmer.phone} onChange={setF('phone')} className={inp} /></Field>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2"><Field label={`${t('स्थानीय तह', 'Local level')} *`}>
-              <select value={d.farmer.local_level_id} onChange={setF('local_level_id')} className={inp}><option value="">-</option>{lookups.levels.map((l) => <option key={l.id} value={l.id}>{lang === 'en' ? l.name_en : l.name_ne}</option>)}</select></Field></div>
-            <Field label={`${t('वडा', 'Ward')} *`}><input type="number" inputMode="numeric" min="1" max="35" value={d.farmer.ward_no} onChange={setF('ward_no')} className={inp} /></Field>
+              <select value={d.farmer.local_level_id} onChange={(event) => change((data) => ({ ...data, farmer: { ...data.farmer, local_level_id: event.target.value, ward_no: '' } }))} className={inp}><option value="">-</option>{lookups.levels.map((l) => <option key={l.id} value={l.id}>{lang === 'en' ? l.name_en : l.name_ne}</option>)}</select></Field></div>
+            <Field label={`${t('वडा', 'Ward')} *`}><select value={d.farmer.ward_no} onChange={setF('ward_no')} className={inp} disabled={!selectedLevel}><option value="">-</option>{wards.map((ward) => <option key={ward} value={ward}>{ward}</option>)}</select></Field>
           </div>
           <Field label={t('ठेगाना / टोल', 'Address / tole')}><input value={d.farmer.address} onChange={setF('address')} className={inp} /></Field>
           <Field label={t('समूह / सहकारी', 'Group / cooperative')}><input value={d.farmer.group_name} onChange={setF('group_name')} className={inp} /></Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t('परिवार सदस्य संख्या', 'Household members')}><input type="number" inputMode="numeric" min="1" value={d.farmer.household_members} onChange={setF('household_members')} className={inp} /></Field>
+            <Field label={t('कृषकको प्रकार', 'Farmer type')}><Sel value={d.farmer.farmer_type} onChange={setF('farmer_type')} options={['individual', 'group', 'cooperative', 'company', 'private_farm']} lang={lang} blank={false} /></Field>
+            <Field label={t('कृषकको वर्ग', 'Farmer category')}><Sel value={d.farmer.farmer_category} onChange={setF('farmer_category')} options={['subsistence', 'small', 'medium', 'large']} lang={lang} /></Field>
+            <Field label={t('परिवार सदस्य संख्या', 'Household members')}><input type="number" inputMode="numeric" min="1" max="60" value={d.farmer.household_members} onChange={setF('household_members')} className={inp} /></Field>
+            <Field label={t('कृषि कामदार संख्या', 'Agricultural workers')}><input type="number" inputMode="numeric" min="0" max="60" value={d.farmer.agri_workers} onChange={setF('agri_workers')} className={inp} /></Field>
             <Field label={t('मुख्य पेशा', 'Main occupation')}><Sel value={d.farmer.main_occupation} onChange={setF('main_occupation')} options={['agriculture', 'livestock', 'agri_business', 'service', 'foreign_employment', 'business', 'other']} lang={lang} /></Field>
+            <Field label={t('शिक्षा स्तर', 'Education level')}><Sel value={d.farmer.education_level} onChange={setF('education_level')} options={['no_formal', 'basic', 'secondary', 'higher_secondary', 'bachelor', 'master_plus']} lang={lang} /></Field>
           </div>
         </div>
       )}
@@ -142,20 +143,26 @@ export default function SurveyForm() {
       {step === 1 && (
         <div className="space-y-4 bg-white rounded-lg shadow p-5">
           <Field label={t('फार्मको नाम', 'Farm name')}><input value={d.farm.name} onChange={setM('name')} placeholder={t('जस्तै: घर नजिकको बारी', 'e.g. Home plot')} className={inp} /></Field>
+          <Field label={t('फार्मको ठेगाना', 'Farm address')}><input maxLength={255} value={d.farm.address || ''} onChange={setM('address')} className={inp} placeholder={t('नक्साबाट ठेगाना भरिन्छ; जाँच गर्नुहोस्', 'Filled from the map; please verify')} /></Field>
           <div className="text-sm"><span className="font-medium text-terrace-800">{t('जमिनको क्षेत्रफल', 'Land area')}</span><LandInput key={`land-${s.id}`} value={d.farm.area_sqm} onChange={(x) => change((z) => ({ ...z, farm: { ...z.farm, area_sqm: x } }))} lang={lang} /></div>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('स्वामित्व', 'Ownership')}><Sel value={d.farm.ownership_type} onChange={setM('ownership_type')} options={['owned', 'leased', 'shared', 'government']} lang={lang} blank={false} /></Field>
             <Field label={t('सिँचाइ', 'Irrigation')}><Sel value={d.farm.irrigation_type} onChange={setM('irrigation_type')} options={['none', 'rainfed', 'drip', 'sprinkler', 'canal', 'other']} lang={lang} blank={false} /></Field>
+            <Field label={t('जमिनको प्रयोग', 'Land use')}><Sel value={d.farm.land_use || 'cultivated'} onChange={setM('land_use')} options={['cultivated', 'orchard', 'fallow', 'pasture', 'mixed']} lang={lang} blank={false} /></Field>
             <Field label={t('माटो', 'Soil')}><Sel value={d.farm.soil_type} onChange={setM('soil_type')} options={['sandy', 'loam', 'clay', 'silty', 'gravelly', 'other']} lang={lang} /></Field>
             <Field label={t('पानीको स्रोत', 'Water source')}><Sel value={d.farm.water_source} onChange={setM('water_source')} options={['rain_only', 'spring_water', 'river_canal', 'tube_well', 'tank', 'municipal', 'lake_pond', 'other']} lang={lang} /></Field>
+            <Field label={t('सडक पहुँच', 'Road access')}><Sel value={d.farm.road_access} onChange={setM('road_access')} options={['none', 'trail', 'seasonal', 'all_weather']} lang={lang} /></Field>
+            <Field label={t('उचाइ (मिटर, थाहा भए)', 'Altitude (metres, if known)')}><input type="number" min="0" max="9000" step="1" value={d.farm.altitude_m || ''} onChange={setM('altitude_m')} className={inp} /></Field>
+            <Field label={t('बजारसम्म अनुमानित दूरी (कि.मि.)', 'Approx. distance to market (km)')}><input type="number" min="0" max="500" step="0.1" value={d.farm.distance_to_market_km || ''} onChange={setM('distance_to_market_km')} className={inp} /></Field>
           </div>
+          <div><span className="block text-sm font-medium text-terrace-800">{t('सिँचित क्षेत्रफल', 'Irrigated area')}</span><LandInput key={`irrigated-${s.id}`} value={d.farm.irrigated_area_sqm || ''} onChange={(x) => change((z) => ({ ...z, farm: { ...z.farm, irrigated_area_sqm: x } }))} lang={lang} /></div>
+          <label className="inline-flex items-center gap-2 text-sm text-terrace-800"><input type="checkbox" checked={Boolean(d.farm.terrace_farming)} onChange={(event) => change((data) => ({ ...data, farm: { ...data.farm, terrace_farming: event.target.checked } }))} />{t('सिँढीखेत (गरा) खेती', 'Terrace farming')}</label>
           <div className="border-t pt-4 space-y-3">
-            <button type="button" onClick={capture} className="w-full sm:w-auto bg-gov-blue text-white px-5 py-3 rounded-md font-semibold">📍 {t('अहिलेको स्थान (GPS) लिनुहोस्', 'Capture current location (GPS)')}</button>
-            {gps && <p className="text-sm text-gray-700">{gps}</p>}
-            {d.farm.accuracy > 50 && <p className="text-sm text-yellow-900 bg-yellow-50 rounded p-2">⚠ {t('सटीकता कम छ। खुला ठाउँमा गएर फेरि प्रयास गर्नुहोस्।', 'Accuracy is low. Move to open sky and try again.')}</p>}
+            <GoogleFarmLocationPicker value={{ ...d.farm, gps_accuracy_m: d.farm.gps_accuracy_m ?? d.farm.accuracy ?? '', local_level_id: d.farmer.local_level_id, ward_no: d.farmer.ward_no }} levels={lookups.levels} onChange={setFarmLocation} lang={lang} t={t} />
+            {(Number(d.farm.gps_accuracy_m || d.farm.accuracy) > 50) && <p className="text-sm text-yellow-900 bg-yellow-50 rounded p-2">⚠ {t('सटीकता कम छ। खुला ठाउँमा गएर फेरि प्रयास गर्नुहोस्।', 'Accuracy is low. Move to open sky and try again.')}</p>}
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t('अक्षांश', 'Latitude')}><input type="number" step="any" value={d.farm.latitude} onChange={setM('latitude')} className={inp} /></Field>
-              <Field label={t('देशान्तर', 'Longitude')}><input type="number" step="any" value={d.farm.longitude} onChange={setM('longitude')} className={inp} /></Field>
+              <Field label={t('अक्षांश', 'Latitude')}><input type="number" step="any" value={d.farm.latitude} onChange={setCoordinate('latitude')} className={inp} /></Field>
+              <Field label={t('देशान्तर', 'Longitude')}><input type="number" step="any" value={d.farm.longitude} onChange={setCoordinate('longitude')} className={inp} /></Field>
             </div>
             <p className="text-xs text-gray-500">{t('GPS का लागि HTTPS वा localhost चाहिन्छ। कृषकको घर होइन, फार्मको स्थान लिनुहोस्।', 'GPS needs HTTPS or localhost. Capture the farm’s location, not the farmer’s home.')}</p>
           </div>

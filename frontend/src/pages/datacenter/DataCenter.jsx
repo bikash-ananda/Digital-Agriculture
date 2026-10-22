@@ -13,6 +13,7 @@ import QualityTab from './QualityTab';
 import MapTab from './MapTab';
 import ImportTab from './ImportTab';
 import ExportTab from './ExportTab';
+import PlanningTab from './PlanningTab';
 
 export default function DataCenter() {
   const { lang, t } = useLang();
@@ -32,6 +33,7 @@ export default function DataCenter() {
   const years = Array.from(new Set([fiscalYearOf(), ...(ov ? ov.fiscal_years : [])])).sort().reverse();
   const tabs = [
     ['overview', '📊', t('सिंहावलोकन', 'Overview'), true],
+    ['planning', '🧭', t('योजना विश्लेषण', 'Planning analysis'), true],
     ['levels', '🏘️', t('स्थानीय तह / वडा', 'Local levels & wards'), true],
     ['map', '🗺️', t('नक्सा', 'Map'), true],
     ['crops', '🌾', t('बाली तथा उत्पादन', 'Crops & production'), true],
@@ -64,6 +66,7 @@ export default function DataCenter() {
         ))}
       </div>
       {tab === 'overview' && <Overview ov={ov} lang={lang} t={t} />}
+      {tab === 'planning' && <PlanningTab fy={fy} lang={lang} t={t} canCollect={can('datacenter.collect')} />}
       {tab === 'levels' && <LocalLevelsTab fy={fy} lang={lang} t={t} />}
       {tab === 'map' && <MapTab lang={lang} t={t} />}
       {tab === 'crops' && <CropsTab fy={fy} lang={lang} t={t} />}

@@ -18,7 +18,13 @@ const farmerRules = (isCreate) => [
   body('local_level_id').optional({ values: 'falsy' }).isInt({ min: 1 }),
   body('ward_no').optional({ values: 'falsy' }).isInt({ min: 1, max: 35 }).withMessage('Ward must be 1-35'),
   body('address').optional({ values: 'falsy' }).trim().isLength({ max: 255 }),
-  body('group_name').optional({ values: 'falsy' }).trim().isLength({ max: 150 })
+  body('group_name').optional({ values: 'falsy' }).trim().isLength({ max: 150 }),
+  body('farmer_type').optional({ values: 'falsy' }).isIn(['individual', 'group', 'cooperative', 'company', 'private_farm']),
+  body('farmer_category').optional({ values: 'falsy' }).isIn(['subsistence', 'small', 'medium', 'large']),
+  body('main_occupation').optional({ values: 'falsy' }).isIn(['agriculture', 'livestock', 'agri_business', 'service', 'foreign_employment', 'business', 'other']),
+  body('education_level').optional({ values: 'falsy' }).isIn(['no_formal', 'basic', 'secondary', 'higher_secondary', 'bachelor', 'master_plus']),
+  body('household_members').optional({ values: 'falsy' }).isInt({ min: 1, max: 60 }),
+  body('agri_workers').optional({ values: 'falsy' }).isInt({ min: 0, max: 60 })
 ];
 const idRule = param('id').isInt({ min: 1 });
 

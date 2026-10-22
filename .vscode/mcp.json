@@ -9,6 +9,21 @@
       "command": "node",
       "args": ["${workspaceFolder}/tools/esp32-mcp/server.mjs"],
       "cwd": "${workspaceFolder}"
+    },
+    "digitalAgricultureServer": {
+      "type": "http",
+      "url": "https://kaskikotagro.com.np/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:agriculture-mcp-token}"
+      }
     }
-  }
+  },
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "agriculture-mcp-token",
+      "description": "Digital Agriculture MCP bearer token",
+      "password": true
+    }
+  ]
 }

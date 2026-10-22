@@ -2,10 +2,19 @@
 const { logAudit } = require('../utils/audit');
 const crypto = require('crypto');
 
-const FIELDS = ['full_name_en', 'full_name_ne', 'gender', 'date_of_birth', 'phone', 'email', 'local_level_id', 'ward_no', 'address', 'group_name'];
+const FIELDS = ['full_name_en', 'full_name_ne', 'gender', 'date_of_birth', 'phone', 'email', 'local_level_id', 'ward_no', 'address', 'group_name',
+  'farmer_type', 'farmer_category', 'main_occupation', 'education_level', 'household_members', 'agri_workers'];
 const clean = (v) => (v === '' || v === undefined ? null : v);
 const isSuper = (req) => req.user.roles.includes('super_admin');
 const scopeSql = (req, alias = 'f') => (isSuper(req) ? { sql: '', params: [] } : { sql: ` AND ${alias}.organization_id = ?`, params: [req.user.organization_id] });
+
+async function locationError(localLevelId, wardNo) {
+  if (!localLevelId) return wardNo ? 'Choose a local level before selecting a ward' : null;
+  const [[level]] = await db.query('SELECT total_wards FROM local_levels WHERE id = ?', [localLevelId]);
+  if (!level) return 'Choose a valid local level';
+  if (wardNo && level.total_wards && Number(wardNo) > Number(level.total_wards)) return `Ward must be between 1 and ${level.total_wards} for this local level`;
+  return null;
+}
 
 async function findFarmer(req, id) {
   const sc = scopeSql(req);
@@ -88,6 +97,8 @@ exports.create = async (req, res, next) => {
   try {
     const data = {};
     FIELDS.forEach((k) => { data[k] = clean(req.body[k]); });
+    const invalidLocation = await locationError(data.local_level_id, data.ward_no);
+    if (invalidLocation) return res.status(400).json({ message: invalidLocation, errors: [{ field: 'ward_no', message: invalidLocation }] });
     const [r] = await db.query('INSERT INTO farmers SET ?', [{
       ...data, farmer_code: `T-${crypto.randomBytes(8).toString('hex')}`,
       organization_id: req.user.organization_id, created_by: req.user.id
@@ -106,6 +117,11 @@ exports.update = async (req, res, next) => {
     const changes = {};
     FIELDS.forEach((k) => { if (req.body[k] !== undefined) changes[k] = clean(req.body[k]); });
     if (!Object.keys(changes).length) return res.status(400).json({ message: 'No changes supplied' });
+    const invalidLocation = await locationError(
+      changes.local_level_id !== undefined ? changes.local_level_id : existing.local_level_id,
+      changes.ward_no !== undefined ? changes.ward_no : existing.ward_no
+    );
+    if (invalidLocation) return res.status(400).json({ message: invalidLocation, errors: [{ field: 'ward_no', message: invalidLocation }] });
     await db.query('UPDATE farmers SET ? WHERE id = ?', [changes, existing.id]);
     await logAudit(req.user.id, 'farmer_update', 'farmer', existing.id, { fields: Object.keys(changes) }, req);
     res.json({ message: 'Farmer updated' });

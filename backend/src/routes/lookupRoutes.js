@@ -7,7 +7,7 @@ router.use(authenticate);
 
 router.get('/local-levels', async (req, res, next) => {
   try {
-    const [rows] = await db.query('SELECT id, name_ne, name_en, level_type FROM local_levels ORDER BY name_en');
+    const [rows] = await db.query('SELECT id, name_ne, name_en, level_type, total_wards FROM local_levels ORDER BY name_en');
     res.json(rows);
   } catch (e) { next(e); }
 });

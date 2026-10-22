@@ -5,11 +5,18 @@ const { authenticate, authorize } = require('../middleware/auth');
 const imp = require('../controllers/importController');
 const survey = require('../controllers/surveyController');
 const map = require('../controllers/mapController');
+const planning = require('../controllers/planningController');
 
 const router = express.Router();
 router.use(authenticate);
 
 router.get('/map', authorize('datacenter.view'), map.map);
+router.get('/planning', authorize('datacenter.view'), planning.get);
+router.post('/planning/feedback', authorize('datacenter.collect'), [
+  body('recommendation_code').isString().trim().isLength({ min: 2, max: 60 }),
+  body('local_level_id').optional({ values: 'falsy' }).isInt({ min: 1 }),
+  body('feedback').isIn(['useful', 'not_useful', 'needs_review'])
+], validate, planning.feedback);
 
 router.get('/import/template', authorize('datacenter.import'), imp.template);
 router.post('/import/preview', authorize('datacenter.import'), [

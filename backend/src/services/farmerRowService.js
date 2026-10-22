@@ -14,8 +14,10 @@ const GENDER = mk({ male: 'male', m: 'male', 'पुरुष': 'male', female: 
 const TYPE = mk({ individual: 'individual', group: 'group', cooperative: 'cooperative', company: 'company', private_farm: 'private_farm', 'व्यक्तिगत': 'individual', 'समूह': 'group', 'सहकारी': 'cooperative', 'कम्पनी': 'company' });
 const CATEGORY = mk({ subsistence: 'subsistence', small: 'small', medium: 'medium', large: 'large', 'जीविकोपार्जन': 'subsistence', 'साना': 'small', 'मध्यम': 'medium', 'ठूलो': 'large', 'ठूला': 'large' });
 const OCC = same(['agriculture', 'livestock', 'agri_business', 'service', 'foreign_employment', 'business', 'other']);
+const EDUCATION = same(['no_formal', 'basic', 'secondary', 'higher_secondary', 'bachelor', 'master_plus']);
 const OWN = same(['owned', 'leased', 'shared', 'government']);
 const IRR = same(['none', 'rainfed', 'drip', 'sprinkler', 'canal', 'other']);
+const LOCATION_SOURCE = same(['gps', 'google_map', 'manual']);
 
 function pickEnum(value, map, label, errors, def = null) {
   if (!value) return def;
@@ -85,7 +87,8 @@ function prepareRow(raw, levels) {
   if (r.ward_no) {
     const w = Number(toAscii(r.ward_no));
     if (!Number.isInteger(w) || w < 1 || w > 35) errors.push('Ward must be a whole number from 1 to 35');
-    else { f.ward_no = w; if (level && level.total_wards && w > level.total_wards) warnings.push(`Ward ${w} exceeds the ${level.total_wards} wards recorded for this local level`); }
+    else if (level && level.total_wards && w > level.total_wards) errors.push(`Ward ${w} exceeds the ${level.total_wards} wards recorded for this local level`);
+    else f.ward_no = w;
   }
 
   f.address = r.address ? r.address.slice(0, 255) : null;
@@ -93,6 +96,7 @@ function prepareRow(raw, levels) {
   f.farmer_type = pickEnum(r.farmer_type, TYPE, 'farmer_type', errors, 'individual');
   f.farmer_category = pickEnum(r.farmer_category, CATEGORY, 'farmer_category', errors);
   f.main_occupation = pickEnum(r.main_occupation, OCC, 'main_occupation', errors);
+  f.education_level = pickEnum(r.education_level, EDUCATION, 'education_level', errors);
   f.national_farmer_id = r.national_farmer_id ? r.national_farmer_id.slice(0, 30) : null;
   if (r.national_farmer_id && r.national_farmer_id.length > 30) errors.push('National farmer ID is longer than 30 characters');
 
@@ -101,9 +105,15 @@ function prepareRow(raw, levels) {
     const h = Number(toAscii(r.household_members));
     if (!Number.isInteger(h) || h < 1 || h > 60) errors.push('Household members must be a whole number from 1 to 60'); else f.household_members = h;
   }
+  f.agri_workers = null;
+  if (r.agri_workers) {
+    const workers = Number(toAscii(r.agri_workers));
+    if (!Number.isInteger(workers) || workers < 0 || workers > 60) errors.push('Agricultural workers must be a whole number from 0 to 60');
+    else f.agri_workers = workers;
+  }
 
   let farm = null;
-  const farmKeys = ['farm_name', 'farm_area_ropani', 'farm_area_aana', 'farm_area_paisa', 'farm_area_dam', 'farm_area_sqm', 'ownership_type', 'irrigation_type', 'latitude', 'longitude'];
+  const farmKeys = ['farm_name', 'farm_address', 'farm_area_ropani', 'farm_area_aana', 'farm_area_paisa', 'farm_area_dam', 'farm_area_sqm', 'ownership_type', 'irrigation_type', 'land_use', 'soil_type', 'water_source', 'irrigated_area_sqm', 'altitude_m', 'terrace_farming', 'road_access', 'distance_to_market_km', 'latitude', 'longitude', 'gps_accuracy_m', 'location_source'];
   if (farmKeys.some((k) => r[k])) {
     const num = (k, max) => {
       if (!r[k]) return 0;
@@ -129,11 +139,42 @@ function prepareRow(raw, levels) {
       if (!r.latitude || !r.longitude || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) { errors.push('Enter a valid latitude and longitude together'); lat = null; lon = null; }
       else if (lat < BOX.latMin || lat > BOX.latMax || lon < BOX.lonMin || lon > BOX.lonMax) warnings.push('Coordinates fall outside the approximate Kaski district area');
     }
+    let accuracy = null;
+    if (r.gps_accuracy_m) {
+      accuracy = Number(toAscii(r.gps_accuracy_m));
+      if (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > 100000) { errors.push('GPS accuracy must be between 0 and 100000 metres'); accuracy = null; }
+    }
+    const soilTypes = ['sandy', 'loam', 'clay', 'silty', 'gravelly', 'other'];
+    const waterSources = ['rain_only', 'spring_water', 'river_canal', 'tube_well', 'tank', 'municipal', 'lake_pond', 'other'];
+    const landUses = ['cultivated', 'orchard', 'fallow', 'pasture', 'mixed'];
+    const roadAccess = ['none', 'trail', 'seasonal', 'all_weather'];
+    const altitude = r.altitude_m ? Number(toAscii(r.altitude_m)) : null;
+    if (altitude !== null && (!Number.isInteger(altitude) || altitude < 0 || altitude > 9000)) errors.push('Altitude must be a whole number from 0 to 9000 metres');
+    const irrigatedArea = r.irrigated_area_sqm ? num('irrigated_area_sqm', 1e8) : null;
+    if (irrigatedArea !== null && sqm !== null && irrigatedArea > sqm * 1.001) errors.push('Irrigated area cannot exceed the farm area');
+    const marketDistance = r.distance_to_market_km ? Number(toAscii(r.distance_to_market_km)) : null;
+    if (marketDistance !== null && (!Number.isFinite(marketDistance) || marketDistance < 0 || marketDistance > 500)) errors.push('Distance to market must be between 0 and 500 km');
+    let terrace = null;
+    if (r.terrace_farming !== undefined && r.terrace_farming !== '') {
+      const value = String(r.terrace_farming).toLowerCase();
+      if (['true', '1', 'yes'].includes(value)) terrace = 1;
+      else if (['false', '0', 'no'].includes(value)) terrace = 0;
+      else errors.push('Terrace farming must be yes or no');
+    }
+    const soil = r.soil_type ? pickEnum(r.soil_type, same(soilTypes), 'soil type', errors) : null;
+    const water = r.water_source ? pickEnum(r.water_source, same(waterSources), 'water source', errors) : null;
+    const land = r.land_use ? pickEnum(r.land_use, same(landUses), 'land use', errors, 'cultivated') : 'cultivated';
+    const road = r.road_access ? pickEnum(r.road_access, same(roadAccess), 'road access', errors) : null;
     farm = {
       name: (r.farm_name || 'Main farm').slice(0, 200), area_sqm: sqm,
       ownership_type: pickEnum(r.ownership_type, OWN, 'ownership_type', errors, 'owned'),
       irrigation_type: pickEnum(r.irrigation_type, IRR, 'irrigation_type', errors, 'none'),
-      latitude: lat, longitude: lon
+      land_use: land, soil_type: soil, water_source: water, irrigated_area_sqm: irrigatedArea,
+      altitude_m: altitude, terrace_farming: terrace, road_access: road, distance_to_market_km: marketDistance,
+      latitude: lat, longitude: lon,
+      address: r.farm_address ? r.farm_address.slice(0, 255) : null,
+      gps_accuracy_m: accuracy,
+      location_source: pickEnum(r.location_source, LOCATION_SOURCE, 'location_source')
     };
   }
   return { errors, warnings, farmer: f, farm };
