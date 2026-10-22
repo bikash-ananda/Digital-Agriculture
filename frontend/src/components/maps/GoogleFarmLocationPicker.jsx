@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from '../../services/googleMaps';
 
 const nepaliDigits = (value) => String(value || '').replace(/[०-९]/g, (digit) => '०१२३४५६७८९'.indexOf(digit));
+const t0 = (lang, ne, en) => (lang === 'en' ? en : ne);
 const wardFromResult = (result) => {
   for (const component of (result?.address_components || [])) {
     const text = nepaliDigits(component.long_name);
@@ -21,7 +22,7 @@ function localLevelFromResult(result, levels) {
   }) || null;
 }
 
-export default function GoogleFarmLocationPicker({ value, levels = [], onChange, lang, t }) {
+export default function GoogleFarmLocationPicker({ value, levels = [], onChange, lang }) {
   const mapElement = useRef(null);
   const map = useRef(null);
   const marker = useRef(null);
@@ -29,21 +30,17 @@ export default function GoogleFarmLocationPicker({ value, levels = [], onChange,
   const changeRef = useRef(onChange);
   const valueRef = useRef(value);
   const levelsRef = useRef(levels);
+  const langRef = useRef(lang);
   const [status, setStatus] = useState('');
   const [mapError, setMapError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  changeRef.current = onChange;
-  valueRef.current = value;
-  levelsRef.current = levels;
-
-  const t0 = (ne, en) => (lang === 'en' ? en : ne);
   const hasPoint = value.latitude !== '' && value.latitude !== null && value.latitude !== undefined
     && value.longitude !== '' && value.longitude !== null && value.longitude !== undefined;
   const latitude = Number(value.latitude);
   const longitude = Number(value.longitude);
 
-  const setPoint = async (lat, lng, source, accuracy) => {
+  const setPoint = useCallback(async (lat, lng, source, accuracy) => {
     const location = { lat: Number(lat), lng: Number(lng) };
     const current = valueRef.current || {};
     changeRef.current({
@@ -54,7 +51,7 @@ export default function GoogleFarmLocationPicker({ value, levels = [], onChange,
       local_level_id: current.local_level_id || '',
       ward_no: current.ward_no || ''
     });
-    setStatus(t0('स्थान राखियो। ठेगाना जाँच्दै…', 'Location saved. Looking up the address…'));
+    setStatus(t0(langRef.current, 'स्थान राखियो। ठेगाना जाँच्दै…', 'Location saved. Looking up the address…'));
     setMapError('');
     try {
       const loaded = await loadGoogleMaps();
@@ -62,7 +59,7 @@ export default function GoogleFarmLocationPicker({ value, levels = [], onChange,
       const response = await geocoder.current.geocode({ location });
       const result = response.results && response.results[0];
       if (!result) {
-        setStatus(t0('स्थान राखियो; Google बाट ठेगाना भेटिएन।', 'Location saved; Google did not return an address.'));
+        setStatus(t0(langRef.current, 'स्थान राखियो; Google बाट ठेगाना भेटिएन।', 'Location saved; Google did not return an address.'));
         return;
       }
       const level = localLevelFromResult(result, levelsRef.current);
@@ -77,12 +74,19 @@ export default function GoogleFarmLocationPicker({ value, levels = [], onChange,
       };
       if (ward && level && (!level.total_wards || ward <= Number(level.total_wards))) updated.ward_no = String(ward);
       changeRef.current(updated);
-      setStatus(t0('Google Maps बाट ठेगाना भरियो — पालिका र वडा जाँच्नुहोस्।', 'Address filled from Google Maps. Please check the local level and ward.'));
+      setStatus(t0(langRef.current, 'Google Maps बाट ठेगाना भरियो — पालिका र वडा जाँच्नुहोस्।', 'Address filled from Google Maps. Please check the local level and ward.'));
     } catch {
-      setStatus(t0('स्थान सुरक्षित भयो। ठेगाना जाँच्न वा भर्नुहोस्।', 'Location saved. Please check or enter the address.'));
-      setMapError(t0('Google reverse-geocoding उपलब्ध भएन। Maps JavaScript API र Geocoding API सक्षम भएको जाँच्नुहोस्।', 'Google reverse geocoding is unavailable. Check that Maps JavaScript API and Geocoding API are enabled.'));
+      setStatus(t0(langRef.current, 'स्थान सुरक्षित भयो। ठेगाना जाँच्न वा भर्नुहोस्।', 'Location saved. Please check or enter the address.'));
+      setMapError(t0(langRef.current, 'Google reverse-geocoding उपलब्ध भएन। Maps JavaScript API र Geocoding API सक्षम भएको जाँच्नुहोस्।', 'Google reverse geocoding is unavailable. Check that Maps JavaScript API and Geocoding API are enabled.'));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    changeRef.current = onChange;
+    valueRef.current = value;
+    levelsRef.current = levels;
+    langRef.current = lang;
+  }, [onChange, value, levels, lang]);
 
   useEffect(() => {
     if (!hasPoint || !Number.isFinite(latitude) || !Number.isFinite(longitude) || !mapElement.current) return undefined;
@@ -93,7 +97,7 @@ export default function GoogleFarmLocationPicker({ value, levels = [], onChange,
       if (!geocoder.current) geocoder.current = new Geocoder();
       if (!map.current) {
         map.current = new Map(mapElement.current, { center: position, zoom: 15, mapTypeControl: false, streetViewControl: false, fullscreenControl: true });
-        marker.current = new Marker({ map: map.current, position, draggable: true, title: t0('फार्मको स्थान', 'Farm location') });
+        marker.current = new Marker({ map: map.current, position, draggable: true, title: t0(lang, 'फार्मको स्थान', 'Farm location') });
         map.current.addListener('click', (event) => {
           if (event.latLng) setPoint(event.latLng.lat(), event.latLng.lng(), 'google_map');
         });
@@ -107,25 +111,25 @@ export default function GoogleFarmLocationPicker({ value, levels = [], onChange,
       }
       setMapError('');
     }).catch(() => {
-      if (!cancelled) setMapError(t0('Google Maps लोड भएन। स्थानका लागि GPS प्रयोग गर्न सक्नुहुन्छ।', 'Google Maps could not load. You can still capture the GPS location.'));
+      if (!cancelled) setMapError(t0(lang, 'Google Maps लोड भएन। स्थानका लागि GPS प्रयोग गर्न सक्नुहुन्छ।', 'Google Maps could not load. You can still capture the GPS location.'));
     });
     return () => { cancelled = true; };
-  }, [hasPoint, latitude, longitude]);
+  }, [hasPoint, latitude, longitude, lang, setPoint]);
 
   const capture = () => {
     if (!navigator.geolocation) {
-      setStatus(t0('यो यन्त्रमा GPS उपलब्ध छैन।', 'GPS is not available on this device.'));
+      setStatus(t0(lang, 'यो यन्त्रमा GPS उपलब्ध छैन।', 'GPS is not available on this device.'));
       return;
     }
     setBusy(true);
-    setStatus(t0('स्थान खोज्दै…', 'Getting location…'));
+    setStatus(t0(lang, 'स्थान खोज्दै…', 'Getting location…'));
     navigator.geolocation.getCurrentPosition((position) => {
       const accuracy = Math.round(position.coords.accuracy);
       setBusy(false);
       setPoint(position.coords.latitude, position.coords.longitude, 'gps', accuracy);
     }, () => {
       setBusy(false);
-      setStatus(t0('स्थान प्राप्त भएन। ब्राउजरको स्थान अनुमति दिनुहोस् र फेरि प्रयास गर्नुहोस्।', 'Could not get a location. Allow location access in your browser and try again.'));
+      setStatus(t0(lang, 'स्थान प्राप्त भएन। ब्राउजरको स्थान अनुमति दिनुहोस् र फेरि प्रयास गर्नुहोस्।', 'Could not get a location. Allow location access in your browser and try again.'));
     }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   };
 

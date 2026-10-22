@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
@@ -27,11 +27,11 @@ export default function SiteDetail() {
   const [errs, setErrs] = useState([]);
   const [newKey, setNewKey] = useState(null);
 
-  const load = () => api.get(`/smart/sites/${id}`).then((r) => {
+  const load = useCallback(() => api.get(`/smart/sites/${id}`).then((r) => {
     setData(r.data);
     setLocation({ latitude: r.data.site.latitude ?? '', longitude: r.data.site.longitude ?? '' });
-  }).catch((e) => setError(errMsgs(e)[0]));
-  useEffect(() => { load(); }, [id]);
+  }).catch((e) => setError(errMsgs(e)[0])), [id]);
+  useEffect(() => { load(); }, [load]);
 
   const addUnit = async (e) => {
     e.preventDefault(); setErrs([]);
