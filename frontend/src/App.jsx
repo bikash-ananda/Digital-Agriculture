@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './context/AuthContext.jsx';
@@ -7,6 +7,7 @@ import RequirePermission from './components/common/RequirePermission';
 import PublicLayout from './components/layout/PublicLayout';
 import DashboardLayout from './components/layout/DashboardLayout';
 import { UiExperienceProvider } from './components/common/UiExperience';
+import { loadSiteContent } from './data/siteContent';
 const Home = lazy(() => import('./pages/public/Home'));
 const Contact = lazy(() => import('./pages/public/Contact'));
 const VideoGallery = lazy(() => import('./pages/public/VideoGallery'));
@@ -45,6 +46,7 @@ const Programs = lazy(() => import('./pages/dashboard/Programs'));
 const Notices = lazy(() => import('./pages/dashboard/Notices'));
 const Reports = lazy(() => import('./pages/dashboard/Reports'));
 const FarmRegistry = lazy(() => import('./pages/dashboard/FarmRegistry'));
+const SiteContentEditor = lazy(() => import('./pages/dashboard/SiteContentEditor'));
 
 const REMOVED_PUBLIC_PATHS = [
   '/notices', '/about', '/objectives', '/staff', '/citizen-charter', '/organizational-structure',
@@ -59,13 +61,15 @@ function DocumentLanguage() {
 }
 
 export default function App() {
+  const [contentVersion, setContentVersion] = useState(0);
+  useEffect(() => { loadSiteContent().then((ok) => { if (ok) setContentVersion(1); }); }, []);
   return (
     <BrowserRouter>
       <AuthProvider>
         <UiExperienceProvider>
         <DocumentLanguage />
         <Suspense fallback={<div role="status" className="mx-auto max-w-4xl p-8 text-center text-terrace-800">Loading…</div>}>
-        <Routes>
+        <Routes key={contentVersion}>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/contact" element={<Contact />} />
@@ -90,7 +94,7 @@ export default function App() {
           <Route path="/app" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
             <Route index element={<DashboardHome />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="admin" element={<RequirePermission perm="users.view"><AdminUsers /></RequirePermission>} />
+            <Route path="site-content" element={<RequirePermission perm="site_content.update"><SiteContentEditor /></RequirePermission>} /><Route path="admin" element={<RequirePermission perm="users.view"><AdminUsers /></RequirePermission>} />
             <Route path="farmers" element={<RequirePermission perm="farmers.view"><FarmerList /></RequirePermission>} />
             <Route path="farms" element={<RequirePermission perm="farms.view"><FarmRegistry /></RequirePermission>} />
             <Route path="farmers/new" element={<RequirePermission perm="farmers.create"><FarmerForm /></RequirePermission>} />

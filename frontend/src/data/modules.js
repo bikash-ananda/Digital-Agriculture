@@ -1,4 +1,4 @@
-﻿export const groups = [
+export const groups = [
   { key: 'main', label: { ne: 'मुख्य', en: 'Main' } },
   { key: 'services', label: { ne: 'सेवा तथा अभिलेख', en: 'Services and records' } },
   { key: 'learn', label: { ne: 'कृषि ज्ञान केन्द्र', en: 'Agriculture Knowledge Center' } },
@@ -19,5 +19,6 @@ export const modules = [
   { to: '/app/smart-farming/chat', perm: 'smart_farming.view', group: 'smart', icon: 'MessageCircle', label: { ne: 'टोली च्याट', en: 'Team chat' }, desc: { ne: 'प्रत्यक्ष सन्देश, फाइल र आवाज/भिडियो कल', en: 'Direct messages, files, and voice/video calls' } },
   { to: '/app/data-center', perm: 'datacenter.view', group: 'smart', icon: 'Database', label: { ne: 'डाटा केन्द्र', en: 'Data Center' }, desc: { ne: 'जिल्लाव्यापी तथ्याङ्क र विश्लेषण', en: 'District-wide data and analysis' } },
   { to: '/app/reports', perm: 'reports.view', group: 'smart', icon: 'BarChart3', label: { ne: 'प्रतिवेदन', en: 'Reports' }, desc: { ne: 'आधिकारिक प्रतिवेदन', en: 'Official reports' } },
+  { to: '/app/site-content', perm: 'site_content.update', group: 'office', icon: 'Globe', label: { ne: 'सार्वजनिक पृष्ठ सम्पादन', en: 'Edit public site' }, desc: { ne: 'गृहपृष्ठ, सम्पर्क र कर्मचारी जानकारी', en: 'Home, contact and staff information' } },
   { to: '/app/admin', perm: 'users.view', group: 'office', icon: 'Settings', label: { ne: 'प्रशासन', en: 'Administration' }, desc: { ne: 'प्रयोगकर्ता, भूमिका र लग', en: 'Users, roles and logs' } }
 ];

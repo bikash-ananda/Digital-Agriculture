@@ -31,7 +31,22 @@ const mcpRoutes = require('./routes/mcpRoutes');
 const app = express();
 const proxyHops = Number(process.env.TRUST_PROXY_HOPS);
 app.set('trust proxy', Number.isInteger(proxyHops) && proxyHops >= 0 ? proxyHops : 0);
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      fontSrc: ["'self'", "https:", "data:"],
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.openstreetmap.org", "https://maps.gstatic.com", "https://maps.googleapis.com"],
+      objectSrc: ["'none'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://maps.googleapis.com"],
+      styleSrc: ["'self'", "https:", "'unsafe-inline'"],
+      connectSrc: ["'self'", "https://maps.googleapis.com"]
+    }
+  }
+}));
 app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
@@ -66,6 +81,7 @@ app.use('/api/device', deviceRoutes);
 app.use('/api/ops', opsRoutes);
 app.use('/api/smart', intelligenceRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/site-content', require('./routes/siteContentRoutes'));
 app.use('/api/support-chat', supportChatRoutes);
 app.use('/api/smart-chat', smartChatRoutes);
 app.use('/api/public-farming', publicFarmingRoutes);

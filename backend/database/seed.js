@@ -11,14 +11,14 @@ const MODULES = {
   irrigation_control: ['view', 'control', 'configure'],
   alerts: ['view', 'acknowledge', 'configure'],
   reports: ['view', 'export'],
-  users: CRUD, roles: CRUD, audit: ['view'], settings: ['view', 'update']
+  users: CRUD, roles: CRUD, audit: ['view'], settings: ['view', 'update'], site_content: ['view', 'update']
 };
 
 const ROLES = [
   { code: 'super_admin', ne: 'सुपर प्रशासक', en: 'Super Administrator', grants: ['*'] },
   { code: 'office_admin', ne: 'कार्यालय प्रशासक', en: 'Office Administrator', grants: ['*'], deny: ['roles.*', 'settings.update'] },
   { code: 'agriculture_officer', ne: 'कृषि अधिकृत', en: 'Agriculture Officer',
-    grants: ['dashboard.view', 'farmers.*', 'farms.*', 'programs.*', 'notices.view', 'notices.create', 'notices.update', 'documents.*', 'knowledge.view', 'knowledge.create', 'knowledge.discuss', 'learning.view', 'smart_farming.view', 'devices.view', 'irrigation_control.view', 'alerts.view', 'alerts.acknowledge', 'reports.*'],
+    grants: ['dashboard.view', 'farmers.*', 'farms.*', 'programs.*', 'notices.view', 'notices.create', 'notices.update', 'documents.*', 'knowledge.view', 'knowledge.create', 'knowledge.discuss', 'learning.view', 'smart_farming.view', 'devices.view', 'irrigation_control.view', 'alerts.view', 'alerts.acknowledge', 'reports.*', 'site_content.*'],
     deny: ['farmers.delete', 'farms.delete', 'programs.delete', 'documents.delete'] },
   { code: 'agriculture_technician', ne: 'कृषि प्राविधिक', en: 'Agriculture Technician',
     grants: ['dashboard.view', 'farmers.view', 'farmers.create', 'farmers.update', 'farms.view', 'farms.create', 'farms.update', 'programs.view', 'notices.view', 'documents.view', 'knowledge.view', 'knowledge.create', 'knowledge.discuss', 'learning.view', 'smart_farming.view', 'devices.view', 'irrigation_control.view', 'irrigation_control.control', 'alerts.view', 'alerts.acknowledge', 'reports.view'] },
