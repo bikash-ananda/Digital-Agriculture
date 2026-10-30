@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, ExternalLink, FilterX, Play, Search, X } from 'lucide-react';
-import PageHeader from '../../components/layout/PageHeader';
+import PageHeaderReal from '../../components/layout/PageHeader';
 import useLang from '../../utils/useLang';
 import { FARMER_PLAYABLE_VIDEOS, FARMER_VIDEO_CATEGORIES, FARMER_VIDEOS, OFFICIAL_VIDEO_COLLECTIONS } from '../../data/farmerVideos';
 
 const PAGE_SIZE = 12;
+const NoHeader = () => null;
 const VIDEO_LIBRARY = [...FARMER_PLAYABLE_VIDEOS, ...FARMER_VIDEOS];
 
 function youtubeSearchUrl(video) {
@@ -43,8 +44,10 @@ function VideoCard({ video, category, onPlay, t }) {
   return <article className={cardClass}>{content}</article>;
 }
 
-export default function VideoGallery() {
+export default function VideoGallery({ embedded = false }) {
   const { t } = useLang();
+  const Header = embedded ? NoHeader : PageHeaderReal;
+  const Wrap = embedded ? 'div' : 'main';
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [page, setPage] = useState(1);
@@ -82,12 +85,12 @@ export default function VideoGallery() {
 
   return (
     <>
-      <PageHeader
+      <Header
         title={t('कृषि भिडियो ग्यालरी', 'Agriculture Video Gallery')}
         intro={t('कास्कीका किसानका लागि खेती, पशुपालन, प्रविधि र बजारसम्बन्धी भिडियो विषयहरू खोज्नुहोस्।', 'Explore practical video topics on crops, livestock, farming technology and markets for farmers in Kaski.')}
       />
 
-      <main className="mx-auto max-w-7xl px-4 py-7 md:py-9">
+      <Wrap className={embedded ? '' : 'mx-auto max-w-7xl px-4 py-7 md:py-9'}>
         <section className="rounded-2xl border border-terrace-100 bg-white p-4 shadow-sm md:p-5" aria-label={t('खोज र वर्ग फिल्टर', 'Search and category filters')}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-terrace-100 pb-4">
             <p className="font-semibold text-terrace-900">{t('आफ्नो खेतीसँग मिल्ने विषय छान्नुहोस्', 'Find a video topic that fits your farm')}</p>
@@ -163,7 +166,7 @@ export default function VideoGallery() {
           <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-900 md:grid"><BookOpen size={18} aria-hidden="true" /></span>
           <div><h2 className="font-bold text-amber-950">{t('भिडियो र प्राविधिक सल्लाह', 'About these videos')}</h2><p className="mt-1 text-sm leading-6 text-amber-950/80">{t('चल्ने भिडियो कार्ड थिच्दा ग्यालरीमै खुल्छ। अन्य विषयले YouTube खोजी खोल्छन्। खेतीसम्बन्धी निर्णय गर्दा स्थानीय कृषि प्राविधिकको सल्लाह लिनुहोस्।', 'Cards marked “Ready to play” open an embedded player here. Other topic cards open a YouTube search. Consult a local agriculture technician before making farm decisions.')}</p></div>
         </aside>
-      </main>
+      </Wrap>
 
       <dialog
         ref={playerDialogRef}

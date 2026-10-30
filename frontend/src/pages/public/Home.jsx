@@ -1,7 +1,7 @@
-﻿import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ClipboardList, BookOpen, Cpu, PhoneCall, ChevronRight, Thermometer, Wifi, Server, LayoutDashboard, Phone, Mail } from 'lucide-react';
 import useLang from '../../utils/useLang';
-import { AgricultureHero, AgriculturePhotoSections } from '../../components/layout/AgricultureShowcase';
+import { AgricultureHero } from '../../components/layout/AgricultureShowcase';
 import { office, officers, usefulLinks } from '../../data/office';
 
 const SERVICES = [
@@ -27,7 +27,7 @@ export default function Home() {
   return (
     <div>
       <AgricultureHero />
-      <AgriculturePhotoSections />
+      
 
       <section className="bg-white border-y border-terrace-100">
         <div className="max-w-7xl mx-auto px-4 py-12">

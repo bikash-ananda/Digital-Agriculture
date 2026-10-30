@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowUpRight, BadgeCheck, BookOpen, Check, Clock3, FileText, FlaskConical, GraduationCap, Lightbulb, MessageCircle, Plus, Search, Send, ShieldCheck, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, BadgeCheck, BookOpen, Check, Clock3, FileText, FlaskConical, GraduationCap, Lightbulb, MessageCircle, Plus, Search, Send, ShieldCheck, X, Images } from 'lucide-react';
 import api from '../../services/api';
 import useLang from '../../utils/useLang';
 import { useAuth } from '../../context/useAuth';
@@ -9,6 +9,7 @@ import { AgriculturePageHero } from '../../components/layout/AgricultureShowcase
 const Documents = lazy(() => import('./Documents'));
 const ResearchLab = lazy(() => import('../research/ResearchLab'));
 const AgriInnovationCenter = lazy(() => import('./AgriInnovationCenter'));
+const KnowledgeMedia = lazy(() => import('./KnowledgeMedia'));
 const GamesHub = lazy(() => import('../../games/GamesHub'));
 const MyFarmGame = lazy(() => import('../../games/MyFarmGame'));
 
@@ -39,7 +40,7 @@ export default function KnowledgeCenter() {
   const isInternal = location.pathname.startsWith('/app/');
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab') || 'discover';
-  const tabKeys = ['discover', 'training', 'innovation', 'library', ...(isInternal && can('research.view') ? ['research'] : []), 'papers', ...(can('knowledge.discuss') ? ['forum'] : []), ...(can('knowledge.create') ? ['submit'] : []), ...(can('knowledge.publish') ? ['review'] : [])];
+  const tabKeys = ['discover', 'training', 'innovation', 'library', 'media', ...(isInternal && can('research.view') ? ['research'] : []), 'papers', ...(can('knowledge.discuss') ? ['forum'] : []), ...(can('knowledge.create') ? ['submit'] : []), ...(can('knowledge.publish') ? ['review'] : [])];
   const tab = requestedTab === 'games' ? 'training' : tabKeys.includes(requestedTab) ? requestedTab : 'discover';
   const showFarmGame = searchParams.get('game') === 'my-farm';
   const [articles, setArticles] = useState([]);
@@ -253,6 +254,7 @@ export default function KnowledgeCenter() {
     training: [t('सिकाइ केन्द्र', 'Learning Center'), GraduationCap],
     innovation: [t('कृषि नवप्रवर्तन केन्द्र', 'Agri Innovation Center'), Lightbulb],
     library: [t('डिजिटल पुस्तकालय', 'Digital Library'), BookOpen],
+    media: [t('मिडिया', 'Media'), Images],
     research: [t('अनुसन्धान केन्द्र', 'Research Center'), FlaskConical],
     forum: [t('प्राविधिक छलफल', 'Officer forum'), MessageCircle],
     submit: [t('लेख पठाउनुहोस्', 'Submit a paper'), Plus],
@@ -329,6 +331,8 @@ export default function KnowledgeCenter() {
       </section>}
 
       {tab === 'innovation' && <Suspense fallback={<p role="status" className={`${card} text-sm text-slate-600`}>{t('नवप्रवर्तन केन्द्र लोड हुँदैछ…', 'Loading innovation center…')}</p>}><AgriInnovationCenter/></Suspense>}
+
+      {tab === 'media' && <Suspense fallback={<p role="status" className={` text-sm text-slate-600`}>{t('मिडिया लोड हुँदैछ…', 'Loading media…')}</p>}><KnowledgeMedia /></Suspense>}
 
       {tab === 'library' && <section className="space-y-5">
         {isInternal && can('documents.view') && <div className="space-y-3"><div><p className="text-xs font-bold uppercase tracking-wider text-emerald-800">{t('कार्यालय अभिलेख', 'Office archive')}</p><h2 className="mt-1 text-xl font-bold text-slate-950">{t('कागजात तथा प्रकाशन', 'Documents and publications')}</h2></div><Suspense fallback={<p role="status" className={`${card} text-sm text-slate-600`}>{t('डिजिटल पुस्तकालय लोड हुँदैछ…', 'Loading digital library…')}</p>}><Documents embedded/></Suspense></div>}

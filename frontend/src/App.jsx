@@ -10,7 +10,7 @@ import { UiExperienceProvider } from './components/common/UiExperience';
 import { loadSiteContent } from './data/siteContent';
 const Home = lazy(() => import('./pages/public/Home'));
 const Contact = lazy(() => import('./pages/public/Contact'));
-const VideoGallery = lazy(() => import('./pages/public/VideoGallery'));
+
 const Placeholder = lazy(() => import('./pages/public/Placeholder'));
 const Login = lazy(() => import('./pages/auth/Login'));
 const Signup = lazy(() => import('./pages/auth/Signup'));
@@ -73,7 +73,7 @@ export default function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
             <Route path="/contact" element={<Contact />} />
-            <Route path="/video-gallery" element={<VideoGallery />} />
+            <Route path="/video-gallery" element={<Navigate to="/knowledge?tab=media" replace />} /><Route path="/photo-gallery" element={<Navigate to="/knowledge?tab=media" replace />} />
             {REMOVED_PUBLIC_PATHS.map((path) => <Route key={path} path={path} element={<Navigate to="/" replace />} />)}
             <Route path="/knowledge" element={<KnowledgeCenter />} />
             <Route path="/learning/*" element={<Navigate to="/knowledge?tab=training" replace />} />

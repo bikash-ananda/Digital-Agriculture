@@ -1,4 +1,4 @@
-﻿export const office = {
+export const office = {
   name: { ne: 'कृषि विकास कार्यालय, कास्की', en: 'Agriculture Development Office, Kaski' },
   province: { ne: 'गण्डकी प्रदेश सरकार', en: 'Gandaki Province Government' },
   ministry: { ne: 'कृषि, भूमि व्यवस्था तथा सहकारी मन्त्रालय', en: 'Ministry of Agriculture, Land Management and Cooperatives' },
@@ -86,9 +86,5 @@ export const nav = [
   { to: '/programs', label: { ne: 'कृषि कार्यक्रम', en: 'Programs' } },
   { to: '/knowledge', label: { ne: 'कृषि ज्ञान केन्द्र', en: 'Knowledge Center' } },
   { to: '/smart-farming', label: { ne: 'स्मार्ट फार्मिङ', en: 'Smart Farming' } },
-  { label: { ne: 'मिडिया', en: 'Media' }, children: [
-    ['/photo-gallery', { ne: 'फोटो ग्यालरी', en: 'Photo Gallery' }],
-    ['/video-gallery', { ne: 'भिडियो ग्यालरी', en: 'Video Gallery' }]
-  ]},
   { to: '/contact', label: { ne: 'सम्पर्क', en: 'Contact' } }
 ];
