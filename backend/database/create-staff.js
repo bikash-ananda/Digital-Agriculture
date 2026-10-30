@@ -25,13 +25,13 @@ const genPassword = () => crypto.randomBytes(9).toString('base64').replace(/[+/=
       let id, pwd = null;
       if (existing) {
         id = existing.id;
-        await db.query(`UPDATE users SET status='active', email_verified_at=COALESCE(email_verified_at,UTC_TIMESTAMP()),
+        await db.query(`UPDATE users SET status='active', email_verified_at=COALESCE(email_verified_at,UTC_TIMESTAMP()), phone_verified_at=COALESCE(phone_verified_at,UTC_TIMESTAMP()),
           approved_at=COALESCE(approved_at,UTC_TIMESTAMP()), failed_login_attempts=0, locked_until=NULL WHERE id=?`, [id]);
       } else {
         pwd = genPassword();
         const hash = await bcrypt.hash(pwd, 12);
         const [r] = await db.query(`INSERT INTO users (uuid, organization_id, username, email, password_hash, full_name_en, status,
-          must_change_password, email_verified_at, approved_at) VALUES (?,?,?,?,?,?, 'active', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())`,
+          must_change_password, email_verified_at, phone_verified_at, approved_at) VALUES (?,?,?,?,?,?, 'active', 1, UTC_TIMESTAMP(), UTC_TIMESTAMP(), UTC_TIMESTAMP())`,
           [crypto.randomUUID(), org.id, a.email, a.email, hash, a.name]);
         id = r.insertId;
       }
@@ -41,3 +41,4 @@ const genPassword = () => crypto.randomBytes(9).toString('base64').replace(/[+/=
     }
   } finally { await db.end(); }
 })().catch(e => { console.error('FAILED:', e.message); process.exit(1); });
+
