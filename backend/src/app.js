@@ -82,6 +82,7 @@ app.use('/api/ops', opsRoutes);
 app.use('/api/smart', intelligenceRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/site-content', require('./routes/siteContentRoutes'));
+app.use('/api/applications', require('./routes/applicationRoutes'));
 app.use('/api/support-chat', supportChatRoutes);
 app.use('/api/smart-chat', smartChatRoutes);
 app.use('/api/public-farming', publicFarmingRoutes);
