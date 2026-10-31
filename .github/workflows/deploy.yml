@@ -25,7 +25,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Lint frontend
         working-directory: frontend
-        run: npm run lint
+        run: npm run lint -- --max-warnings=100
       - name: Build frontend
         working-directory: frontend
         run: npm run build

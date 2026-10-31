@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   advanceFarmDay, createFarmState, getCropStage, normalizeFarmState,
-  performFarmAction, weatherForDay, setFarmCrop, SEASONS
+  performFarmAction, weatherForDay, setFarmCrop
 , syncRealSensorFeed} from './myFarmEngine.js';
 import { CROPS, FIELDS } from './farmContent.js';
 
