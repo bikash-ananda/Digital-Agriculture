@@ -51,7 +51,7 @@ export default function SensorComparisonChart({ unitId, sensors, parameters, lan
   const hours = preset?.hours || 168;
   const appliedKey = rangeMode === 'custom' ? `${dates.from}|${dates.to}` : '';
   const requestKey = `${activeKey}|${rangeMode}|${appliedKey}|${selectedIds.slice().sort().join(',')}|${refresh}`;
-  const visible = historyKey === requestKey ? history : [];
+  const visible = useMemo(() => (historyKey === requestKey ? history : []), [historyKey, requestKey, history]);
   const selectionError = group && selected.length === 0 ? t('कम्तीमा एउटा सेन्सर छान्नुहोस्।', 'Select at least one sensor.') : '';
   const exportTooMany = selectedIds.length > 24;
 

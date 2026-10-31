@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@500;600;700&family=Noto+Serif:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Noto+Serif+Devanagari:wght@500;600;700&family=Noto+Serif:wght@600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -152,4 +152,78 @@ html[data-theme="dark"][data-high-contrast="true"] .agri-app { background: #000 
 @media (forced-colors: active) {
   :focus-visible { outline: 3px solid Highlight; }
   .a11y-float-button { border: 2px solid ButtonText; }
+}
+
+/* ==========================================================================
+   SCROLL-CRAFT: Android Mobile & Touch Optimization
+   Fluid gesture scrolling, comfortable 48px touch targets, safe-area insets
+   ========================================================================== */
+
+/* 1. Viewport & Touch Ergonomics */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* Safe area padding for notch, camera cutouts and bottom navigation gesture bar */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* 2. Scroll Craft Fluid Momentum & Snapping */
+@media (max-width: 768px) {
+  /* Ensure smooth momentum scrolling on Android WebKit / Chrome */
+  .agri-app, main, .overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Ergonomic mobile touch targets: minimum 44px to 48px height */
+  button, 
+  a[role="button"], 
+  input[type="submit"], 
+  input[type="button"], 
+  .agri-touch-target {
+    min-height: 48px;
+    min-width: 48px;
+    touch-action: manipulation;
+  }
+
+  /* Prevent awkward double-tap zoom on inputs */
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents auto-zoom on mobile focus */
+  }
+
+  /* Clean responsive container padding for compact mobile screens (360px - 412px common in Android) */
+  .container, .agri-container, main {
+    padding-left: clamp(14px, 4vw, 24px) !important;
+    padding-right: clamp(14px, 4vw, 24px) !important;
+  }
+
+  /* Card and Panel polish for high-density Android OLED screens */
+  article, .card, [class*="rounded-2xl"], [class*="rounded-3xl"] {
+    box-shadow: 0 2px 10px rgba(18, 50, 33, 0.05);
+  }
+
+  /* Horizontal swipe cards for sensors & metrics */
+  .mobile-scroll-snap {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 12px;
+    padding-bottom: 8px;
+    scrollbar-width: none; /* Hide scrollbar for clean native app look */
+  }
+  .mobile-scroll-snap::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-scroll-snap > * {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
 }

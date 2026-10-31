@@ -50,7 +50,6 @@ exports.updateProfile = async (req, res, next) => {
     if (!f) return notFound(res, 'Farmer');
     const data = pick(req.body, PROFILE_KEYS);
     ['farmer_type', 'collection_method'].forEach((k) => { if (data[k] === null) delete data[k]; });
-    ['farmer_type', 'collection_method'].forEach((k) => { if (data[k] === null) delete data[k]; });
     if (data.uses_smartphone !== undefined && data.uses_smartphone !== null) data.uses_smartphone = bool(data.uses_smartphone);
 
     const touchesConsent = req.body.consent_data_use !== undefined || req.body.consent_research !== undefined;
@@ -189,7 +188,6 @@ const makeAdder = (kind) => async (req, res, next) => {
     const d = pick(req.body, cfg.keys);
     const out = await PREP[kind](d, farm);
     if (out.error) return res.status(400).json({ message: out.error });
-    Object.keys(d).forEach((k) => { if (d[k] === null) delete d[k]; });
     Object.keys(d).forEach((k) => { if (d[k] === null) delete d[k]; });
     const [r] = await db.query(`INSERT INTO ${cfg.table} SET ?`, [{ ...d, farm_id: farm.id, recorded_by: req.user.id }]);
     await logAudit(req.user.id, `${kind}_create`, 'farm', farm.id, { record_id: r.insertId }, req);

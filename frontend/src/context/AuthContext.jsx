@@ -7,7 +7,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    const response = await api.get('/auth/me');
+    const response = await api.get('/auth/me', { preserveAuthOnUnauthorized: true });
     setUser(response.data.user);
     return response.data.user;
   };

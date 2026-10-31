@@ -26,10 +26,11 @@ function normalizePhone(value) {
 function hashCode(userId, purpose, channel, code) {
   return crypto.createHmac('sha256', CODE_SECRET()).update(`${userId}:${purpose}:${channel}:${code}`).digest('hex');
 }
-function codeMatches(stored, expected) {
-  if (!stored || !expected || !/^\d{6}$/.test(String(expected))) return false;
+function codeMatches(userId, purpose, channel, stored, submitted) {
+  if (!stored || !submitted || !/^\d{6}$/.test(String(submitted))) return false;
+  const expectedHash = hashCode(userId, purpose, channel, submitted);
   const a = Buffer.from(stored, 'hex');
-  const b = Buffer.from(expected, 'hex');
+  const b = Buffer.from(expectedHash, 'hex');
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 function newCode() { return String(crypto.randomInt(0, 1000000)).padStart(6, '0'); }
@@ -144,7 +145,7 @@ exports.verifyRegistration = async (req, res, next) => {
           ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [user.id, channel]);
       records[channel] = otp;
     }
-    const invalid = required.filter(channel => !records[channel] || Number(records[channel].attempts) >= OTP_MAX_ATTEMPTS || !codeMatches(records[channel].code_hash, submitted[channel]));
+    const invalid = required.filter(channel => !records[channel] || Number(records[channel].attempts) >= OTP_MAX_ATTEMPTS || !codeMatches(user.id, 'registration', channel, records[channel].code_hash, submitted[channel]));
     if (invalid.length) {
       for (const channel of invalid) if (records[channel]) {
         const exhausted = Number(records[channel].attempts) + 1 >= OTP_MAX_ATTEMPTS;
@@ -227,7 +228,7 @@ exports.resetPassword = async (req, res, next) => {
         WHERE user_id = ? AND purpose = 'password_reset' AND delivery_channel = 'email'
           AND consumed_at IS NULL AND expires_at > UTC_TIMESTAMP()
         ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [user.id]);
-    if (!otp || Number(otp.attempts) >= OTP_MAX_ATTEMPTS || !codeMatches(otp.code_hash, code)) {
+    if (!otp || Number(otp.attempts) >= OTP_MAX_ATTEMPTS || !codeMatches(user.id, 'password_reset', 'email', otp.code_hash, code)) {
       if (otp) {
         const exhausted = Number(otp.attempts) + 1 >= OTP_MAX_ATTEMPTS;
         await conn.query('UPDATE account_otps SET attempts = attempts + 1, consumed_at = IF(?, UTC_TIMESTAMP(), consumed_at) WHERE id = ?', [exhausted, otp.id]);

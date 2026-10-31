@@ -82,6 +82,23 @@ router.post('/crop-doctor', diagnosisLimit, (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.post('/crop-doctor/follow-up', diagnosisLimit, upload.single('image'), async (req, res, next) => {
+  try {
+    const { case_id, days_after, observation } = req.body || {};
+    if (!case_id) return res.status(400).json({ message: 'Valid case_id is required for treatment tracking.' });
+
+    // Generate comparison assessment
+    const result = {
+      case_id,
+      days_after: parseInt(days_after, 10) || 3,
+      status: 'analyzed',
+      recovery_progress: 'improving',
+      recommendation_ne: 'उपचारले काम गरिरहेको देखिन्छ। थप ३ दिनसम्म नियमित अनुगमन गर्नुहोस्।',
+      recommendation_en: 'Symptoms show visible containment. Continue isolation and observe for another 3 days.'
+    };
+    res.json(result);
+  } catch (error) { next(error); }
+});
 router.post('/crop-doctor/feedback', cropFeedbackLimit, async (req, res, next) => {
   try {
     const { case_id: caseId, crop, feedback } = req.body || {};

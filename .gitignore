@@ -105,3 +105,6 @@ diag-vps.sh
 https-vps.sh
 restore-vps.sh
 update-validation.py
+
+tools/dsh/
+*.code-workspace

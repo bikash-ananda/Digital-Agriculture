@@ -1,3 +1,4 @@
+const { humanizeResponse } = require('../utils/responseHumanizer');
 const DEFAULT_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 const agricultureKnowledge = require('./agricultureKnowledge');
 
@@ -123,6 +124,7 @@ async function askWithSources(messages, lang = 'en') {
   const latestQuestion = [...messages].reverse().find((message) => message.role === 'user')?.content || '';
   const retrieval = await retrievedContext(latestQuestion);
   const answer = await complete(messages, { systemPrompt: `You are a careful agricultural information assistant for farmers in Kaski District, Gandaki Province, Nepal. Reply in ${language}. Use simple language, short headings and numbered practical steps. Ask a brief follow-up when key details are missing. Distinguish general guidance from verified local recommendations. Never invent live weather, prices, official recommendations, or diagnoses. Do not recommend pesticide products or application rates. For uncertain or serious crop problems, recommend inspection by an agricultural technician. Say when information is uncertain.${contextInstructions(retrieval)}` });
+  $answer = humanizeResponse(answer, lang);
   return { answer, sources: retrieval.results.map(({ id, kind, title, topic, crop }) => ({ id, kind, title, topic, crop })) };
 }
 
@@ -147,7 +149,7 @@ async function diagnose(fields, image, lang = 'en') {
     { type: 'image_url', image_url: { url: dataUrl, detail: 'low' } }
   ] }], { image: true, systemPrompt: `You are an agricultural crop symptom triage assistant for farmers in Kaski District, Nepal. Reply in ${lang === 'ne' ? 'Nepali' : 'English'}. Image-based output is preliminary and must not be presented as a diagnosis. Be cautious, explain uncertainty and use integrated pest management principles. Never recommend pesticide brands, dosages, or application schedules. Escalate uncertain, spreading, or severe problems to a qualified local agricultural technician.${contextInstructions(retrieval)}` });
   return {
-    analysis,
+    analysis: (typeof humanizedAnalysis !== 'undefined' ? humanizedAnalysis : analysis),
     sources: retrieval.results.map(({ id, kind, title, topic, crop: sourceCrop, url }) => ({ id, kind, title, topic, crop: sourceCrop, url })),
     agent: { workflow: ['case_intake', 'published_knowledge_retrieval', 'image_and_symptom_triage'], retrieval_mode: retrieval.mode, preliminary: true }
   };
@@ -172,7 +174,7 @@ async function triageCropProblem(fields, lang = 'en') {
     systemPrompt: `You are the Kaski Crop Assistance Agent. This is text-only preliminary triage, not a diagnosis or official recommendation. Reply in ${language}, using short, practical steps appropriate to farmers in Kaski District, Gandaki Province, Nepal. Use only the farmer's reported details and the published references below. Clearly separate observations, possibilities, and unknowns. Never invent a local outbreak, weather, price, or government advice. Never prescribe pesticide products, dosage, or timing. For uncertain, severe, or spreading problems, advise inspection by an agriculture technician.${contextInstructions(retrieval)}`
   });
   return {
-    analysis,
+    analysis: (typeof humanizedAnalysis !== 'undefined' ? humanizedAnalysis : analysis),
     sources: retrieval.results.map(({ id, kind, title, topic, crop, url }) => ({ id, kind, title, topic, crop, url })),
     agent: { workflow: ['case_intake', 'published_knowledge_retrieval', 'symptom_triage'], retrieval_mode: retrieval.mode, preliminary: true }
   };

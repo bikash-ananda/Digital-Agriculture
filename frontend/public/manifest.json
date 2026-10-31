@@ -1,0 +1,17 @@
+{
+  "name": "Digital Agriculture - Smart Farming",
+  "short_name": "DigiAgri Nepal",
+  "description": "Smart Agriculture, IoT Greenhouses, and Farmer Advisory for Kaski District",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#123221",
+  "theme_color": "#123221",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ]
+}

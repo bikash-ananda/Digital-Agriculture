@@ -10,7 +10,9 @@ async function touchDevice(req, firmware) {
 }
 
 async function setActuatorState(actuatorId, state, source, commandId) {
-  const [[a]] = await db.query('SELECT current_state FROM actuators WHERE id = ?', [actuatorId]);
+  const [rows] = await db.query('SELECT current_state FROM actuators WHERE id = ?', [actuatorId]);
+  const a = rows[0];
+  if (!a) return;
   await db.query('UPDATE actuators SET current_state = ?, last_state_at = NOW() WHERE id = ?', [state, actuatorId]);
   if (state === 'on' && a.current_state !== 'on') {
     await db.query(

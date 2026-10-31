@@ -1,15 +1,39 @@
 import { CROPS, FIELDS } from './farmContent.js';
 
-const WEATHER_PATTERN = ['cloudy', 'sunny', 'rain', 'cloudy', 'hot', 'rain', 'sunny', 'cloudy', 'rain', 'sunny', 'hot', 'rain', 'cloudy', 'sunny'];
+// Seasonal weather: each group of 4 seasons cycles spring→monsoon→autumn→dry
+const WEATHER_PATTERNS = {
+  spring:  ['cloudy', 'sunny', 'rain', 'cloudy', 'hot', 'rain', 'sunny', 'cloudy', 'rain', 'sunny', 'hot', 'rain', 'cloudy', 'sunny'],
+  monsoon: ['rain', 'rain', 'cloudy', 'rain', 'cloudy', 'rain', 'rain', 'cloudy', 'rain', 'cloudy', 'sunny', 'rain', 'rain', 'cloudy'],
+  autumn:  ['cloudy', 'sunny', 'cloudy', 'sunny', 'rain', 'cloudy', 'sunny', 'sunny', 'cloudy', 'rain', 'sunny', 'cloudy', 'sunny', 'hot'],
+  dry:     ['sunny', 'hot', 'sunny', 'cloudy', 'sunny', 'hot', 'sunny', 'cloudy', 'hot', 'sunny', 'cloudy', 'hot', 'sunny', 'sunny']
+};
+
+function seasonName(season) {
+  const mod = ((Math.max(1, Math.floor(season)) - 1) % 4) + 1;
+  if (mod === 1) return 'spring';
+  if (mod === 2) return 'monsoon';
+  if (mod === 3) return 'autumn';
+  return 'dry';
+}
+
 const GAME_SEED_COST = 8;
 const GAME_COIN_VALUE_PER_CRATE = 4;
 const MAX_SEEDS = 3;
+const FERTILIZE_COIN_COST = 4;
+const MAX_NUTRITION = 100;
 
 export const WEATHER = {
   cloudy: { ne: 'बादल', en: 'Cloudy' },
-  sunny: { ne: 'घमाइलो', en: 'Sunny' },
-  rain: { ne: 'वर्षा', en: 'Rain' },
-  hot: { ne: 'तातो दिन', en: 'Hot day' }
+  sunny:  { ne: 'घमाइलो', en: 'Sunny' },
+  rain:   { ne: 'वर्षा', en: 'Rain' },
+  hot:    { ne: 'तातो दिन', en: 'Hot day' }
+};
+
+export const SEASONS = {
+  spring:  { ne: 'वसन्त', en: 'Spring' },
+  monsoon: { ne: 'वर्षाकाल', en: 'Monsoon' },
+  autumn:  { ne: 'हेमन्त', en: 'Autumn' },
+  dry:     { ne: 'हिउँद', en: 'Winter/Dry' }
 };
 
 const EMPTY_RESULT = {
@@ -17,15 +41,16 @@ const EMPTY_RESULT = {
   en: 'Prepare the soil to start your small farm.'
 };
 
-const EMPTY_SKILLS = { soil: 0, water: 0, cropCare: 0, harvest: 0, market: 0 };
-const VALID_ACTIONS = ['prepare', 'plant', 'water', 'weed', 'mulch', 'inspect'];
+const EMPTY_SKILLS = { soil: 0, water: 0, cropCare: 0, harvest: 0, market: 0, nutrition: 0 };
+const VALID_ACTIONS = ['prepare', 'plant', 'water', 'weed', 'mulch', 'inspect', 'fertilize'];
 
 export function createFarmState() {
   return {
-    version: 2,
+    version: 3,
     season: 1,
+    seasonName: 'spring',
     day: 1,
-    weather: WEATHER_PATTERN[0],
+    weather: WEATHER_PATTERNS.spring[0],
     fieldId: 'sunny-terrace',
     unlockedFields: ['sunny-terrace'],
     cropId: 'tomato',
@@ -33,6 +58,8 @@ export function createFarmState() {
     prepared: false,
     planted: false,
     mulched: false,
+    fertilized: false,
+    nutrition: 50,
     moisture: 42,
     weeds: 18,
     health: 100,
@@ -56,8 +83,9 @@ export function createFarmState() {
 }
 
 export function weatherForDay(day, season = 1) {
-  const offset = Math.max(0, Math.floor(season) - 1) * 5;
-  return WEATHER_PATTERN[(offset + Math.max(1, Math.floor(day)) - 1) % WEATHER_PATTERN.length];
+  const sName = seasonName(season);
+  const pattern = WEATHER_PATTERNS[sName];
+  return pattern[(Math.max(1, Math.floor(day)) - 1) % pattern.length];
 }
 
 export function getCropStage(state) {
@@ -71,10 +99,12 @@ export function getCropStage(state) {
 export function getCropCondition(state) {
   if (state.harvested) return 'harvested';
   if (!state.planted) return state.prepared ? 'ready-to-plant' : 'field-empty';
-  if (state.growthDays >= (CROPS[state.cropId] || CROPS.tomato).daysToMaturity) return 'ready';
+  const crop = CROPS[state.cropId] || CROPS.tomato;
+  if (state.growthDays >= crop.daysToMaturity) return 'ready';
   if (state.moisture < 22) return 'thirsty';
   if (state.moisture > 84) return 'waterlogged';
   if (state.weeds >= 70) return 'weedy';
+  if (state.nutrition < 20) return 'nutrient-poor';
   if (state.health < 35) return 'recovering';
   return 'growing-well';
 }
@@ -118,6 +148,19 @@ export function setFarmField(state, fieldId) {
   });
 }
 
+export function setFarmCrop(state, cropId) {
+  if (!CROPS[cropId]) return state;
+  if (state.prepared || state.planted || state.harvested) return withResult(state, {
+    ne: 'नयाँ सिजन सुरु भएपछि मात्र बाली छान्न सकिन्छ।',
+    en: 'Choose a crop when you start a new season.'
+  });
+  const crop = CROPS[cropId];
+  return withResult({ ...state, cropId }, {
+    ne: `${crop.name.ne} छान्नुभयो। यसको चिस्यान आवश्यकता ध्यान दिनुहोस्।`,
+    en: `${crop.name.en} selected. Note its moisture requirements.`
+  });
+}
+
 export function completeFarmTutorial(state) {
   return { ...state, tutorialCompleted: true };
 }
@@ -127,13 +170,15 @@ export function buySeedBag(state) {
     ne: 'बिउको मौज्दात पर्याप्त छ। पहिले बारीमा रोप्नुहोस्।',
     en: 'You have enough seeds. Plant one in the field first.'
   });
-  if (state.coins < GAME_SEED_COST) return withResult(state, {
-    ne: `एउटा बिउको झोला किन्न ${GAME_SEED_COST} खेल सिक्का चाहिन्छ।`,
-    en: `You need ${GAME_SEED_COST} game coins for a seed bag.`
+  const crop = CROPS[state.cropId] || CROPS.tomato;
+  const cost = GAME_SEED_COST;
+  if (state.coins < cost) return withResult(state, {
+    ne: `एउटा बिउको झोला किन्न ${cost} खेल सिक्का चाहिन्छ।`,
+    en: `You need ${cost} game coins for a seed bag.`
   });
-  return withResult({ ...state, seedInventory: state.seedInventory + 1, coins: state.coins - GAME_SEED_COST }, {
-    ne: 'गोलभेंडाको एउटा बिउको झोला किनियो। सिक्का खेलभित्रका मात्र हुन्।',
-    en: 'One tomato seed bag added. These coins are only for the game.'
+  return withResult({ ...state, seedInventory: state.seedInventory + 1, coins: state.coins - cost }, {
+    ne: `${crop.name.ne}को एउटा बिउको झोला किनियो। सिक्का खेलभित्रका मात्र हुन्।`,
+    en: `One ${crop.name.en} seed bag added. These coins are only for the game.`
   });
 }
 
@@ -144,6 +189,8 @@ export function settleHarvest(state, choice) {
   });
 
   const crates = state.produceInventory;
+  const crop = CROPS[state.cropId] || CROPS.tomato;
+
   if (choice === 'sell') {
     const coins = crates * GAME_COIN_VALUE_PER_CRATE;
     return withResult({
@@ -157,8 +204,8 @@ export function settleHarvest(state, choice) {
       badges: awardBadge(state.badges, 'first-sale'),
       lastTrade: { choice, crates, coins, season: state.season }
     }, {
-      ne: `${crates} क्रेट खेलको बजारमा बेचेर ${coins} खेल सिक्का प्राप्त भयो।`,
-      en: `Sold ${crates} crates in the game market for ${coins} game coins.`
+      ne: `${crates} क्रेट ${crop.name.ne} खेलको बजारमा बेचेर ${coins} खेल सिक्का प्राप्त भयो।`,
+      en: `Sold ${crates} crates of ${crop.name.en} for ${coins} game coins.`
     });
   }
 
@@ -172,8 +219,8 @@ export function settleHarvest(state, choice) {
       badges: awardBadge(state.badges, 'home-harvest'),
       lastTrade: { choice, crates, coins: 0, season: state.season }
     }, {
-      ne: `${crates} क्रेट घरको प्रयोगका लागि राखियो। यो खेतीको एउटा उपयोगी निर्णय हो।`,
-      en: `Kept ${crates} crates for home use. That is a useful farm decision too.`
+      ne: `${crates} क्रेट ${crop.name.ne} घरको प्रयोगका लागि राखियो।`,
+      en: `Kept ${crates} crates of ${crop.name.en} for home use.`
     });
   }
 
@@ -191,25 +238,39 @@ export function startNewFarmSeason(state) {
   });
 
   const nextSeason = state.season + 1;
+  const sName = seasonName(nextSeason);
+
+  // Unlock fields based on harvest count
+  let unlockedFields = [...state.unlockedFields];
+  if (state.totalHarvests >= 1 && !unlockedFields.includes('sheltered-plot')) unlockedFields.push('sheltered-plot');
+  if (state.totalHarvests >= 3 && !unlockedFields.includes('irrigated-paddy')) unlockedFields.push('irrigated-paddy');
+  if (state.totalHarvests >= 5 && !unlockedFields.includes('greenhouse-plot')) unlockedFields.push('greenhouse-plot');
+
   return {
     ...state,
     season: nextSeason,
+    seasonName: sName,
     day: 1,
     weather: weatherForDay(1, nextSeason),
-    fieldId: state.unlockedFields.includes('sheltered-plot') ? 'sheltered-plot' : 'sunny-terrace',
     prepared: false,
     planted: false,
     mulched: false,
+    fertilized: false,
+    nutrition: 50,
     moisture: 42,
     weeds: 18,
     health: 100,
     growthDays: 0,
     harvested: false,
     produceInventory: 0,
+    unlockedFields,
     awardedMilestones: [],
     actionsToday: [],
     lastTrade: null,
-    lastResult: { ne: `सिजन ${nextSeason} सुरु भयो। यसपटक बारी छानेर आफ्नो निर्णय अभ्यास गर्नुहोस्।`, en: `Season ${nextSeason} started. Choose a field and practice your decisions again.` }
+    lastResult: {
+      ne: `सिजन ${nextSeason} (${SEASONS[sName].ne}) सुरु भयो। बारी र बाली छानेर अभ्यास गर्नुहोस्।`,
+      en: `Season ${nextSeason} (${SEASONS[sName].en}) started. Choose a field and crop.`
+    }
   };
 }
 
@@ -242,10 +303,12 @@ export function performFarmAction(state, action) {
 
   if (action === 'water') {
     if (state.actionsToday.includes(action)) return withResult(state, { ne: 'आज पानी दिइसक्नुभयो। अर्को दिनको चिस्यान हेर्नुहोस्।', en: 'You have watered today. Check moisture again tomorrow.' });
-    if (state.moisture >= 62) return withResult(state, { ne: 'माटोमा अहिले पर्याप्त चिस्यान छ। धेरै पानीले जरालाई तनाव दिन सक्छ।', en: 'The soil is moist enough for now. Too much water can stress roots.' });
+    const crop = CROPS[state.cropId] || CROPS.tomato;
+    if (state.moisture >= crop.targetMoisture[1] - 10) return withResult(state, { ne: 'माटोमा अहिले पर्याप्त चिस्यान छ। धेरै पानीले जरालाई तनाव दिन सक्छ।', en: 'The soil is moist enough for now. Too much water can stress roots.' });
     const moisture = Math.min(76, state.moisture + 22);
     const health = moisture >= 32 ? Math.min(100, state.health + (state.moisture < 22 ? 8 : 2)) : state.health;
-    const inRange = moisture >= 32 && moisture <= 76;
+    const [minM, maxM] = crop.targetMoisture;
+    const inRange = moisture >= minM && moisture <= maxM;
     return recordAction({ ...state, moisture, health }, action, {
       ne: `पानी दिइयो। चिस्यान ${moisture}% भयो। फेरि पानी दिनुअघि माटो जाँच्नुहोस्।`,
       en: `Water added. Moisture is now ${moisture}%. Check the soil before watering again.`
@@ -272,39 +335,78 @@ export function performFarmAction(state, action) {
     }, { xp: 4, skills: { soil: 1, cropCare: 1 } });
   }
 
+  if (action === 'fertilize') {
+    if (state.fertilized) return withResult(state, {
+      ne: 'यस सिजनमा मल हालिसकिएको छ। अर्को सिजनमा फेरि प्रयोग गर्न सकिन्छ।',
+      en: 'Fertilizer has already been applied this season. It can be used again next season.'
+    });
+    if (state.coins < FERTILIZE_COIN_COST) return withResult(state, {
+      ne: `मल हाल्न ${FERTILIZE_COIN_COST} खेल सिक्का चाहिन्छ।`,
+      en: `You need ${FERTILIZE_COIN_COST} game coins to fertilize.`
+    });
+    const nutrition = Math.min(MAX_NUTRITION, state.nutrition + 40);
+    const health = Math.min(100, state.health + 5);
+    let badges = state.badges;
+    if (state.skills.nutrition >= 3) badges = awardBadge(badges, 'nutritionist');
+    return recordAction({
+      ...state,
+      fertilized: true,
+      nutrition,
+      health,
+      coins: state.coins - FERTILIZE_COIN_COST,
+      badges
+    }, action, {
+      ne: `मल हालियो। पोषण ${nutrition}% भयो र बालीको स्वास्थ्य सुधार भयो।`,
+      en: `Fertilizer applied. Nutrition is now ${nutrition}% and crop health improved.`
+    }, { xp: 6, skills: { nutrition: 1, cropCare: 1 } });
+  }
+
   if (action === 'inspect') {
-    if (state.actionsToday.includes(action)) return withResult(state, { ne: 'आजको खेत निरीक्षण पूरा भयो। अवस्था बदलिँदा फेरि हेर्नुहोस्।', en: 'Today’s field check is complete. Inspect again after conditions change.' });
+    if (state.actionsToday.includes(action)) return withResult(state, { ne: 'आजको खेत निरीक्षण पूरा भयो।', en: 'Today\'s field check is complete.' });
+    const crop = CROPS[state.cropId] || CROPS.tomato;
+    const [minM, maxM] = crop.targetMoisture;
     let message;
-    if (state.moisture < 32) message = { ne: `माटोको चिस्यान ${state.moisture}% छ। खेलको लक्ष्य दायरा ३२–७६% हो; आवश्यक भए पानी दिनुहोस्।`, en: `Moisture is ${state.moisture}%. The game target range is 32–76%; water if needed.` };
-    else if (state.moisture > 76) message = { ne: `माटोको चिस्यान ${state.moisture}% छ। थप पानी नदिनुहोस् र निकास हुन दिनुहोस्।`, en: `Moisture is ${state.moisture}%. Hold off on watering and let the field drain.` };
-    else if (state.weeds >= 45) message = { ne: `झारपात ${state.weeds}% छ। हातैले हटाउँदा बालीको प्रतिस्पर्धा कम हुन्छ।`, en: `Weed pressure is ${state.weeds}%. Removing weeds reduces competition for the crop.` };
-    else message = { ne: 'अहिले खेतको अवस्था स्थिर छ। मौसम हेरेर तयार भएपछि अर्को दिन जानुहोस्।', en: 'The field is stable. Watch the weather and advance when you are ready.' };
+    if (state.moisture < minM) message = { ne: `माटोको चिस्यान ${state.moisture}% छ। लक्ष्य दायरा ${minM}–${maxM}%; आवश्यक भए पानी दिनुहोस्।`, en: `Moisture is ${state.moisture}%. Target range is ${minM}–${maxM}%; water if needed.` };
+    else if (state.moisture > maxM) message = { ne: `माटोको चिस्यान ${state.moisture}% छ। थप पानी नदिनुहोस्।`, en: `Moisture is ${state.moisture}%. Hold off on watering.` };
+    else if (state.weeds >= 45) message = { ne: `झारपात ${state.weeds}% छ। हटाउँदा बालीको प्रतिस्पर्धा कम हुन्छ।`, en: `Weed pressure is ${state.weeds}%. Removing weeds reduces competition.` };
+    else if (state.nutrition < 25) message = { ne: `पोषण ${state.nutrition}% छ। मल हाल्दा बालीको वृद्धिमा सुधार हुन्छ।`, en: `Nutrition is ${state.nutrition}%. Fertilizing will improve crop growth.` };
+    else message = { ne: 'खेतको अवस्था स्थिर छ। मौसम हेरेर तयार भएपछि अर्को दिन जानुहोस्।', en: 'The field is stable. Watch the weather and advance when ready.' };
     return recordAction(state, action, message);
   }
 
   if (action === 'harvest') {
     const crop = CROPS[state.cropId] || CROPS.tomato;
     if (state.growthDays < crop.daysToMaturity) return withResult(state, { ne: 'बाली अझै पाक्दैछ। पाकेको चरणसम्म पर्खनुहोस्।', en: 'The crop is still growing. Wait until it reaches the ripe stage.' });
-    const crates = Math.max(1, Math.min(5, Math.ceil(state.health / 20)));
+
+    // Nutrition bonus: well-fed crops yield more
+    const nutritionBonus = state.nutrition >= 60 ? 1 : 0;
+    const crates = Math.max(1, Math.min(6, Math.ceil(state.health / 20) + nutritionBonus));
     const totalHarvests = state.totalHarvests + 1;
-    const unlockedFields = totalHarvests >= 1
-      ? [...new Set([...state.unlockedFields, 'sheltered-plot'])]
-      : state.unlockedFields;
+
     let badges = awardBadge(state.badges, 'first-harvest');
     if (state.health >= 80) badges = awardBadge(badges, 'careful-grower');
+    // Crop-specific badges
+    if (state.cropId === 'potato') badges = awardBadge(badges, 'first-potato');
+    if (state.cropId === 'rice')   badges = awardBadge(badges, 'first-rice');
+    if (state.cropId === 'maize')  badges = awardBadge(badges, 'first-maize');
+    if (state.fieldId === 'greenhouse-plot') badges = awardBadge(badges, 'greenhouse-grower');
+    // Three-crop badge: track unique crops harvested
+    const harvestedCrops = new Set([...(state.harvestedCropIds || []), state.cropId]);
+    if (harvestedCrops.size >= 3) badges = awardBadge(badges, 'three-crops');
+
     return withResult({
       ...state,
       harvested: true,
       produceInventory: state.produceInventory + crates,
       totalHarvests,
-      unlockedFields,
+      harvestedCropIds: [...harvestedCrops],
       xp: state.xp + 25,
       coins: state.coins + 10,
       skills: skillUpdate(state.skills, { harvest: 2 }),
       badges
     }, {
-      ne: `${crates} क्रेट गोलभेंडा भित्र्याउनुभयो! अब बजारमा बेच्ने वा घरका लागि राख्ने निर्णय गर्नुहोस्।`,
-      en: `You harvested ${crates} crates of tomatoes! Choose to sell them or keep them for home.`
+      ne: `${crates} क्रेट ${crop.name.ne} भित्र्याउनुभयो! अब बजारमा बेच्ने वा घरका लागि राख्ने निर्णय गर्नुहोस्।`,
+      en: `You harvested ${crates} crates of ${crop.name.en}! Choose to sell them or keep them for home.`
     });
   }
 
@@ -316,19 +418,28 @@ export function advanceFarmDay(state) {
   if (!state.planted || state.harvested || state.growthDays >= crop.daysToMaturity) return state;
 
   const field = FIELDS.find((item) => item.id === state.fieldId) || FIELDS[0];
+
+  // Greenhouse dampening: halve all weather moisture swings
+  const dampen = field.weatherDampening ? 0.5 : 1;
   let weatherDelta = { cloudy: -4, sunny: -12, hot: -18, rain: 22 }[state.weather] || 0;
   if (state.weather === 'sunny' || state.weather === 'hot') weatherDelta -= field.extraSunnyDrying;
   if (state.weather === 'rain') weatherDelta += field.extraRainRetention;
+  weatherDelta = Math.round(weatherDelta * dampen);
+
   const evaporation = state.mulched && weatherDelta < 0 ? Math.ceil(Math.abs(weatherDelta) * 0.65) : Math.abs(weatherDelta);
   const moisture = Math.max(0, Math.min(100, state.moisture + (weatherDelta < 0 ? -evaporation : weatherDelta)));
   const weedGrowth = state.mulched ? 4 : 7;
   const weeds = Math.min(100, state.weeds + weedGrowth);
+
+  // Nutrition drains slowly each day
+  const nutrition = Math.max(0, state.nutrition - 4);
 
   let health = state.health;
   let growthDays = state.growthDays;
   let xp = state.xp;
   let skills = { ...EMPTY_SKILLS, ...state.skills };
   let message;
+
   const [minMoisture, maxMoisture] = crop.targetMoisture;
   const moistureOkay = moisture >= minMoisture && moisture <= maxMoisture;
 
@@ -337,23 +448,28 @@ export function advanceFarmDay(state) {
     message = { ne: 'माटो धेरै सुक्खा भयो। अर्को दिनअघि चिस्यान जाँच्नुहोस्।', en: 'The soil became very dry. Check moisture before advancing again.' };
   } else if (moisture > 84) {
     health -= 9;
-    message = { ne: 'माटो धेरै भिजेको छ। थप पानी नदिनुहोस् र निकास हुन दिनुहोस्।', en: 'The soil is waterlogged. Hold off on water and let it drain.' };
+    message = { ne: 'माटो धेरै भिजेको छ। थप पानी नदिनुहोस्।', en: 'The soil is waterlogged. Hold off on water and let it drain.' };
   } else if (!moistureOkay) {
     health -= 4;
     message = { ne: 'माटोको चिस्यान लक्ष्यभन्दा बाहिर छ। अर्को कदमअघि जाँच्नुहोस्।', en: 'Soil moisture is outside the game target. Check before your next action.' };
   } else if (weeds >= 70) {
     health -= 7;
-    message = { ne: 'झारपात धेरै बढ्यो र खेलमा बालीको वृद्धि रोकियो। खेत सफा गर्नुहोस्।', en: 'Weed pressure is high and crop growth paused in the game. Clear the bed.' };
+    message = { ne: 'झारपात धेरै बढ्यो र बालीको वृद्धि रोकियो। खेत सफा गर्नुहोस्।', en: 'Weed pressure is high and crop growth paused. Clear the bed.' };
+  } else if (nutrition < 15) {
+    health -= 3;
+    growthDays += 1;
+    message = { ne: 'पोषण कम छ। बाली बिस्तारै बढ्दैछ; मल हाल्नुहोस्।', en: 'Nutrition is low. The crop grows slowly; consider fertilizing.' };
   } else {
     growthDays += 1;
     health += health < 35 ? 5 : 2;
     xp += 1;
     skills = skillUpdate(skills, { water: 1, cropCare: weeds < 45 ? 1 : 0 });
-    message = { ne: 'राम्रो दिन! चिस्यान र झारपातको अवस्था मिलेकाले बाली एक वृद्धि दिन अघि बढ्यो।', en: 'A good day! Suitable moisture and low weed pressure moved the crop forward one growth day.' };
+    message = { ne: 'राम्रो दिन! उचित चिस्यान र पोषणले बाली एक वृद्धि दिन अघि बढ्यो।', en: 'A good day! Suitable moisture and nutrition moved the crop forward one growth day.' };
   }
 
   const awardedMilestones = [...state.awardedMilestones];
-  for (const milestone of [3, 7, 11]) {
+  const milestones = [Math.floor(crop.daysToMaturity * 0.25), Math.floor(crop.daysToMaturity * 0.58), Math.floor(crop.daysToMaturity * 0.9)];
+  for (const milestone of milestones) {
     if (growthDays >= milestone && !awardedMilestones.includes(milestone)) {
       awardedMilestones.push(milestone);
       xp += 5;
@@ -366,6 +482,7 @@ export function advanceFarmDay(state) {
     weather: weatherForDay(state.day + 1, state.season),
     moisture,
     weeds,
+    nutrition,
     health: Math.max(0, Math.min(100, health)),
     growthDays,
     xp,
@@ -377,57 +494,105 @@ export function advanceFarmDay(state) {
 }
 
 export function normalizeFarmState(value) {
-  if (!value || typeof value !== 'object' || ![1, 2].includes(value.version)) return createFarmState();
+  if (!value || typeof value !== 'object' || ![1, 2, 3].includes(value.version)) return createFarmState();
   const base = createFarmState();
-  const state = { ...base, ...value, version: 2 };
+  const state = { ...base, ...value, version: 3 };
 
+  // Migrate v1
   if (value.version === 1) {
     state.season = 1;
+    state.seasonName = 'spring';
     state.fieldId = 'sunny-terrace';
     state.unlockedFields = ['sunny-terrace', ...(value.harvested ? ['sheltered-plot'] : [])];
     state.cropId = 'tomato';
     state.seedInventory = value.planted || value.harvested ? 0 : 1;
     state.produceInventory = value.harvested ? Math.max(1, Math.min(5, Math.ceil((value.health || 100) / 20))) : 0;
     state.totalHarvests = value.harvested ? 1 : 0;
-    state.totalSoldCrates = 0;
-    state.totalHomeCrates = 0;
-    state.marketCoins = 0;
+    state.totalSoldCrates = 0; state.totalHomeCrates = 0; state.marketCoins = 0;
     state.skills = { ...EMPTY_SKILLS };
-    state.tutorialCompleted = false;
-    state.lastTrade = null;
+    state.tutorialCompleted = false; state.lastTrade = null;
+    state.fertilized = false; state.nutrition = 50;
   }
 
-  for (const field of ['day', 'season', 'moisture', 'weeds', 'health', 'growthDays', 'seedInventory', 'produceInventory', 'totalHarvests', 'totalSoldCrates', 'totalHomeCrates', 'marketCoins', 'xp', 'coins']) {
+  // Migrate v2 → v3: add new fields
+  if (value.version === 2) {
+    state.seasonName = seasonName(state.season || 1);
+    state.fertilized = false;
+    state.nutrition = 50;
+    if (!state.skills.nutrition) state.skills = { ...state.skills, nutrition: 0 };
+  }
+
+  for (const field of ['day', 'season', 'moisture', 'weeds', 'health', 'growthDays', 'seedInventory', 'produceInventory', 'totalHarvests', 'totalSoldCrates', 'totalHomeCrates', 'marketCoins', 'xp', 'coins', 'nutrition']) {
     if (!Number.isFinite(state[field]) || state[field] < 0) state[field] = base[field];
   }
   state.day = Math.max(1, Math.floor(state.day));
   state.season = Math.max(1, Math.floor(state.season));
+  state.seasonName = SEASONS[state.seasonName] ? state.seasonName : seasonName(state.season);
   state.seedInventory = Math.min(MAX_SEEDS, Math.floor(state.seedInventory));
   for (const field of ['produceInventory', 'totalHarvests', 'totalSoldCrates', 'totalHomeCrates', 'marketCoins', 'xp', 'coins']) state[field] = Math.floor(state[field]);
-  for (const field of ['moisture', 'weeds', 'health']) state[field] = Math.min(100, state[field]);
-  state.growthDays = Math.min(12, Math.floor(state.growthDays));
+  for (const field of ['moisture', 'weeds', 'health', 'nutrition']) state[field] = Math.min(100, state[field]);
+  const crop = CROPS[state.cropId] || CROPS.tomato;
+  state.growthDays = Math.min(crop.daysToMaturity, Math.floor(state.growthDays));
   state.weather = WEATHER[state.weather] ? state.weather : weatherForDay(state.day, state.season);
-  state.fieldId = FIELDS.some((field) => field.id === state.fieldId) ? state.fieldId : 'sunny-terrace';
+  state.fieldId = FIELDS.some((f) => f.id === state.fieldId) ? state.fieldId : 'sunny-terrace';
   state.cropId = CROPS[state.cropId] ? state.cropId : 'tomato';
   state.unlockedFields = Array.isArray(state.unlockedFields)
-    ? [...new Set(['sunny-terrace', ...state.unlockedFields.filter((id) => FIELDS.some((field) => field.id === id))])]
+    ? [...new Set(['sunny-terrace', ...state.unlockedFields.filter((id) => FIELDS.some((f) => f.id === id))])]
     : ['sunny-terrace'];
-  if (state.totalHarvests > 0 && !state.unlockedFields.includes('sheltered-plot')) state.unlockedFields.push('sheltered-plot');
+  if (state.totalHarvests >= 1 && !state.unlockedFields.includes('sheltered-plot')) state.unlockedFields.push('sheltered-plot');
+  if (state.totalHarvests >= 3 && !state.unlockedFields.includes('irrigated-paddy')) state.unlockedFields.push('irrigated-paddy');
+  if (state.totalHarvests >= 5 && !state.unlockedFields.includes('greenhouse-plot')) state.unlockedFields.push('greenhouse-plot');
   if (!state.unlockedFields.includes(state.fieldId)) state.fieldId = 'sunny-terrace';
   state.produceInventory = Math.min(999, state.produceInventory);
   for (const field of ['totalHarvests', 'totalSoldCrates', 'totalHomeCrates', 'marketCoins', 'xp', 'coins']) state[field] = Math.min(1000000000, state[field]);
   state.badges = Array.isArray(state.badges) ? [...new Set(state.badges.filter((item) => typeof item === 'string'))] : [];
-  state.awardedMilestones = Array.isArray(state.awardedMilestones) ? [...new Set(state.awardedMilestones.filter((item) => [3, 7, 11].includes(item)))] : [];
+  state.harvestedCropIds = Array.isArray(state.harvestedCropIds) ? [...new Set(state.harvestedCropIds.filter((id) => CROPS[id]))] : [];
+  const validMilestones = [
+    Math.floor(crop.daysToMaturity * 0.25),
+    Math.floor(crop.daysToMaturity * 0.58),
+    Math.floor(crop.daysToMaturity * 0.9)
+  ];
+  state.awardedMilestones = Array.isArray(state.awardedMilestones)
+    ? [...new Set(state.awardedMilestones.filter((item) => validMilestones.includes(item)))]
+    : [];
   state.actionsToday = Array.isArray(state.actionsToday) ? state.actionsToday.filter((item) => VALID_ACTIONS.includes(item)) : [];
   state.skills = Object.fromEntries(Object.keys(EMPTY_SKILLS).map((key) => [key, Number.isFinite(state.skills?.[key]) ? Math.max(0, Math.floor(state.skills[key])) : 0]));
   state.tutorialCompleted = Boolean(state.tutorialCompleted);
+  state.fertilized = Boolean(state.fertilized);
+  state.mulched = Boolean(state.mulched);
   state.lastResult = state.lastResult && typeof state.lastResult.en === 'string' && typeof state.lastResult.ne === 'string' ? state.lastResult : EMPTY_RESULT;
   state.lastTrade = state.lastTrade && ['sell', 'home'].includes(state.lastTrade.choice) ? state.lastTrade : null;
   state.prepared = Boolean(state.prepared);
   state.planted = Boolean(state.planted && state.prepared);
-  state.mulched = Boolean(state.mulched);
   state.harvested = Boolean(state.harvested && state.planted);
   return state;
 }
 
-export const FARM_ECONOMY = { seedCost: GAME_SEED_COST, coinsPerCrate: GAME_COIN_VALUE_PER_CRATE };
+
+/**
+ * Mirror Mode: Synchronize game state directly with real greenhouse sensor readings.
+ * @param {object} state 
+ * @param {object} liveTelemetry { soilMoisture, temp, humidity }
+ */
+export function syncRealSensorFeed(state, liveTelemetry) {
+  if (!liveTelemetry || !state.planted) return state;
+
+  const moisture = Number.isFinite(liveTelemetry.soilMoisture)
+    ? Math.min(100, Math.max(0, Math.round(liveTelemetry.soilMoisture)))
+    : state.moisture;
+
+  const crop = CROPS[state.cropId] || CROPS.tomato;
+  const [minM, maxM] = crop.targetMoisture;
+  const inRange = moisture >= minM && moisture <= maxM;
+
+  return {
+    ...state,
+    moisture,
+    isMirrorMode: true,
+    lastResult: {
+      ne: `वास्तविक सेन्सर सिंक भयो: चिस्यान ${moisture}%। ${inRange ? 'बालीका लागि उपयुक्त।' : 'चिस्यान सन्तुलन मिलाउनुहोस्।'}`,
+      en: `Live Sensor Synced: Soil Moisture ${moisture}%. ${inRange ? 'Optimal for crop.' : 'Adjust irrigation to restore balance.'}`
+    }
+  };
+}
+export const FARM_ECONOMY = { seedCost: GAME_SEED_COST, coinsPerCrate: GAME_COIN_VALUE_PER_CRATE, fertilizeCost: FERTILIZE_COIN_COST };
