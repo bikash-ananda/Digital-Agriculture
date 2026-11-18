@@ -1,17 +1,30 @@
 {
-  "name": "Digital Agriculture - Smart Farming",
-  "short_name": "DigiAgri Nepal",
-  "description": "Smart Agriculture, IoT Greenhouses, and Farmer Advisory for Kaski District",
+  "id": "/",
+  "name": "Kaski Krishi — Digital Agriculture Platform",
+  "short_name": "Kaski Krishi",
+  "description": "स्मार्ट कृषि, समृद्ध कास्की — Digital Agriculture and Smart Farming Platform for Kaski, Nepal.",
+  "lang": "ne",
+  "dir": "ltr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#123221",
-  "theme_color": "#123221",
-  "orientation": "portrait-primary",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#123d32",
+  "theme_color": "#123d32",
+  "categories": ["agriculture", "education", "utilities"],
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/icons/kaski-krishi.svg",
       "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/kaski-krishi.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
     }
   ]
 }
