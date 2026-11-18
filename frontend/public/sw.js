@@ -79,7 +79,7 @@ self.addEventListener('fetch', (event) => {
     });
 
     if (cached) {
-      event.waitUntil(networkUpdate.catch(() => {}));
+      networkUpdate.catch(() => {});
       return cached;
     }
 
