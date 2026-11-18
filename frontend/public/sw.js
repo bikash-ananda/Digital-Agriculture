@@ -63,8 +63,13 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Cache only same-origin static resources; do not cache arbitrary documents or API data.
-  const isStaticAsset = ['script', 'style', 'image', 'font', 'worker'].includes(request.destination)
+  const isPublicAssetPath = url.pathname.startsWith('/assets/')
+    || url.pathname.startsWith('/images/')
+    || url.pathname.startsWith('/icons/')
+    || url.pathname === '/favicon.svg'
     || url.pathname === '/manifest.json';
+  const isStaticAsset = isPublicAssetPath
+    && ['script', 'style', 'image', 'font', 'worker', ''].includes(request.destination);
   if (!isStaticAsset) return;
 
   event.respondWith((async () => {
