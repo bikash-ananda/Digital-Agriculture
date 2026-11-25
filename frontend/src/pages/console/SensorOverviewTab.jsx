@@ -1,10 +1,85 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Clock3, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, Clock3, Wifi, WifiOff, Sun, Moon, CloudSun, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import api from '../../services/api';
 import { ageText, fv, meta, ZERO_SENSOR_TILES } from '../../utils/console';
 
-function SensorCard({ tile, lang, t }) {
+
+function solarElevation(date, latitude, longitude) {
+  const rad = Math.PI / 180;
+  const day = Math.floor((Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86400000);
+  const hour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  const gamma = 2 * Math.PI / 365 * (day + (hour - 12) / 24);
+  const eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
+  const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) - 0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma) - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
+  const solarMinutes = (hour * 60 + eqTime + 4 * longitude) % 1440;
+  const hourAngle = (solarMinutes / 4 - 180) * rad;
+  const lat = latitude * rad;
+  const cosZenith = Math.sin(lat) * Math.sin(decl) + Math.cos(lat) * Math.cos(decl) * Math.cos(hourAngle);
+  return 90 - Math.acos(Math.max(-1, Math.min(1, cosZenith))) / rad;
+}
+function daylightIndex(elevation) {
+  if (elevation <= -6) return 0;
+  if (elevation < 0) return Math.round((elevation + 6) / 6 * 8);
+  return Math.round(8 + 92 * Math.sin(Math.min(90, elevation) * Math.PI / 180));
+}
+function daylightLabel(elevation, t) {
+  if (elevation <= -6) return t('रात', 'Night');
+  if (elevation < 0) return t('साँझ/बिहानी', 'Twilight');
+  if (elevation < 10) return t('कम दिनको उज्यालो', 'Low daylight');
+  if (elevation < 30) return t('मध्यम दिनको उज्यालो', 'Moderate daylight');
+  return t('बलियो दिनको उज्यालो', 'Strong daylight');
+}
+function LightEstimateCard({ temperature, unit, lang, t, id }) {
+  const [history, setHistory] = useState([]);
+  const [now, setNow] = useState(Date.now());
+  const [historyStatus, setHistoryStatus] = useState('');
+  const latitude = Number(unit?.site_latitude);
+  const longitude = Number(unit?.site_longitude);
+  const hasCoords = Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+  const lat = hasCoords ? latitude : 28.22;
+  const lon = hasCoords ? longitude : 83.99;
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await api.get(`/console/units/${id}/series`, { params: { hours: 24, types: 'temperature' } });
+        if (alive) { setHistory(res.data.series?.temperature || []); setHistoryStatus(''); }
+      } catch {
+        if (alive) setHistoryStatus(t('तापक्रम इतिहास उपलब्ध छैन', 'Temperature history unavailable'));
+      }
+    };
+    load(); const timer = window.setInterval(load, 45000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [id, t]);
+  const elevation = solarElevation(new Date(now), lat, lon);
+  const index = daylightIndex(elevation);
+  const valid = history.filter((p) => Number.isFinite(Number(p.v)));
+  const minT = valid.length ? Math.min(...valid.map((p) => Number(p.v))) : null;
+  const maxT = valid.length ? Math.max(...valid.map((p) => Number(p.v))) : null;
+  const normalized = (v) => minT === null || maxT === null ? null : maxT - minT < 0.2 ? 50 : Math.round((Number(v) - minT) / (maxT - minT) * 100);
+  const chartData = valid.map((p) => ({ ts: Number(p.ts) * 1000, daylight: daylightIndex(solarElevation(new Date(Number(p.ts) * 1000), lat, lon)), temperatureTrend: normalized(p.v) }));
+  chartData.push({ ts: now, daylight: index, temperatureTrend: temperature.value != null && !temperature.stale ? normalized(temperature.value) : null });
+  chartData.sort((a, b) => a.ts - b.ts);
+  const spark = (temperature.spark || []).filter((p) => Number.isFinite(Number(p.v)));
+  const delta = spark.length >= 2 ? Number(spark.at(-1).v) - Number(spark.at(-2).v) : null;
+  const Trend = delta === null ? Minus : delta > 0.15 ? TrendingUp : delta < -0.15 ? TrendingDown : Minus;
+  const trendText = delta === null ? t('परिवर्तन पर्याप्त छैन', 'Trend unavailable') : delta > 0.15 ? t('तापक्रम बढ्दै', 'Temperature rising') : delta < -0.15 ? t('तापक्रम घट्दै', 'Temperature falling') : t('तापक्रम स्थिर', 'Temperature stable');
+  const Icon = elevation <= -6 ? Moon : elevation < 10 ? CloudSun : Sun;
+  const locale = lang === 'ne' ? 'ne-NP' : 'en-GB';
+  return <article className="min-w-0 rounded-2xl border border-white/10 bg-[#0d2118] p-4 shadow-lg">
+    <div className="flex items-center justify-between gap-2"><p className="truncate text-sm text-emerald-100/75">☀️ {t('प्रकाश / दिनको उज्यालो', 'Light / Daylight')}</p><span className="shrink-0 rounded-full border border-amber-200/20 bg-amber-300/10 px-2 py-0.5 text-[10px] font-semibold text-amber-100">{t('अनुमान', 'ESTIMATED')}</span></div>
+    <div className="mt-2 flex items-end gap-2"><p className="text-3xl font-bold tracking-tight text-white">{index}<span className="text-base font-medium text-emerald-100/60"> / 100</span></p><p className="pb-1 text-xs text-emerald-100/55">{t('दिनको उज्यालो सूचक', 'Daylight index')}</p></div>
+    <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-emerald-200"><Icon size={16}/>{daylightLabel(elevation, t)} · {elevation.toFixed(1)}°</p>
+    <div className="mt-3 rounded-lg border border-white/10 bg-[#07160f]/70 p-2.5"><div className="flex items-center justify-between gap-2 text-xs text-emerald-100/70"><span>🌡️ {t('तापक्रम', 'Temperature')}</span><span className={temperature.stale ? 'text-amber-200' : 'text-emerald-200'}>{temperature.value == null ? '—' : `${fv(temperature.value, 1)} °C`} · {temperature.stale ? t('पुरानो', 'Stale') : t('लाइभ', 'Live')}</span></div><p className="mt-1 flex items-center gap-1 text-xs text-emerald-100/65"><Trend size={14}/>{trendText}{delta !== null ? ` (${delta > 0 ? '+' : ''}${delta.toFixed(1)}°C)` : ''}</p></div>
+    <div className="mt-3 h-24">{chartData.length > 1 ? <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}><XAxis dataKey="ts" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={(v) => new Date(v).toLocaleTimeString(locale, { hour: '2-digit' })} tick={{ fill: '#a7c2b1', fontSize: 9 }} minTickGap={22}/><YAxis domain={[0, 100]} hide/><Tooltip labelFormatter={(v) => new Date(v).toLocaleString(locale)} formatter={(v, name) => [`${Math.round(v)} / 100`, name]} contentStyle={{ background: '#0d2118', border: '1px solid #355444', borderRadius: 10, color: '#fff' }}/><Line type="monotone" dataKey="daylight" name={t('अनुमानित उज्यालो', 'Estimated daylight')} stroke="#fbbf24" strokeWidth={2.3} dot={false} isAnimationActive={false}/><Line type="monotone" dataKey="temperatureTrend" name={t('तापक्रम trend (normalized)', 'Temperature trend (normalized)')} stroke="#fb7185" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls/></LineChart></ResponsiveContainer> : <p className="py-6 text-center text-xs text-emerald-100/50">{t('तापक्रम इतिहास लोड हुँदैछ…', 'Loading temperature history…')}</p>}</div>
+    <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-emerald-100/65"><span><span className="inline-block h-2 w-2 rounded-full bg-amber-400"/> {t('उज्यालो सूचक', 'Daylight index')}</span><span><span className="inline-block h-2 w-2 rounded-full bg-rose-400"/> {t('तापक्रम normalized', 'Temperature normalized')}</span></div>
+    <p className="mt-2 text-[10px] leading-relaxed text-emerald-100/45">{hasCoords ? t('साइटको अक्षांश/देशान्तरबाट सूर्यको स्थिति अनुमान गरिएको हो। वास्तविक Lux मापन होइन।', 'Solar position uses the site coordinates. This is not measured Lux.') : t('Kaski/Pokhara को अनुमानित स्थान प्रयोग भएको छ; साइटका coordinates उपलब्ध भए अझ सही हुन्छ। वास्तविक Lux मापन होइन।', 'Approximate Kaski/Pokhara coordinates are used; site coordinates improve accuracy. Not measured Lux.')}{historyStatus ? ` · ${historyStatus}` : ''}</p>
+  </article>;
+}
+
+function SensorCard({ tile, lang, t, id, unit, temperature }) {\n  if (tile.type === 'light') return <LightEstimateCard temperature={temperature} unit={unit} lang={lang} t={t} id={id}/>;
   const info = meta(tile.type);
   const points = tile.spark || [];
   const previous = points.length > 1 ? Number(points[points.length - 2].v) : null;
@@ -84,7 +159,7 @@ export default function SensorOverviewTab({ id, ov, lang, t }) {
           {ov.unit.is_simulated && <span className="rounded-full border border-violet-300/30 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-200">SIMULATED</span>}
         </div>
         {!ov.tiles.length && <p className="mb-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">{t('अहिले लाइभ मापन उपलब्ध छैन। ० मानहरू नमुना हुन्; यन्त्र जडान भएपछि वास्तविक मापन देखिनेछ।', 'Live readings are unavailable. Zeroes are placeholders; real measurements will appear when a device connects.')}</p>}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{displayTiles.map((tile) => <SensorCard key={tile.type} tile={tile} lang={lang} t={t} />)}</div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{displayTiles.map((tile) => <SensorCard key={tile.type} tile={tile} lang={lang} t={t} id={id} unit={ov.unit} temperature={displayTiles.find((item) => item.type === 'temperature') || { value: null, stale: true, age_s: null, spark: [] }} />)}</div>
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(17rem,0.8fr)]">
