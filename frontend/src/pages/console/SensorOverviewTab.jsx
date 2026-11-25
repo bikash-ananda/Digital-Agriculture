@@ -34,9 +34,11 @@ function LightEstimateCard({ temperature, unit, serverTime, lang, t, id }) {
   const [history, setHistory] = useState([]);
   const [now, setNow] = useState(() => Date.parse(serverTime) || 0);
   const [historyStatus, setHistoryStatus] = useState('');
-  const latitude = Number(unit?.site_latitude);
-  const longitude = Number(unit?.site_longitude);
-  const hasCoords = Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+  const rawLatitude = unit?.site_latitude;
+  const rawLongitude = unit?.site_longitude;
+  const latitude = Number(rawLatitude);
+  const longitude = Number(rawLongitude);
+  const hasCoords = rawLatitude !== null && rawLatitude !== undefined && rawLongitude !== null && rawLongitude !== undefined && Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
   const lat = hasCoords ? latitude : 28.22;
   const lon = hasCoords ? longitude : 83.99;
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 60000); return () => window.clearInterval(timer); }, []);
