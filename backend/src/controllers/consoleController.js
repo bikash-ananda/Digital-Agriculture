@@ -11,7 +11,7 @@ async function simSql() {
 }
 async function unitOf(req, id) {
   const sc = orgSql(req);
-  const [r] = await db.query(`SELECT gu.id, gu.code, gu.name_en, gu.name_ne, gu.unit_type, ${await simSql()} AS is_simulated, s.name_en AS site_en, s.name_ne AS site_ne FROM growing_units gu JOIN sites s ON s.id = gu.site_id WHERE gu.id = ?${sc.sql}`, [id, ...sc.params]);
+  const [r] = await db.query(`SELECT gu.id, gu.code, gu.name_en, gu.name_ne, gu.unit_type, ${await simSql()} AS is_simulated, s.name_en AS site_en, s.name_ne AS site_ne, s.latitude AS site_latitude, s.longitude AS site_longitude FROM growing_units gu JOIN sites s ON s.id = gu.site_id WHERE gu.id = ?${sc.sql}`, [id, ...sc.params]);
   return r[0];
 }
 const nowLocalMin = () => Math.floor(((Date.now() / 1000 + 20700) % 86400) / 60);
