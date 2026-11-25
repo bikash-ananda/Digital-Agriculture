@@ -30,9 +30,9 @@ function daylightLabel(elevation, t) {
   if (elevation < 30) return t('मध्यम दिनको उज्यालो', 'Moderate daylight');
   return t('बलियो दिनको उज्यालो', 'Strong daylight');
 }
-function LightEstimateCard({ temperature, unit, lang, t, id }) {
+function LightEstimateCard({ temperature, unit, serverTime, lang, t, id }) {
   const [history, setHistory] = useState([]);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.parse(serverTime) || 0);
   const [historyStatus, setHistoryStatus] = useState('');
   const latitude = Number(unit?.site_latitude);
   const longitude = Number(unit?.site_longitude);
@@ -79,7 +79,7 @@ function LightEstimateCard({ temperature, unit, lang, t, id }) {
   </article>;
 }
 
-function SensorCard({ tile, lang, t, id, unit, temperature }) {\n  if (tile.type === 'light') return <LightEstimateCard temperature={temperature} unit={unit} lang={lang} t={t} id={id}/>;
+function SensorCard({ tile, lang, t, id, unit, temperature, serverTime }) {\n  if (tile.type === 'light') return <LightEstimateCard temperature={temperature} unit={unit} serverTime={serverTime} lang={lang} t={t} id={id}/>;
   const info = meta(tile.type);
   const points = tile.spark || [];
   const previous = points.length > 1 ? Number(points[points.length - 2].v) : null;
@@ -159,7 +159,7 @@ export default function SensorOverviewTab({ id, ov, lang, t }) {
           {ov.unit.is_simulated && <span className="rounded-full border border-violet-300/30 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-200">SIMULATED</span>}
         </div>
         {!ov.tiles.length && <p className="mb-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-100">{t('अहिले लाइभ मापन उपलब्ध छैन। ० मानहरू नमुना हुन्; यन्त्र जडान भएपछि वास्तविक मापन देखिनेछ।', 'Live readings are unavailable. Zeroes are placeholders; real measurements will appear when a device connects.')}</p>}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{displayTiles.map((tile) => <SensorCard key={tile.type} tile={tile} lang={lang} t={t} id={id} unit={ov.unit} temperature={displayTiles.find((item) => item.type === 'temperature') || { value: null, stale: true, age_s: null, spark: [] }} />)}</div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{displayTiles.map((tile) => <SensorCard key={tile.type} tile={tile} lang={lang} t={t} id={id} unit={ov.unit} temperature={displayTiles.find((item) => item.type === 'temperature') || { value: null, stale: true, age_s: null, spark: [] }} serverTime={ov.server_time} />)}</div>
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(17rem,0.8fr)]">
