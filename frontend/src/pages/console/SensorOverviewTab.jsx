@@ -81,7 +81,8 @@ function LightEstimateCard({ temperature, unit, serverTime, lang, t, id }) {
   </article>;
 }
 
-function SensorCard({ tile, lang, t, id, unit, temperature, serverTime }) {\n  if (tile.type === 'light') return <LightEstimateCard temperature={temperature} unit={unit} serverTime={serverTime} lang={lang} t={t} id={id}/>;
+function SensorCard({ tile, lang, t, id, unit, temperature, serverTime }) {
+  if (tile.type === 'light') return <LightEstimateCard temperature={temperature} unit={unit} serverTime={serverTime} lang={lang} t={t} id={id}/>;
   const info = meta(tile.type);
   const points = tile.spark || [];
   const previous = points.length > 1 ? Number(points[points.length - 2].v) : null;
